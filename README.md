@@ -80,7 +80,11 @@ Nema build koraka.
 
 ### 2. Baza pretplata
 Vercel → **Storage** → **Redis** (Upstash) → poveži s projektom.
-Integracija sama postavi `KV_REST_API_URL` i `KV_REST_API_TOKEN`.
+
+Integracija sama postavi varijable, ali **pod dva različita imena** zavisno od
+toga kako je dodana: `KV_REST_API_URL` / `_TOKEN` (stari Vercel KV) ili
+`UPSTASH_REDIS_REST_URL` / `_TOKEN` (Marketplace). Kod prihvata oba, a
+`/api/status` u polju `bazaVarijable` kaže koje je zaista našao.
 
 ### 3. VAPID ključevi
 
@@ -134,7 +138,8 @@ curl https://<domen>/api/status
 ```
 
 Vraća je li VAPID postavljen, je li baza povezana i koliko je pretplata.
-`"spremno": true` znači da dnevno slanje radi.
+`"spremno": true` znači da dnevno slanje radi; ako nije, polje `nedostaje`
+imenuje varijable koje treba dodati.
 
 Ručno pokretanje slanja:
 
