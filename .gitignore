@@ -1,0 +1,18 @@
+# zavisnosti
+node_modules/
+
+# okruženje i tajne
+.env
+.env.local
+.env*.local
+.dev.vars
+*.pem
+
+# platforme
+.vercel/
+.wrangler/
+
+# sistem i smeće
+.DS_Store
+*.log
+scratch/

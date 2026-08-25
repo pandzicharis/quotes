@@ -1,0 +1,118 @@
+{
+  "verzija": 2,
+  "_napomena": "Stvarni citati iz knjiga hafiza Ammara Bašića. Shema poruke: {id, tekst, knjiga (id iz 'knjige'), poglavlje}. Poruka dana se bira determinisano po datumu (broj_dana % broj_poruka), pa se pri manjem broju poruka ciklus ponavlja. Nove poruke dodavati na kraj liste da se sačuvane poruke ne pomjere.",
+  "autor": {
+    "ime": "Hafiz Ammar Bašić",
+    "tagline": "Duhovnost kao stil života",
+    "opis": "Hafiz i profesor islamske teologije. Autor knjiga o vjeri, milosti i buđenju srca.",
+    "sajt": "https://ammarbasic.ba",
+    "knjige_url": "https://ammarbasic.ba/shop",
+    "biografija": "https://ammarbasic.ba/biografija/"
+  },
+  "knjige": [
+    {
+      "id": "na-putu-ka-milosti",
+      "naslov": "Na putu ka milosti",
+      "slika": "na-putu-ka-milosti.jpg",
+      "url": "https://ammarbasic.ba/knjiga/na-putu-ka-milosti/"
+    },
+    {
+      "id": "probudi-svoje-srce",
+      "naslov": "Probudi svoje srce",
+      "slika": "probudi-svoje-srce.jpg",
+      "url": "https://ammarbasic.ba/knjiga/probudi-svoje-srce/"
+    },
+    {
+      "id": "miljenikom-inspirisani",
+      "naslov": "Miljenikom inspirisani",
+      "slika": "miljenikom-inspirisani.jpg",
+      "url": "https://ammarbasic.ba/knjiga/miljenikom-inspirisani/"
+    },
+    {
+      "id": "poslanikov-govor",
+      "naslov": "Poslanikov govor",
+      "slika": "poslanikov-govor.jpg",
+      "url": "https://ammarbasic.ba/knjiga/poslanikov-govor/"
+    },
+    {
+      "id": "oni-koje-allah-voli",
+      "naslov": "Oni koje Allah voli",
+      "slika": "oni-koje-allah-voli.jpg",
+      "url": "https://ammarbasic.ba/knjiga/oni-koje-allah-voli/"
+    },
+    {
+      "id": "ucvrsti-svoje-srce",
+      "naslov": "Učvrsti svoje srce",
+      "slika": "ucvrsti-svoje-srce.jpg",
+      "url": "https://ammarbasic.ba/knjiga/ucvrsti-svoje-srce/"
+    }
+  ],
+  "poruke": [
+    {
+      "id": 1,
+      "tekst": "Nekada ti Allah odredi da se razočaraš u ljude, projekte, bezvrijedne neke ideje i svoje navike, kako bi uvidio besmislenost vezanja srca za bilo koga ili bilo šta osim za Živog i Vječnog Koji ne umire. Živ si koliko ti srce zna za Živog.",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Vjeruj svom Stvoritelju"
+    },
+    {
+      "id": 2,
+      "tekst": "Nemoj dopustiti da te poraze loši ljudi i njihova okrutna srca. Nemoj dozvoliti da te njihove riječi uvrijede. Ne dopusti da neko od takvih u tvoje srce posadi očaj! Očaj je hrana šejtanova, a ti prokletnika ne želiš hraniti. Ti svoj put znaš, a mnoštvo onih koji drugim putem idu, neće te pokolebati do tvog cilja. To da li će te neko poštovati ili će sa tobom „pomesti pod“, tvoj je izbor. Ako ti ne cijeniš sebe, neće te sigurno ni neko drugi cijeniti. A samo se pred Allahom kičma savija!",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Najbolji je čovjek onaj koji koristi drugima"
+    },
+    {
+      "id": 3,
+      "tekst": "Dunjaluk će nam na kraju uzeti sve najljepše što imamo, a mi se opet za njega brinemo. A Džennet nam opet daje sve najljepše što možemo poželjeti, a opet se najmanje za njega brinemo. Zato prije nego što legneš, i ujutro kada ustaneš, prouči Poslanikovu dovu: „Allahu moj, nemoj da dunjaluk bude moja najveća briga!“",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Prihvati dunjaluk rukama, a ne srcem"
+    },
+    {
+      "id": 4,
+      "tekst": "Ako nisi spreman sada, u ovom trenutku, bez obzira na sve, kazati: „Ja sam najsretniji čovjek na svijetu“ — to je znak da još uvijek nisi okusio slast imana (vjerovanja) u svom srcu!",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Sreća je tvoja u tebi"
+    },
+    {
+      "id": 5,
+      "tekst": "Podigni glavu, nasmij se, ne gubi nadu, šta te to na dunjaluku može slomiti dok si sa Onim Ko stvori i upravlja dunjalukom?! Kao što pas sluša svog vlasnika, tako i dunjaluk ponizno dolazi pred čovjeka koji se pokori Vlasniku dunjaluka! Kad si sa Allahom, čitav svijet je tvoj!",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Podigni svoje ambicije"
+    },
+    {
+      "id": 6,
+      "tekst": "Bolna je istina da kad kucaš na jedna vrata, a ona se ne otvaraju — ta vrata nisu za tebe. Ohrabrujuća je istina da kad ti se zatvore ta jedna vrata — Gospodar ti otvara druga dvoja. Jer samo On je Onaj Koji otvara, El-Fettah!",
+      "knjiga": "ucvrsti-svoje-srce",
+      "poglavlje": "Vjeruj"
+    },
+    {
+      "id": 7,
+      "tekst": "Oni koji su spoznali i osjetili ljepotu Allahove ljubavi, to su vidjeli većim i od dunjaluka, imetka, porodice, života, samih sebe, pa čak i od same nagrade, vječne džennetske ljepote, jer Uzvišeni u Kur'anu kaže: „Allahovo zadovoljstvo je najveće.“ (Et-Tevba, 72)",
+      "knjiga": "oni-koje-allah-voli",
+      "poglavlje": "Koraci ka vječnoj ljubavi"
+    },
+    {
+      "id": 8,
+      "tekst": "Najveća nesreća nije biti siromašan ili izgubiti imetak. Najveća je nesreća doživjeti odlazak sa ovoga svijeta bez da je taj čovjek ikada osjetio želju da se približi svome Gospodaru! Ima ljudi koji duboku starost dočekaju, ali nikada u svome životu nisu osjetili poticaj da se približe Gospodaru. Razlog tome je što nije tražio od Allaha, nije kucao na vrata Njegove milosti. Zbog svega toga, mi smo u potrebi probuditi ovaj osjećaj i podići svoju ambiciju.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Buđenje emocija"
+    },
+    {
+      "id": 9,
+      "tekst": "Njegovo ime je El-Vedud, Onaj Koji voli i Onaj Koji je voljen, jer jedino Božije svojstvo koje ima povratno značenje i od Njega prema nama i od nas prema Njemu jeste ljubav.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Buđenje emocija"
+    },
+    {
+      "id": 10,
+      "tekst": "Iskrena želja za Allahovim zadovoljstvom će nas rasteretiti bremena šta će ljudi kazati.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Iskrenost"
+    },
+    {
+      "id": 11,
+      "tekst": "Onaj ko stavi dunjaluk ispred Ahireta — izgubit će oboje, a onaj ko Ahiret stavi ispred dunjaluka — dobit će oboje.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Organizacija vremena"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "/",
+  "name": "Poruka dana · Ammar Bašić",
+  "short_name": "Poruka dana",
+  "description": "Svaki dan po jedna poruka iz knjiga hafiza Ammara Bašića.",
+  "lang": "bs",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#0B1711",
+  "theme_color": "#0B1711",
+  "categories": ["books", "lifestyle", "education"],
+  "icons": [
+    { "src": "/assets/icons/icon-192.png",          "sizes": "192x192",   "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/icon-512.png",          "sizes": "512x512",   "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/icon-1024.png",         "sizes": "1024x1024", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icons/icon-maskable-192.png", "sizes": "192x192",   "type": "image/png", "purpose": "maskable" },
+    { "src": "/assets/icons/icon-maskable-512.png", "sizes": "512x512",   "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Sačuvane poruke",
+      "short_name": "Sačuvano",
+      "url": "/",
+      "icons": [{ "src": "/assets/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
