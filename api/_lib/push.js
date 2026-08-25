@@ -64,3 +64,6 @@ export function citajTijelo(req) {
   if (typeof req.body === 'string') { try { return JSON.parse(req.body); } catch { return null; } }
   return null;
 }
+
+/** Dan po UTC-u (YYYY-MM-DD) — isti ključ koji koristi brava dnevnog slanja. */
+export const danUTC = (d = new Date()) => d.toISOString().slice(0, 10);

@@ -2,7 +2,7 @@
 
 Statična PWA: jedna poruka po danu iz knjiga hafiza Ammara Bašića.
 Bez build koraka — HTML, CSS i JavaScript. Dnevne notifikacije idu preko
-Web Pusha koji pokreće Vercel Cron.
+Web Pusha koji okida cron (`/api/send`).
 
 ---
 
@@ -38,11 +38,12 @@ api/                        Vercel serverless funkcije
   send.js                   DNEVNO SLANJE (poziva cron)
   test.js                   test notifikacija na jedan uređaj
   status.js                 dijagnostika konfiguracije
+  _lib/auth.js              provjera CRON_SECRET tajne
   _lib/kv.js                Upstash Redis preko REST-a
   _lib/push.js              VAPID, izbor poruke, slanje
 
 scripts/vapid.js            generiše VAPID ključeve
-vercel.json                 cron + cache zaglavlja
+vercel.json                 cache zaglavlja
 ```
 
 ---
@@ -95,21 +96,36 @@ Ispisane vrijednosti unesi u Vercel → Settings → Environment Variables:
 | `VAPID_PUBLIC_KEY`  | iz `npm run vapid`             |
 | `VAPID_PRIVATE_KEY` | iz `npm run vapid`             |
 | `VAPID_SUBJECT`     | `mailto:info@ammarbasic.ba`    |
-| `CRON_SECRET`       | bilo koji dugačak slučajan niz |
+| `CRON_SECRET`       | isti niz koji cron servis šalje kao `x-cron-secret` |
 
-`CRON_SECRET` Vercel automatski šalje cronu kao `Authorization: Bearer …`,
-pa endpoint niko drugi ne može pozvati.
+Bez `CRON_SECRET` endpointi `/api/send` i `/api/test` rade **samo lokalno** —
+na deployu vraćaju 401, da ih neovlašćeno niko ne može okinuti.
 
 ### 4. Cron
-Već je u `vercel.json`:
+
+Dnevno slanje okida vanjski cron servis (cron-job.org i sl.):
+
+```
+GET  https://<domen>/api/send
+zaglavlje:  x-cron-secret: <CRON_SECRET>
+```
+
+`/api/send` prihvata tajnu u tri oblika — `x-cron-secret`,
+`Authorization: Bearer <tajna>` i `?secret=<tajna>` — pa radi s bilo kojim
+servisom, uključujući Vercel Cron.
+
+**Endpoint šalje na svaki poziv** — ne provjerava je li danas već slao. Koliko
+puta korisnik dobije poruku određuje raspored crona, pa raspored treba biti
+jednom dnevno. Poziv u minuti = notifikacija u minuti, što je korisno za
+testiranje. Poruka je ista cijeli dan (bira se po datumu), a nosi isti
+`tag`, pa u traci notifikacija ne gomila — nova zamijeni prethodnu.
+
+Ako radije hoćeš Vercelov cron, dodaj blok u `vercel.json` (Hobby plan dopušta
+jedan dnevno, u približno zadano vrijeme) — Vercel sam šalje `CRON_SECRET`:
 
 ```json
 { "crons": [{ "path": "/api/send", "schedule": "0 6 * * *" }] }
 ```
-
-`0 6 * * *` je **06:00 UTC** = 07:00 zimi / 08:00 ljeti po sarajevskom
-vremenu. Za drugo vrijeme promijeni `schedule` i redeploy.
-Hobby plan dopušta jedan cron dnevno; Pro nema to ograničenje.
 
 ### 5. Provjera
 
@@ -123,8 +139,12 @@ Vraća je li VAPID postavljen, je li baza povezana i koliko je pretplata.
 Ručno pokretanje slanja:
 
 ```bash
-curl -H "Authorization: Bearer <CRON_SECRET>" https://<domen>/api/send
+curl -H "x-cron-secret: <CRON_SECRET>" https://<domen>/api/send
 ```
+
+Odgovor kaže i zašto ništa nije izašlo — `pretplata: 0` znači da nijedan
+uređaj nije registrovan u bazi, `greske` nosi prve odbijenice push servisa.
+Isti poziv smije se ponavljati koliko treba; svaki šalje notifikaciju.
 
 ---
 
@@ -146,9 +166,10 @@ Prikaže se pri prvom otvaranju i ponovo kad se promijeni `VERZIJA` u
 ## Notifikacije
 
 - Prekidač u **Postavke → Podsjetnik** traži dozvolu i registruje push pretplatu.
-- **Pošalji test notifikaciju** se pojavi kad je podsjetnik uključen. Ako je
-  backend podignut, ide pravi push kroz server; ako nije, service worker
-  prikaže notifikaciju lokalno — pa se izgled može provjeriti i bez deploya.
+- **Pošalji test notifikaciju** je razvojna alatka i vidi se **samo na
+  `localhost`**. Na objavljenoj verziji dugmeta nema, a `/api/test` vraća 404
+  bez `CRON_SECRET` — inače bi svako ko zna endpoint pretplate mogao gurati
+  notifikacije korisnicima.
 - Notifikacija nosi ikonicu aplikacije, naslov „Nova poruka dana“, tekst poruke
   i naslov knjige. Klik fokusira otvorenu aplikaciju ili je otvara.
 - Mrtve pretplate (HTTP 404/410) se automatski brišu pri slanju.

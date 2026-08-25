@@ -497,6 +497,10 @@ function postaviTemu(t) {
 
 const push = { javniKljuc: null, spreman: false };
 
+/* Test notifikacija je razvojna alatka — na objavljenoj verziji je nema.
+   Endpoint /api/test je tamo takođe zatvoren. */
+const RAZVOJ = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+
 async function ucitajPushConfig() {
   try {
     const r = await fetch('/api/config', { cache: 'no-store' });
@@ -561,7 +565,7 @@ function osvjeziNotif() {
   const uklj = stanje.notif && 'Notification' in window && Notification.permission === 'granted';
   el.pNotif.setAttribute('aria-checked', String(uklj));
   el.notifStanje.textContent = opisNotif();
-  el.rTestNotif.hidden = !uklj;
+  el.rTestNotif.hidden = !uklj || !RAZVOJ;
   el.notifNapomena.hidden = !uklj;
   el.notifNapomena.textContent = uklj
     ? (push.spreman
