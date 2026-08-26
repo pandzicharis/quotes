@@ -19,7 +19,7 @@
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Mulish:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap">
 <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
@@ -33,15 +33,11 @@
       <rect x="6.2" y="6.2" width="11.6" height="11.6" transform="rotate(45 12 12)"/>
     </g>
   </symbol>
-  <!-- ugaoni arabeskni motiv -->
+  <!-- ugao kartice: dvije mirne zaobljene zagrade, bez motiva -->
   <symbol id="i-ugao" viewBox="0 0 46 46">
-    <g fill="none" stroke="currentColor" stroke-width="1.05" stroke-linecap="round">
-      <path d="M2 21V9a7 7 0 0 1 7-7h12"/>
-      <path d="M9.5 27.5V16a6.5 6.5 0 0 1 6.5-6.5h11.5"/>
-      <g transform="translate(31 31)">
-        <rect x="-5" y="-5" width="10" height="10"/>
-        <rect x="-5" y="-5" width="10" height="10" transform="rotate(45)"/>
-      </g>
+    <g fill="none" stroke="currentColor" stroke-linecap="round">
+      <path d="M1.6 32V11.6A10 10 0 0 1 11.6 1.6H32" stroke-width="1.3"/>
+      <path d="M8.6 34V16.4a7.8 7.8 0 0 1 7.8-7.8H34" stroke-width="1" opacity=".45"/>
     </g>
   </symbol>
 
@@ -98,26 +94,72 @@
   <symbol id="i-instal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
     <rect x="6" y="2" width="12" height="20" rx="2.6"/><path d="M11 18.6h2"/>
   </symbol>
+  <!-- iOS „Podijeli“: kvadrat sa strelicom koja izlazi -->
+  <symbol id="i-ios-dijeli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8.5 11H6.4A1.4 1.4 0 0 0 5 12.4v7.2A1.4 1.4 0 0 0 6.4 21h11.2a1.4 1.4 0 0 0 1.4-1.4v-7.2a1.4 1.4 0 0 0-1.4-1.4H15.5"/>
+    <path d="M12 14.5V3.2M8.6 6.6 12 3.2l3.4 3.4"/>
+  </symbol>
+  <!-- „Dodaj na početni ekran“: plus u zaobljenom kvadratu -->
+  <symbol id="i-plus-kv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+    <rect x="3.2" y="3.2" width="17.6" height="17.6" rx="4.6"/><path d="M12 8.2v7.6M8.2 12h7.6"/>
+  </symbol>
+  <!-- meni preglednika: tri tačke -->
+  <symbol id="i-meni" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/>
+  </symbol>
+  <!-- otvori izvan trenutne aplikacije -->
+  <symbol id="i-vani" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M13.5 4.5H20v6.5"/><path d="M20 4.5 11 13.5"/>
+    <path d="M18.5 14.5v4a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2h4"/>
+  </symbol>
+  <!-- Safari: kompas -->
+  <symbol id="i-safari" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/><path d="m15.8 8.2-2 5.6-5.6 2 2-5.6z" fill="currentColor" stroke="none" opacity=".55"/>
+    <path d="m15.8 8.2-2 5.6-5.6 2 2-5.6z"/>
+  </symbol>
+  <!-- upozorenje -->
+  <symbol id="i-pazi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+    <path d="M12 3.6 21.4 20H2.6z" stroke-linejoin="round"/><path d="M12 9.6v4.6"/>
+    <circle cx="12" cy="17.2" r="1.05" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="i-web" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round">
+    <circle cx="12" cy="12" r="9"/><path d="M3.3 9.4h17.4M3.3 14.6h17.4"/>
+    <path d="M12 3c2.45 2.5 3.7 5.55 3.7 9S14.45 18.5 12 21c-2.45-2.5-3.7-5.55-3.7-9S9.55 5.5 12 3z"/>
+  </symbol>
+  <symbol id="i-facebook" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M13.4 21.5v-8.2h2.74l.41-3.18H13.4V8.07c0-.92.26-1.55 1.58-1.55h1.69V3.68c-.29-.04-1.3-.13-2.47-.13-2.44 0-4.12 1.49-4.12 4.23v2.36H7.33v3.18h2.75v8.18z"/>
+  </symbol>
+  <symbol id="i-instagram" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+    <rect x="3.2" y="3.2" width="17.6" height="17.6" rx="5.2"/>
+    <circle cx="12" cy="12" r="4.05"/>
+    <circle cx="17.15" cy="6.85" r="1.15" fill="currentColor" stroke="none"/>
+  </symbol>
+  <!-- značka ovjere: glatki pečat sa osam režnjeva -->
+  <symbol id="i-ovjera" viewBox="0 0 24 24">
+    <path fill="currentColor" d="M12 1.75C12.32 1.75 12.68 1.93 12.97 2.16C13.26 2.4 13.52 2.83 13.76 3.17C13.99 3.52 14.15 3.96 14.36 4.23C14.56 4.51 14.72 4.74 14.97 4.84C15.21 4.94 15.49 4.9 15.83 4.84C16.16 4.79 16.59 4.6 17 4.52C17.41 4.44 17.9 4.32 18.27 4.36C18.64 4.4 19.02 4.52 19.25 4.75C19.48 4.98 19.6 5.36 19.64 5.73C19.68 6.1 19.56 6.59 19.48 7C19.4 7.41 19.21 7.84 19.16 8.17C19.1 8.51 19.06 8.79 19.16 9.03C19.26 9.28 19.49 9.44 19.77 9.64C20.04 9.85 20.48 10.01 20.83 10.24C21.17 10.48 21.6 10.74 21.84 11.03C22.07 11.32 22.25 11.68 22.25 12C22.25 12.32 22.07 12.68 21.84 12.97C21.6 13.26 21.17 13.52 20.83 13.76C20.48 13.99 20.04 14.15 19.77 14.36C19.49 14.56 19.26 14.72 19.16 14.97C19.06 15.21 19.1 15.49 19.16 15.83C19.21 16.16 19.4 16.59 19.48 17C19.56 17.41 19.68 17.9 19.64 18.27C19.6 18.64 19.48 19.02 19.25 19.25C19.02 19.48 18.64 19.6 18.27 19.64C17.9 19.68 17.41 19.56 17 19.48C16.59 19.4 16.16 19.21 15.83 19.16C15.49 19.1 15.21 19.06 14.97 19.16C14.72 19.26 14.56 19.49 14.36 19.77C14.15 20.04 13.99 20.48 13.76 20.83C13.52 21.17 13.26 21.6 12.97 21.84C12.68 22.07 12.32 22.25 12 22.25C11.68 22.25 11.32 22.07 11.03 21.84C10.74 21.6 10.48 21.17 10.24 20.83C10.01 20.48 9.85 20.04 9.64 19.77C9.44 19.49 9.28 19.26 9.03 19.16C8.79 19.06 8.51 19.1 8.17 19.16C7.84 19.21 7.41 19.4 7 19.48C6.59 19.56 6.1 19.68 5.73 19.64C5.36 19.6 4.98 19.48 4.75 19.25C4.52 19.02 4.4 18.64 4.36 18.27C4.32 17.9 4.44 17.41 4.52 17C4.6 16.59 4.79 16.16 4.84 15.83C4.9 15.49 4.94 15.21 4.84 14.97C4.74 14.72 4.51 14.56 4.23 14.36C3.96 14.15 3.52 13.99 3.17 13.76C2.83 13.52 2.4 13.26 2.16 12.97C1.93 12.68 1.75 12.32 1.75 12C1.75 11.68 1.93 11.32 2.16 11.03C2.4 10.74 2.83 10.48 3.17 10.24C3.52 10.01 3.96 9.85 4.23 9.64C4.51 9.44 4.74 9.28 4.84 9.03C4.94 8.79 4.9 8.51 4.84 8.17C4.79 7.84 4.6 7.41 4.52 7C4.44 6.59 4.32 6.1 4.36 5.73C4.4 5.36 4.52 4.98 4.75 4.75C4.98 4.52 5.36 4.4 5.73 4.36C6.1 4.32 6.59 4.44 7 4.52C7.41 4.6 7.84 4.79 8.17 4.84C8.51 4.9 8.79 4.94 9.03 4.84C9.28 4.74 9.44 4.51 9.64 4.23C9.85 3.96 10.01 3.52 10.24 3.17C10.48 2.83 10.74 2.4 11.03 2.16C11.32 1.93 11.68 1.75 12 1.75Z"/>
+    <!-- kvačica se boji kroz custom property: obični selektori ne dopiru
+         u shadow-tree koji pravi <use>, ali se varijable nasljeđuju -->
+    <path fill="none" stroke="var(--kvaka, #11221A)" stroke-width="2.2"
+          stroke-linecap="round" stroke-linejoin="round" d="m9.05 12.25 2.05 2.05 3.85-4.05"/>
+  </symbol>
 </defs></svg>
 
 <!-- ===== AMBIJENT ===== -->
 <div class="ambient" aria-hidden="true">
   <div class="ambient__glow"></div>
-  <img class="ambient__znak ambient__znak--gore" src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="">
-  <img class="ambient__znak ambient__znak--dolje" src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="">
+  <div class="ambient__zraka"></div>
+  <div class="ambient__uzorak"></div>
 </div>
 
 <!-- ===== UVOD ===== -->
 <section class="uvod" id="uvod" aria-hidden="true">
   <div class="uvod__blok">
-    <img class="uvod__mark" src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="" width="80" height="80">
-    <div class="razdjelnik razdjelnik--uvod" aria-hidden="true">
-      <i></i><svg><use href="#i-zvijezda8"/></svg><i></i>
-    </div>
+    <img class="uvod__mark" data-znak src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="" width="80" height="80">
     <h1 id="uvod-nas">Poruka dana</h1>
     <p id="uvod-tekst">Svaki dan po jedna poruka iz knjiga hafiza Ammara Bašića.</p>
     <div class="uvod__sadrzaj" id="uvod-sadrzaj"></div>
     <button class="btn btn--zlatno btn--puni" id="uvod-dalje">Dalje</button>
+    <button class="uvod__preskoci" id="uvod-preskoci" hidden>Preskoči za sada</button>
     <div class="uvod__tacke" id="uvod-tacke"></div>
   </div>
 </section>
@@ -127,16 +169,16 @@
 
   <header class="hdr">
     <div class="hdr__inner">
-      <button class="icon-btn hdr__nazad" id="btn-nazad" aria-label="Nazad" hidden><svg><use href="#i-nazad"/></svg></button>
-      <img class="hdr__mark" id="hdr-mark" src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="" width="32" height="32">
+      <button class="nazad" id="btn-nazad" hidden><svg><use href="#i-nazad"/></svg><span>Poruke</span></button>
+      <img class="hdr__mark" id="hdr-mark" data-znak src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="" width="32" height="32">
       <div class="hdr__ime">
         <span class="hdr__title" id="hdr-title">Ammar Bašić</span>
-        <span class="hdr__sub" id="hdr-sub">Dnevne poruke</span>
+        <span class="hdr__sub" id="hdr-sub">Poruka dana</span>
       </div>
       <div class="hdr__spacer"></div>
-      <button class="pilula" id="btn-sacuvano">
-        <svg><use href="#i-zvijezda"/></svg>
-        <span class="pilula__dugo">Sačuvane poruke</span>
+      <button class="pilula pilula--zlatna" id="btn-sacuvano">
+        <svg><use href="#i-zvijezda-f"/></svg>
+        <span class="pilula__dugo">Sačuvane</span>
         <span class="pilula__kratko">Sačuvano</span>
         <i class="pilula__broj" id="broj-sac" hidden></i>
       </button>
@@ -152,39 +194,43 @@
       <section class="view is-active" id="v-danas">
 
         <article class="karta" id="karta">
+          <div class="karta__aura" aria-hidden="true"></div>
           <div class="karta__uglovi" aria-hidden="true">
-            <span><svg><use href="#i-ugao"/></svg></span>
-            <span><svg><use href="#i-ugao"/></svg></span>
             <span><svg><use href="#i-ugao"/></svg></span>
             <span><svg><use href="#i-ugao"/></svg></span>
           </div>
 
           <div class="karta__vrh">
-            <div class="karta__dan" id="d-dan">—</div>
+            <div class="karta__dan" id="d-dan"><span id="d-dan-tekst">—</span></div>
             <div class="karta__datum" id="d-datum">—</div>
             <div class="karta__hidzri" id="d-hidzri">—</div>
+            <button class="karta__danas" id="dan-danas" hidden>Vrati se na danas</button>
           </div>
 
-          <div class="razdjelnik" aria-hidden="true">
-            <i></i><svg><use href="#i-zvijezda8"/></svg><i></i>
+          <div class="razdjelnik razdjelnik--znak" aria-hidden="true">
+            <i></i>
+            <img class="razdjelnik__znak" data-znak src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="" width="40" height="40">
+            <i></i>
           </div>
 
           <div class="karta__telo">
             <div class="citat" id="citat">
-              <span class="navod navod--o" id="navod-o" aria-hidden="true">&ldquo;</span>
+              <span class="navod navod--o" aria-hidden="true">&ldquo;</span>
               <p class="karta__tekst" id="k-tekst">—</p>
-              <span class="navod navod--z" id="navod-z" aria-hidden="true">&rdquo;</span>
+              <span class="navod navod--z" aria-hidden="true">&rdquo;</span>
             </div>
           </div>
 
           <a class="izvor" id="k-izvor" target="_blank" rel="noopener">
             <img class="izvor__cover" id="k-cover" alt="" width="46" height="69">
             <span class="izvor__tekst">
+              <span class="izvor__nad">Iz knjige</span>
               <b class="izvor__naslov" id="k-knjiga">—</b>
               <span class="izvor__tema" id="k-tema"></span>
             </span>
             <span class="izvor__cta">
               <span class="izvor__cta-tekst">Naruči knjigu</span>
+              <span class="izvor__cta-kratko">Kupi</span>
               <svg><use href="#i-strelica"/></svg>
             </span>
           </a>
@@ -196,21 +242,26 @@
             <button class="akcija" id="a-kopiraj"><svg><use href="#i-kopiraj"/></svg><span>Kopiraj</span></button>
           </div>
 
-          <div class="svajp">
-            <button class="svajp__str" id="dan-prije" aria-label="Prethodni dan"><svg><use href="#i-nazad"/></svg></button>
-            <span class="svajp__sredina">
-              <span class="svajp__tekst" id="svajp-tekst">prevuci za raniju poruku</span>
-              <button class="svajp__danas" id="dan-danas" hidden>Vrati se na danas</button>
+          <div class="prati" id="veze"></div>
+
+          <div class="potez" aria-hidden="true">
+            <span class="potez__strana potez__strana--l">
+              <svg><use href="#i-nazad"/></svg><i>Ranija poruka</i>
             </span>
-            <button class="svajp__str" id="dan-poslije" aria-label="Sljedeći dan" disabled><svg><use href="#i-strelica"/></svg></button>
+            <span class="potez__strana potez__strana--d">
+              <i>Novija poruka</i><svg><use href="#i-strelica"/></svg>
+            </span>
           </div>
         </article>
 
         <section class="sek">
           <div class="sek__nas"><h2>Knjige autora</h2><i></i>
             <a class="sek__link" id="link-knjige" target="_blank" rel="noopener">Naruči</a></div>
-          <div class="traka"><div class="traka__vrpca"></div></div>
+          <div class="traka" id="traka" tabindex="0" role="region" aria-label="Knjige autora">
+            <div class="traka__vrpca"></div>
+          </div>
         </section>
+
       </section>
 
       <!-- ---------- SAČUVANO ---------- -->
@@ -221,7 +272,6 @@
           <button class="icon-btn pretraga__x hide" id="pretraga-x" aria-label="Očisti"><svg><use href="#i-x"/></svg></button>
         </div>
         <div id="lista-sacuvano"></div>
-        <p class="napomena napomena--sredina">Sačuvane poruke se čuvaju na ovom uređaju i vidljive su samo tebi.</p>
       </section>
 
     </div>
@@ -233,6 +283,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label="Postavke">
     <i class="modal__rucka" aria-hidden="true"></i>
     <div class="modal__nas">
+      <span class="modal__ikona"><svg><use href="#i-postavke"/></svg></span>
       <h3>Postavke</h3>
       <button class="icon-btn" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
     </div>
@@ -311,10 +362,7 @@
 <div class="sloj" id="m-poruka"><div class="sloj__zav" data-zatvori></div>
   <div class="modal modal--poruka" role="dialog" aria-modal="true" aria-label="Poruka">
     <i class="modal__rucka" aria-hidden="true"></i>
-    <div class="modal__nas">
-      <h3>Poruka</h3>
-      <button class="icon-btn" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
-    </div>
+    <button class="modal__x" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
     <div class="modal__telo" id="mp-sadrzaj"></div>
     <div class="modal__pod">
       <div class="mp__dugmad">
@@ -332,6 +380,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-label="Dijeli poruku">
     <i class="modal__rucka" aria-hidden="true"></i>
     <div class="modal__nas">
+      <span class="modal__ikona"><svg><use href="#i-dijeli"/></svg></span>
       <h3>Podijeli</h3>
       <button class="icon-btn" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
     </div>

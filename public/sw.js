@@ -10,7 +10,7 @@
      · 'notificationclick'→ fokusira otvoreni tab ili otvara aplikaciju
    ============================================================ */
 
-const VERZIJA = 'v3';
+const VERZIJA = 'v4';
 const KESH = `poruka-dana-${VERZIJA}`;
 
 const LJUSKA = [
@@ -21,6 +21,9 @@ const LJUSKA = [
   '/data/poruke.json',
   '/manifest.webmanifest',
   '/assets/brand/ammar_basic_logo_w_m_1.png',
+  '/assets/brand/ammar_basic_logo_b_m_1.png',
+  '/assets/texture/texture.svg',
+  '/assets/texture/divider.svg',
   '/assets/icons/icon-192.png',
   '/assets/icons/icon-512.png',
 ];

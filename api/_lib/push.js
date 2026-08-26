@@ -35,12 +35,38 @@ export function porukaZaDatum(podaci, d = new Date()) {
   return podaci.poruke[((dana % n) + n) % n];
 }
 
+/** Koliko karaktera najviše ide u notifikaciju. */
+export const NOTIF_MAKS = 120;
+
+/**
+ * Na telefonu se od notifikacije vidi tek red-dva, pa u nju ide samo prva
+ * rečenica. Ako je i ona duža od `maks`, siječe se na granici riječi —
+ * nikad usred riječi. Kad je bilo šta odsječeno, na kraj ide „…“.
+ */
+export function kratkaPoruka(tekst, maks = NOTIF_MAKS) {
+  const cio = String(tekst || '').replace(/\s+/g, ' ').trim();
+  if (!cio) return '';
+
+  const kraj = cio.search(/[.!?][»”"']?(\s|$)/);
+  let isjecak = kraj === -1 ? cio : cio.slice(0, kraj + 1);
+  let skraceno = isjecak.length < cio.length;
+
+  if (isjecak.length > maks) {
+    const grubo = isjecak.slice(0, maks);
+    const razmak = grubo.lastIndexOf(' ');
+    isjecak = razmak > maks * 0.6 ? grubo.slice(0, razmak) : grubo;
+    skraceno = true;
+  }
+
+  // cijela poruka je stala — ostavljamo je s njenom interpunkcijom
+  if (!skraceno) return isjecak;
+  return `${isjecak.replace(/[\s.,;:!?…„“”»«—–-]+$/, '')}…`;
+}
+
 export function napraviSadrzaj(podaci, poruka) {
-  const knjiga = podaci.knjige.find(k => k.id === poruka.knjiga);
-  const tekst = poruka.tekst.length > 150 ? `${poruka.tekst.slice(0, 147)}…` : poruka.tekst;
   return {
     title: 'Nova poruka dana',
-    body: knjiga ? `${tekst}\n— ${knjiga.naslov}` : tekst,
+    body: kratkaPoruka(poruka.tekst),
     icon: '/assets/icons/icon-192.png',
     badge: '/assets/icons/icon-192.png',
     tag: 'poruka-dana',

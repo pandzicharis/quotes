@@ -1,13 +1,36 @@
 {
   "verzija": 2,
-  "_napomena": "Stvarni citati iz knjiga hafiza Ammara Bašića. Shema poruke: {id, tekst, knjiga (id iz 'knjige'), poglavlje}. Poruka dana se bira determinisano po datumu (broj_dana % broj_poruka), pa se pri manjem broju poruka ciklus ponavlja. Nove poruke dodavati na kraj liste da se sačuvane poruke ne pomjere.",
+  "_napomena": "Stvarni citati iz knjiga hafiza Ammara Bašića. Shema poruke: {id, tekst, knjiga (id iz 'knjige'), poglavlje}. Poruka dana se bira determinisano po datumu (broj_dana % broj_poruka), pa se pri manjem broju poruka ciklus ponavlja. Nove poruke dodavati na kraj liste da se sačuvane poruke ne pomjere. Mreže: autor.mreze — ako je url prazan, red se prikaže bez linka.",
   "autor": {
     "ime": "Hafiz Ammar Bašić",
     "tagline": "Duhovnost kao stil života",
     "opis": "Hafiz i profesor islamske teologije. Autor knjiga o vjeri, milosti i buđenju srca.",
     "sajt": "https://ammarbasic.ba",
     "knjige_url": "https://ammarbasic.ba/shop",
-    "biografija": "https://ammarbasic.ba/biografija/"
+    "biografija": "https://ammarbasic.ba/biografija/",
+    "mreze": [
+      {
+        "vrsta": "web",
+        "naziv": "ammarbasic.ba",
+        "opis": "Zvanična stranica",
+        "url": "https://ammarbasic.ba",
+        "ovjeren": false
+      },
+      {
+        "vrsta": "facebook",
+        "naziv": "Ammar Bašić",
+        "opis": "Facebook",
+        "url": "https://www.facebook.com/ammarbasic/",
+        "ovjeren": true
+      },
+      {
+        "vrsta": "instagram",
+        "naziv": "basic_ammar",
+        "opis": "Instagram",
+        "url": "https://www.instagram.com/basic_ammar/",
+        "ovjeren": true
+      }
+    ]
   },
   "knjige": [
     {
