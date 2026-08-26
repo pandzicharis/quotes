@@ -7,7 +7,12 @@
    14 Modali · 15 Toast · 16 Uvod · 17 Start
    ============================================================ */
 
-const VERZIJA = '1.1.0';
+const VERZIJA = '1.2.0';
+
+/* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
+   tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
+   ponovo kroz onboarding. Tok je prepisan, pa ide 2. */
+const UVOD_VERZIJA = 2;
 
 /* ---------- 1. KONSTANTE ---------- */
 const DAN_MS = 86400000;
@@ -115,6 +120,41 @@ function hidzri(d) {
     return mj ? `${Number(p.day)}. ${mj} ${Number(p.year)}. h.` : '';
   } catch { return ''; }
 }
+
+/* ---------- 3b. TESTIRANJE ---------- */
+/* Onboarding se teško testira jer se svaki tok pamti i više ne pokreće.
+   Ovi prekidači rade i lokalno i na objavljenoj adresi, pa se tok može
+   provjeriti na pravom telefonu:
+
+     ?uvod=web    ponovo pokreni tok u pregledniku
+     ?uvod=pwa    ponovo pokreni tok aplikacije
+     ?pwa=1       glumi da je aplikacija na početnom ekranu
+     ?reset       obriši sve zapise aplikacije i kreni ispočetka          */
+
+let prisilanUvod = null;
+let pwaSimulacija = false;
+
+(function testniPrekidaci() {
+  let q;
+  try { q = new URLSearchParams(location.search); } catch { return; }
+  if (!q || ![...q.keys()].length) return;
+
+  if (q.has('reset')) {
+    try {
+      Object.values(LS).forEach(k => localStorage.removeItem(k));
+    } catch { /* private mode */ }
+    location.replace(location.pathname);
+    return;
+  }
+
+  const tok = q.get('uvod');
+  if (tok === 'web' || tok === 'pwa') {
+    prisilanUvod = tok;
+    // bez ovoga korak instalacije preskoči sam sebe zbog ranije potvrde
+    if (tok === 'web') { try { localStorage.removeItem(LS.dodano); } catch { /* tiho */ } }
+  }
+  if (q.get('pwa') === '1' || tok === 'pwa') pwaSimulacija = true;
+})();
 
 /* ---------- 4. STANJE ---------- */
 
@@ -658,6 +698,7 @@ function osvjeziNotif() {
   el.rNotif.toggleAttribute('data-zakljucan', zakljucan);
   el.notifStanje.textContent = opisNotif();
   el.rTestNotif.hidden = !uklj || !RAZVOJ;
+  el.rPonoviUvod.hidden = !RAZVOJ;
   el.notifNapomena.hidden = !uklj && !zakljucan;
   el.notifNapomena.textContent = zakljucan
     ? 'iPhone šalje notifikacije samo aplikaciji sa početnog ekrana. Dodaj je, otvori odatle i dozvoli podsjetnik.'
@@ -746,6 +787,7 @@ let instalPrompt = null;
 let cekaci = [];
 
 const jeInstalirana = () =>
+  pwaSimulacija ||
   matchMedia('(display-mode: standalone)').matches ||
   matchMedia('(display-mode: fullscreen)').matches ||
   matchMedia('(display-mode: minimal-ui)').matches ||
@@ -756,7 +798,11 @@ addEventListener('beforeinstallprompt', e => {
   instalPrompt = e;
   cekaci.forEach(f => f(e));
   cekaci = [];
-  try { osvjeziInstal(); } catch { /* elementi još nisu vezani */ }
+  try {
+    osvjeziInstal();
+    // ako uvod već stoji na koraku instalacije, sada mu možemo ponuditi dugme
+    if (el.uvod?.classList.contains('on') && uvodKoraci()[uvodIdx]?.id === 'instal') crtajKorakInstal();
+  } catch { /* elementi još nisu vezani */ }
 });
 
 addEventListener('appinstalled', () => {
@@ -1418,7 +1464,11 @@ function okolina() {
   const uApp = /FBAN|FBAV|FB_IAB|Instagram|LinkedInApp|Line\/|Twitter|WhatsApp|Snapchat|TikTok|Viber|MicroMessenger|GSA\//i.test(ua);
   // na iPhoneu „Dodaj na početni ekran“ ima samo Safari
   const iosDrugi = iOS && /CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser/.test(ua);
-  return { iOS, android, uApp, iosDrugi, iPad: /iPad/.test(ua) || iPadOS, desktop: !iOS && !android };
+  // Safari na Macu instalira iz menija File, ne iz adresne trake
+  const macSafari = !iOS && /Macintosh/.test(ua) &&
+                    /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Brave/.test(ua);
+  return { iOS, android, uApp, iosDrugi, macSafari,
+           iPad: /iPad/.test(ua) || iPadOS, desktop: !iOS && !android };
 }
 
 const stanjeOk   = t => `<span class="uvod__stanje uvod__stanje--ok">${ikona('i-kvaka')} ${t}</span>`;
@@ -1558,7 +1608,23 @@ function crtajKorakInstal() {
     return;
   }
 
-  /* računar bez dijaloga */
+  /* Safari na Macu */
+  if (o.macSafari) {
+    el.uvodSadrzaj.innerHTML = `
+      ${koraciHtml([
+        'U traci menija otvori <b>File</b>.',
+        'Odaberi <b>Add to Dock…</b> pa potvrdi sa <b>Add</b>.',
+        'Aplikaciju pokreni iz Docka — dobija svoj prozor.',
+      ])}
+      <p class="uvod__nota">Traži macOS Sonoma ili noviji. Na starijem Macu
+        otvori ovu stranicu u Chromeu.</p>`;
+    el.uvodDalje.textContent = 'Dodao sam';
+    el.uvodPreskoci.hidden = false;
+    el.uvodPreskoci.textContent = 'Nastavi u pregledniku';
+    return;
+  }
+
+  /* ostali računari bez dijaloga */
   el.uvodSadrzaj.innerHTML = `
     ${koraciHtml([
       'Klikni ikonicu <b>instalacije</b> na desnoj strani adresne trake.',
@@ -1715,7 +1781,7 @@ async function uvodDalje() {
 }
 
 function zavrsiUvod() {
-  pisi(uvodTok === 'pwa' ? LS.uvodPwa : LS.uvod, VERZIJA);
+  pisi(uvodTok === 'pwa' ? LS.uvodPwa : LS.uvod, UVOD_VERZIJA);
   if (uvodTok === 'pwa') pisi(LS.dodano, true);
   el.uvod.classList.remove('on');
   el.uvod.setAttribute('aria-hidden', 'true');
@@ -1755,6 +1821,7 @@ function vezi() {
     rNotif: $('#r-notif'), pNotif: $('#p-notif'), notifStanje: $('#r-notif-stanje'),
     notifNapomena: $('#notif-napomena'), rTestNotif: $('#r-test-notif'),
     rInstal: $('#r-instal'), instalOpis: $('#r-instal-opis'),
+    rPonoviUvod: $('#r-ponovi-uvod'),
     mInstal: $('#m-instal'), instalKoraci: $('#instal-koraci'),
     formati: $('#dijeli-formati'), stilovi: $('#dijeli-stilovi'),
     platno: $('#platno'), pregled: $('#pregled'),
@@ -1807,6 +1874,10 @@ function slusaci() {
 
   $('#r-notif').addEventListener('click', prebaciNotif);
   el.rTestNotif.addEventListener('click', testNotifikacija);
+  el.rPonoviUvod.addEventListener('click', () => {
+    zatvoriSve();
+    pokreniUvod(jeInstalirana() ? 'pwa' : 'web');
+  });
   $('#r-instal').addEventListener('click', instaliraj);
 
   // sačuvano
@@ -1909,9 +1980,10 @@ async function start() {
 
   // U pregledniku vodimo do početnog ekrana, u aplikaciji do dozvole.
   // Dva odvojena zapisa, jer korisnik prolazi kroz oba — svaki jednom.
-  if (jeInstalirana()) {
-    if (cita(LS.uvodPwa, null) !== VERZIJA) pokreniUvod('pwa');
-  } else if (cita(LS.uvod, null) !== VERZIJA) {
+  if (prisilanUvod) pokreniUvod(prisilanUvod);
+  else if (jeInstalirana()) {
+    if (cita(LS.uvodPwa, null) !== UVOD_VERZIJA) pokreniUvod('pwa');
+  } else if (cita(LS.uvod, null) !== UVOD_VERZIJA) {
     pokreniUvod('web');
   }
 }

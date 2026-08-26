@@ -10,7 +10,7 @@
      · 'notificationclick'→ fokusira otvoreni tab ili otvara aplikaciju
    ============================================================ */
 
-const VERZIJA = 'v4';
+const VERZIJA = 'v5';
 const KESH = `poruka-dana-${VERZIJA}`;
 
 const LJUSKA = [
