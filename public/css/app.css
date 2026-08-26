@@ -11,7 +11,7 @@
    6 Kartica · 7 Svajp · 8 Sekcije · 9 Traka · 10 Modali
    11 Redovi · 12 Sačuvano · 13 Dijeljenje · 14 Toast
    15 Uvod · 16 Nadogradnja · 17 Razvojna traka
-   18 Responzivno · 19 Pomoćno
+   18 Vodič za instalaciju · 19 Responzivno · 20 Pomoćno
    ============================================================ */
 
 /* ugao za pokretni obrub kartice — registrovan da bi bio animiran */
@@ -897,7 +897,6 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 }
 .korak p { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ink-soft); }
 .korak b { color: var(--ink); font-weight: 600; }
-.koraci-uvod { font-size: 12.5px; color: var(--ink-mute); line-height: 1.6; margin: 0 0 18px; }
 
 /* ---------- 13. DIJELJENJE ---------- */
 .dijeli { display: grid; gap: 20px; }
@@ -1054,7 +1053,7 @@ input.mini:focus { outline: none; border-color: var(--gold); }
    iznad ekrana i nikad se ne vidi. Ostale fiksne stvari (toast, razvojna
    traka) se pomjeraju iznad nje. */
 .nadogradnja {
-  position: fixed; z-index: 130; left: 0; right: 0;
+  position: fixed; z-index: 90; left: 0; right: 0;      /* ispod modala (.sloj = 100) */
   bottom: calc(14px + env(safe-area-inset-bottom));
   padding: 0 var(--pad);
   animation: nadogradnjaUlaz .42s var(--ease) both;
@@ -1085,8 +1084,9 @@ input.mini:focus { outline: none; border-color: var(--gold); }
    Vidi se samo na localhostu (<html data-razvoj>): pomjeranje dana
    lijevo/desno, uključujući dane u budućnosti, da se poruke mogu pregledati
    unaprijed. Na objavljenoj verziji ovog elementa nema. */
+.razvoj[data-panel] { z-index: 160; }   /* dok je panel otvoren, iznad modala */
 .razvoj {
-  position: fixed; z-index: 140;
+  position: fixed; z-index: 88;                          /* ispod modala (.sloj = 100) */
   right: max(14px, env(safe-area-inset-right));
   bottom: calc(14px + env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: 4px;
@@ -1113,6 +1113,24 @@ input.mini:focus { outline: none; border-color: var(--gold); }
   transition: opacity var(--t-fast);
 }
 .razvoj__danas[disabled] { opacity: .32; pointer-events: none; }
+.razvoj__pwa { color: var(--ink-soft); padding: 0 4px 0 8px; }
+.razvoj__pwa[aria-pressed="true"] { color: var(--gold); }
+.razvoj__panel {
+  position: absolute; right: 0; bottom: calc(100% + 8px); width: 236px;
+  max-height: 62vh; overflow-y: auto; padding: 7px; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--line); box-shadow: var(--shadow);
+  display: grid; gap: 3px;
+}
+.razvoj__panel b { font-size: 8px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-mute); padding: 4px 6px 2px; }
+.razvoj__panel button {
+  display: flex; align-items: baseline; gap: 6px; padding: 6px 7px; border-radius: 8px;
+  font-size: 10px; color: var(--ink-soft); text-align: left; width: 100%;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.razvoj__panel button:hover { background: color-mix(in srgb, var(--gold) 12%, transparent); color: var(--ink); }
+.razvoj__panel button[aria-pressed="true"] { color: var(--gold); font-weight: 700; }
+.razvoj__panel button i { font-size: 8.5px; color: var(--ink-mute); font-style: normal; }
 
 /* Fiksne stvari na dnu se slažu jedna iznad druge, ne jedna preko druge.
    Stanje nosi <html data-razvoj> / <html data-nadogradnja> — atribut, a ne
@@ -1122,7 +1140,214 @@ html[data-razvoj] .toast-hold { bottom: calc(76px + env(safe-area-inset-bottom))
 html[data-nadogradnja] .toast-hold { bottom: calc(96px + env(safe-area-inset-bottom)); }
 html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-area-inset-bottom)); }
 
-/* ---------- 18. RESPONZIVNO ---------- */
+/* ---------- 18. VODIČ ZA INSTALACIJU ----------
+   iOS ne dozvoljava da stranica sama doda aplikaciju na ekran, pa je jedino
+   iskreno rješenje pokazati korisniku šta da dodirne. Umjesto spiska koraka,
+   ovdje je maketa telefona koja odigra isti potez koji korisnik treba
+   ponoviti: dijeljenje → lista → potvrda → ikona na ekranu.
+
+   Sve je CSS i postojeće SVG ikone, bez ijedne nove biblioteke. Maketa je
+   ukras (aria-hidden), pa korak nosi tekst — čitač ekrana i `prefers-
+   reduced-motion` dobiju potpunu uputu bez animacije. Zato su animacije
+   samo pokret: statičko stanje makete već pokazuje tačno ono što treba. */
+
+.vodic { display: grid; gap: 15px; }
+.vodic__tacke { display: flex; gap: 6px; justify-content: center; }
+.vodic__tacke i { width: 5px; height: 5px; border-radius: 50%; background: var(--line);
+  transition: width var(--t) var(--ease), background var(--t); }
+.vodic__tacke i.on { background: var(--gold); width: 18px; border-radius: 999px; }
+
+.vodic__scena { display: grid; place-items: center; padding: 6px 0 2px; }
+.vodic__tekst { text-align: center; }
+.vodic__brojac { font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase;
+  font-weight: 700; color: var(--gold); }
+.vodic__naslov { display: block; font-family: var(--serif); font-size: 19px;
+  font-weight: 500; margin-top: 6px; line-height: 1.25; }
+.vodic__opis { margin: 7px auto 0; max-width: 300px; font-size: 12.5px;
+  line-height: 1.6; color: var(--ink-soft); }
+.vodic__opis b { color: var(--ink); font-weight: 600; }
+.vodic__opis .korak__ik { vertical-align: -3px; }
+.vodic__dodatno:empty { display: none; }
+.vodic__dugmad { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
+.vodic__dugmad[data-sam="1"] { grid-template-columns: 1fr; }
+.vodic__dugmad[data-sam="1"] #vodic-nazad { display: none; }
+.vodic__dugmad .btn--obris { padding-inline: 15px; }
+
+/* --- maketa telefona --- */
+.mak {
+  position: relative; width: 172px; aspect-ratio: 172 / 252; flex: none;
+  border-radius: 25px; padding: 4px;
+  background: linear-gradient(155deg, #38443d, #131b16);
+  box-shadow: 0 22px 46px -20px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06);
+}
+.mak__ekran {
+  position: relative; height: 100%; border-radius: 21px; overflow: hidden;
+  background: var(--bg); display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.mak__zvuk { position: absolute; z-index: 6; top: 6px; left: 50%; translate: -50% 0;
+  width: 42px; height: 4px; border-radius: 999px; background: rgba(0,0,0,.6); }
+
+/* Safari: adresna traka gore, alatna traka dolje */
+.mak__vrh { display: flex; align-items: center; gap: 4px; padding: 14px 7px 5px; }
+.mak__traka { flex: 1; height: 15px; border-radius: 6px; display: grid; place-items: center;
+  background: var(--surface-2); border: 1px solid var(--line-soft);
+  font-size: 6px; letter-spacing: .03em; color: var(--ink-mute); }
+.mak__dno { display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px 9px; background: var(--surface); border-top: 1px solid var(--line-soft); }
+.mak__ik { width: 13px; height: 13px; color: var(--ink-mute); flex: none; }
+.mak__ik svg { width: 13px; height: 13px; }
+.mak__ik--slabo { opacity: .4; }
+.mak__ik--zlatno { color: var(--gold); }
+
+/* sadržaj lažnog ekrana — naša kartica u malom */
+.mak__sadrzaj { padding: 7px; display: grid; gap: 5px; align-content: stretch; min-height: 0; }
+.mak__nad { height: 4px; width: 38%; border-radius: 999px; margin: 1px auto 2px;
+  background: color-mix(in srgb, var(--gold) 55%, transparent); }
+.mak__karta { border-radius: 9px; border: 1px solid var(--line); background: var(--surface);
+  padding: 8px 7px; display: grid; gap: 4px; align-content: center; }
+.mak__karta i { height: 3px; border-radius: 999px; background: var(--line); }
+.mak__karta i:nth-child(1) { width: 92%; }
+.mak__karta i:nth-child(2) { width: 78%; }
+.mak__karta i:nth-child(3) { width: 86%; }
+.mak__karta i:nth-child(4) { width: 54%; }
+/* podnožje kartice: korice knjige i dva reda teksta */
+.mak__izvor { display: flex; align-items: center; gap: 6px; padding: 6px 7px;
+  border-radius: 9px; border: 1px solid var(--line); background: var(--surface); }
+.mak__izvor u { flex: none; width: 13px; height: 19px; border-radius: 2px;
+  background: color-mix(in srgb, var(--gold) 26%, var(--surface-2)); }
+.mak__izvor span { flex: 1; display: grid; gap: 3px; }
+.mak__izvor i { display: block; height: 3px; border-radius: 999px; background: var(--line); }
+.mak__izvor i:first-child { width: 62%; }
+.mak__izvor i:last-child { width: 40%; background: color-mix(in srgb, var(--gold) 40%, transparent); }
+
+/* --- cilj: prsten koji pulsira + prst koji dodiruje --- */
+.cilj { position: relative; }
+.cilj::after {
+  content: ''; position: absolute; inset: -5px; border-radius: 999px;
+  border: 1.5px solid var(--gold); opacity: .9;
+  animation: ciljPuls 2s var(--ease-soft) infinite;
+}
+.cilj--pravo::after { inset: -1px -3px; border-radius: 7px; }
+@keyframes ciljPuls {
+  0%, 100% { opacity: .5; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.16); }
+}
+/* Dodir je halo, a ne prst: puni krug bi prekrio upravo ono što korisnik
+   treba prepoznati na svom ekranu. */
+.prst {
+  position: absolute; z-index: 7; left: 50%; top: 50%; width: 22px; height: 22px;
+  margin: -11px 0 0 -11px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,.34), rgba(255,255,255,.06) 62%, transparent 70%);
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.55);
+  animation: prstDodir 2s var(--ease) infinite;
+}
+@keyframes prstDodir {
+  0%, 100% { opacity: 0; transform: translate(5px, 12px) scale(.75); }
+  36%      { opacity: 1; transform: none; }
+  58%      { opacity: 1; transform: scale(.82); }
+  84%      { opacity: 0; transform: scale(.95); }
+}
+
+/* --- sloj: iOS lista dijeljenja --- */
+.sloj-mak {
+  position: absolute; left: 3px; right: 3px; bottom: 3px; z-index: 5;
+  border-radius: 13px; overflow: hidden;
+  background: color-mix(in srgb, var(--surface-2) 90%, #000);
+  border: 1px solid var(--line);
+  box-shadow: 0 -16px 32px -16px rgba(0,0,0,.75);
+  animation: slojUlaz .52s var(--ease) both;
+}
+@keyframes slojUlaz { from { opacity: 0; transform: translateY(58%); } to { opacity: 1; transform: none; } }
+.sloj-mak--vrh { top: 3px; bottom: auto; }
+@keyframes slojUlazVrh { from { opacity: 0; transform: translateY(-42%); } to { opacity: 1; transform: none; } }
+.sloj-mak--vrh { animation-name: slojUlazVrh; }
+/* padajući meni preglednika visi ispod trake, ne preko nje */
+.sloj-mak--meni { top: 27px; left: auto; right: 5px; width: 118px; }
+.sloj-mak__ruc { width: 24px; height: 3px; border-radius: 999px; background: var(--line);
+  margin: 5px auto 0; }
+.sloj-mak__zag { display: flex; align-items: center; gap: 6px; padding: 7px;
+  border-bottom: 1px solid var(--line-soft); }
+.sloj-mak__zag img { width: 19px; height: 19px; border-radius: 5px; flex: none; }
+.sloj-mak__ime { font-size: 6.5px; font-weight: 700; line-height: 1.3; }
+.sloj-mak__ime span { display: block; font-weight: 400; color: var(--ink-mute); }
+.mred { display: flex; align-items: center; gap: 7px; padding: 6px 8px;
+  font-size: 7px; color: var(--ink-soft); border-top: 1px solid var(--line-soft); }
+.mred:first-child { border-top: 0; }
+.mred svg { width: 10px; height: 10px; color: var(--ink-mute); flex: none; }
+.mred span { flex: 1; }
+.mred--cilj { color: var(--ink); font-weight: 700;
+  background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.mred--cilj svg { color: var(--gold); }
+.mred--slabo { opacity: .45; }
+
+/* --- sloj: potvrda „Dodaj na početni ekran“ --- */
+.pot__vrh { display: flex; align-items: center; justify-content: space-between;
+  gap: 6px; padding: 7px 8px; border-bottom: 1px solid var(--line-soft); font-size: 6.5px; }
+.pot__nas { font-weight: 700; font-size: 7px; }
+.pot__tiho { color: var(--ink-mute); }
+.pot__ok { display: inline-block; color: var(--gold); font-weight: 700; }
+.pot__telo { display: flex; align-items: center; gap: 7px; padding: 8px; }
+.pot__telo img { width: 24px; height: 24px; border-radius: 6px; flex: none; }
+.pot__polje { flex: 1; display: grid; gap: 3px; }
+.pot__polje b { font-size: 7px; }
+.pot__polje i { display: block; height: 3px; width: 60%; border-radius: 999px; background: var(--line); }
+
+/* --- sloj: početni ekran, ikona sleti na svoje mjesto ---
+   Ciklus, a ne jednokratni prelaz: korak traži da se dodirne „Dodaj“, pa se
+   maketa mora vraćati na potvrdu. Ishod se pokaže i skloni, ne zauzme scenu.
+   Kad je pokret isključen, animacija stane na zadnjem kadru — dakle na
+   potvrdi, koja i jeste uputa ovog koraka. */
+.pocetni {
+  position: absolute; inset: 3px; z-index: 6; border-radius: 21px;
+  padding: 26px 12px 12px; display: grid; align-content: start;
+  grid-template-columns: repeat(4, 1fr); gap: 11px 9px;
+  background: linear-gradient(168deg, #1a2f24, #08110c);
+  opacity: 0;                       /* bez animacije ostaje sklonjen, a uputa vidljiva */
+  animation: pocetniCiklus 5.4s var(--ease) infinite;
+}
+@keyframes pocetniCiklus {
+  0%, 46%   { opacity: 0; }
+  55%, 88%  { opacity: 1; }
+  97%, 100% { opacity: 0; }
+}
+.pocetni i { aspect-ratio: 1; border-radius: 7px; background: rgba(255,255,255,.08); }
+.pocetni img { width: 100%; aspect-ratio: 1; border-radius: 7px;
+  box-shadow: 0 4px 10px -3px rgba(0,0,0,.6);
+  animation: ikonaSleti 5.4s var(--ease-back) infinite; }
+@keyframes ikonaSleti {
+  0%, 55%   { opacity: 0; transform: scale(.34); }
+  64%, 100% { opacity: 1; transform: none; }
+}
+.pocetni b { grid-column: 1 / -1; text-align: center; font-size: 7px; font-weight: 700;
+  color: var(--ink-soft); }
+
+/* --- maketa prozora na računaru --- */
+.mak-pc {
+  width: min(100%, 258px); border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--line); background: var(--bg-2);
+  box-shadow: 0 20px 44px -22px rgba(0,0,0,.8);
+}
+.mak-pc__vrh { display: flex; align-items: center; gap: 7px; padding: 8px 9px;
+  background: var(--surface); border-bottom: 1px solid var(--line-soft); }
+.mak-pc__tipke { display: flex; gap: 3px; flex: none; }
+.mak-pc__tipke i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.mak-pc__traka { flex: 1; height: 16px; border-radius: 6px; display: flex; align-items: center;
+  justify-content: space-between; padding: 0 5px; background: var(--surface-2);
+  border: 1px solid var(--line-soft); font-size: 6.5px; color: var(--ink-mute); }
+.mak-pc__traka .mak__ik { width: 10px; height: 10px; }
+.mak-pc__traka .mak__ik svg { width: 10px; height: 10px; }
+.mak-pc__meni { display: flex; gap: 9px; padding: 6px 10px; font-size: 6.5px;
+  color: var(--ink-mute); border-bottom: 1px solid var(--line-soft); }
+.mak-pc__sadrzaj { position: relative; padding: 12px 10px; display: grid; gap: 6px; min-height: 92px; }
+.mak-pc__pad {
+  position: absolute; z-index: 5; top: 0; left: 12px; width: 118px;
+  border-radius: 8px; overflow: hidden; background: color-mix(in srgb, var(--surface-2) 92%, #000);
+  border: 1px solid var(--line); box-shadow: 0 14px 26px -14px rgba(0,0,0,.7);
+  animation: slojUlazVrh .42s var(--ease) both;
+}
+.mak-pc__pad--desno { left: auto; right: 12px; }
+
+/* ---------- 19. RESPONZIVNO ---------- */
 @media (min-width: 760px) {
   .karta { min-height: 520px; transition: box-shadow var(--t) var(--ease); }
   .karta:hover { box-shadow: 0 36px 82px -32px rgba(0,0,0,.92), inset 0 1px 0 rgba(255,255,255,.045); }
@@ -1172,7 +1397,7 @@ html:not(.anim) .karta__tekst .w { opacity: 1; filter: none; transform: none; }
 html:not(.anim) .karta__uglovi span { opacity: .3; }
 html:not(.anim) .stavka { opacity: 1; transform: none; }
 
-/* ---------- 19. POMOĆNO ---------- */
+/* ---------- 20. POMOĆNO ---------- */
 [hidden] { display: none !important; }
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0,0,0,0); white-space: nowrap; border: 0; }

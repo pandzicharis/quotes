@@ -3,12 +3,12 @@
    ------------------------------------------------------------
    1 Konstante · 2 Helperi · 3 Datum · 4 Stanje · 5 Podaci
    6 Kartica · 7 Dani + swipe · 8 Akcije · 9 Sačuvano
-   10 Tema · 11 Notifikacije · 12 Knjige · 13 Dijeljenje
-   14 Modali · 15 Toast · 16 Uvod · 17 Nadogradnja i reset
-   18 Start
+   10 Tema · 11 Notifikacije · 11b Vodič za instalaciju
+   12 Knjige · 13 Dijeljenje · 14 Modali · 15 Toast · 16 Uvod
+   17 Nadogradnja i reset · 18 Start
    ============================================================ */
 
-const VERZIJA = '1.3.0';
+const VERZIJA = '1.4.0';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
@@ -133,13 +133,21 @@ function hidzri(d) {
      ?reset       obriši aplikaciju sa uređaja i kreni ispočetka
 
    Na localhostu se otvara i traka za pomjeranje dana (vidi 17), pa se
-   poruke mogu pregledati i unaprijed. Na objavljenoj verziji je nema. */
+   poruke mogu pregledati i unaprijed. Na objavljenoj verziji je nema.
+
+   Isto tako, samo na localhostu: ?instal=<stanje> i dugme PWA u razvojnoj
+   traci glume platformu i stanje instalacije (vidi SIM_STANJA u 11b), da se
+   vodič za iPhone može provjeriti bez iPhonea. Pravi API preglednika se pri
+   tome nikad ne dira — simulacija samo bira šta se prikazuje. */
 
 const RAZVOJ = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 let prisilanUvod = null;
 let pwaSimulacija = false;
 let resetUToku = false;
+let simInstal = null;        // razvojna simulacija instalacije, vidi 11b
+let simInstalId = null;
+let simIzUrl = null;
 
 (function testniPrekidaci() {
   let q;
@@ -158,6 +166,7 @@ let resetUToku = false;
     if (tok === 'web') { try { localStorage.removeItem(LS.dodano); } catch { /* tiho */ } }
   }
   if (q.get('pwa') === '1' || tok === 'pwa') pwaSimulacija = true;
+  if (RAZVOJ) simIzUrl = q.get('instal');
 })();
 
 /* ---------- 4. STANJE ---------- */
@@ -791,12 +800,18 @@ async function testNotifikacija() {
 let instalPrompt = null;
 let cekaci = [];
 
-const jeInstalirana = () =>
-  pwaSimulacija ||
-  matchMedia('(display-mode: standalone)').matches ||
-  matchMedia('(display-mode: fullscreen)').matches ||
-  matchMedia('(display-mode: minimal-ui)').matches ||
-  navigator.standalone === true;
+const jeInstalirana = () => {
+  if (simInstal) return !!simInstal.instalirano;
+  return pwaSimulacija ||
+    matchMedia('(display-mode: standalone)').matches ||
+    matchMedia('(display-mode: fullscreen)').matches ||
+    matchMedia('(display-mode: minimal-ui)').matches ||
+    navigator.standalone === true;
+};
+
+/* Bez service workera nema instalacije ni na jednoj platformi — tada se
+   dugme uopšte ne nudi, umjesto da vodi u uputu koja ne može uspjeti. */
+const instalMoguc = () => (simInstal ? simInstal.podrzano !== false : 'serviceWorker' in navigator);
 
 addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
@@ -829,18 +844,26 @@ function cekajPrompt(ms = 1400) {
   });
 }
 
+/* Jedini ulaz u instalaciju. Kad je aplikacija instalirana — ili je
+   preglednik takav da instalacije nema — red se sakriva, jer dugme koje
+   ništa ne može uraditi je gore od nikakvog. */
 function osvjeziInstal() {
-  if (jeInstalirana()) {
-    el.instalOpis.textContent = 'Aplikacija je već instalirana';
-    el.rInstal.setAttribute('aria-disabled', 'true');
-    return;
-  }
+  const nema = jeInstalirana() || !instalMoguc();
+  el.rInstal.hidden = nema;
+  if (nema) return;
   el.rInstal.removeAttribute('aria-disabled');
   el.instalOpis.textContent = 'Dodaj na početni ekran';
 }
 
 async function instaliraj() {
   if (jeInstalirana()) return poruka('Aplikacija je već instalirana', 'i-instal');
+
+  /* Razvojna simulacija: pravi `beforeinstallprompt` se ne glumi — samo se
+     kaže šta bi preglednik uradio, a vodič se otvara kao i na telefonu. */
+  if (simInstal) {
+    if (simInstal.prompt) return poruka('Simulacija: ovdje bi preglednik otvorio svoj dijalog', 'i-instal');
+    return otvoriUputu(simInstal.korak || 0);
+  }
 
   el.instalOpis.textContent = 'Pripremam instalaciju…';
   const p = instalPrompt || await cekajPrompt();
@@ -862,52 +885,326 @@ async function instaliraj() {
   otvoriUputu();
 }
 
-/** Koraci za dodavanje na početni ekran, po platformi.
-    Dijele ih i modal iz postavki i posljednji korak uvoda. */
-function uputaZaUredjaj() {
-  const ua = navigator.userAgent;
-  const iOS = /iPad|iPhone|iPod/.test(ua) ||
-              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const android = /Android/.test(ua);
+/* ---------- 11b. VODIČ ZA INSTALACIJU ---------- */
+/* iOS ne dozvoljava da stranica sama doda aplikaciju na početni ekran i to
+   se ne može zaobići. Zato ovaj vodič ne objašnjava nego pokazuje: maketa
+   telefona odigra tačno onaj potez koji korisnik treba ponoviti, korak po
+   korak. Isti mehanizam pokriva i Android bez dijaloga, računar i preglednik
+   ugrađen u drugu aplikaciju — mijenjaju se samo scena i tekst.
 
-  if (iOS) return {
-    uvod: 'Safari na iPhoneu i iPadu instalira aplikaciju iz menija za dijeljenje.',
-    koraci: [
-      'Dodirni ikonicu <b>Podijeli</b> na dnu ekrana.',
-      'Skrolaj i odaberi <b>Dodaj na početni ekran</b>.',
-      'Potvrdi sa <b>Dodaj</b> — ikonica se pojavi među aplikacijama.',
-    ],
-  };
+   Maketa je ukras (`aria-hidden` na sceni), pa svaki korak nosi i naslov i
+   opis: čitač ekrana i `prefers-reduced-motion` dobiju cijelu uputu bez
+   ijedne animacije. */
 
-  if (android) return {
-    uvod: 'U Chromeu na Androidu instalacija je u meniju preglednika.',
-    koraci: [
-      'Dodirni <b>⋮</b> u gornjem desnom uglu.',
-      'Odaberi <b>Instaliraj aplikaciju</b> ili <b>Dodaj na početni ekran</b>.',
-      'Potvrdi — aplikacija se otvara u svom prozoru.',
-    ],
-  };
+const IKONA_APP = '/assets/icons/icon-192.png';
 
-  return {
-    uvod: 'Na računaru instalaciju nudi sam preglednik u adresnoj traci.',
-    koraci: [
-      'Klikni ikonicu <b>instalacije</b> na desnoj strani adresne trake.',
-      'Ako je nema, otvori meni preglednika i traži <b>Instaliraj…</b>',
-      'Potvrdi — aplikacija dobija svoj prozor i ikonicu.',
-    ],
-  };
+/** Ikonica u alatnoj traci makete; `cilj` dodaje prsten i prst. */
+const makIk = (id, cilj = false, klase = '') =>
+  `<span class="mak__ik ${klase}${cilj ? ' cilj' : ''}">${ikona(id)}${cilj ? '<span class="prst"></span>' : ''}</span>`;
+
+const makRed = (ik, tekst, vrsta = '') =>
+  `<div class="mred ${vrsta}">${ikona(ik)}<span>${tekst}</span></div>`;
+
+/** Sadržaj lažnog ekrana — naša kartica u malom, da maketa liči na app. */
+const makSadrzaj = () => `
+  <div class="mak__sadrzaj">
+    <span class="mak__nad"></span>
+    <div class="mak__karta"><i></i><i></i><i></i><i></i></div>
+    <div class="mak__izvor"><u></u><span><i></i><i></i></span></div>
+  </div>`;
+
+/**
+ * Maketa telefona.
+ * `cilj`  — šta pulsira: 'dijeli' | 'meni' | ''
+ * `sloj`  — HTML preko ekrana (lista dijeljenja, potvrda, početni ekran)
+ * `iPad`  — na iPadu je Podijeli u gornjoj traci, ne u donjoj
+ * `drugi` — traka preglednika koji nije Safari (Chrome, in-app)
+ */
+function makTelefon({ cilj = '', sloj = '', iPad = false, drugi = false } = {}) {
+  const gore = drugi || iPad;
+  const desnoGore = drugi ? makIk('i-meni', cilj === 'meni')
+                  : iPad  ? makIk('i-ios-dijeli', cilj === 'dijeli')
+                  : '';
+  const dno = gore ? '' : `
+    <div class="mak__dno">
+      ${makIk('i-nazad', false, 'mak__ik--slabo')}
+      ${makIk('i-strelica', false, 'mak__ik--slabo')}
+      ${makIk('i-ios-dijeli', cilj === 'dijeli')}
+      ${makIk('i-knjiga', false, 'mak__ik--slabo')}
+      ${makIk('i-kopiraj', false, 'mak__ik--slabo')}
+    </div>`;
+
+  return `
+    <div class="mak">
+      <div class="mak__ekran">
+        <i class="mak__zvuk"></i>
+        <div class="mak__vrh">
+          <span class="mak__traka">${esc(location.host)}</span>
+          ${desnoGore}
+        </div>
+        ${makSadrzaj()}
+        ${dno}
+        ${sloj}
+      </div>
+    </div>`;
 }
 
-/** Kad preglednik ne nudi svoj dijalog (iOS Safari, Firefox), pokažemo korake. */
-function otvoriUputu() {
-  const { uvod, koraci } = uputaZaUredjaj();
-  el.instalKoraci.innerHTML = `
-    <p class="koraci-uvod">${uvod}</p>
-    <ol class="koraci">
-      ${koraci.map((k, i) => `
-        <li class="korak"><span class="korak__br">${i + 1}</span><p>${k}</p></li>`).join('')}
-    </ol>`;
+/** iOS lista dijeljenja, sa „Dodaj na početni ekran“ kao ciljem. */
+const slojLista = () => `
+  <div class="sloj-mak">
+    <i class="sloj-mak__ruc"></i>
+    <div class="sloj-mak__zag">
+      <img src="${IKONA_APP}" alt="" width="19" height="19">
+      <span class="sloj-mak__ime">Poruka dana<span>${esc(location.host)}</span></span>
+    </div>
+    ${makRed('i-kopiraj', 'Kopiraj', 'mred--slabo')}
+    ${makRed('i-knjiga', 'Dodaj u listu za čitanje', 'mred--slabo')}
+    <div class="mred mred--cilj cilj cilj--pravo">
+      ${ikona('i-plus-kv')}<span>Dodaj na početni ekran</span><span class="prst"></span>
+    </div>
+    ${makRed('i-info', 'Označi stranicu', 'mred--slabo')}
+  </div>`;
+
+/** Potvrda „Dodaj na početni ekran“, pa ikona koja sleti na ekran. */
+const slojPotvrda = () => `
+  <div class="sloj-mak sloj-mak--vrh">
+    <div class="pot__vrh">
+      <span class="pot__tiho">Otkaži</span>
+      <span class="pot__nas">Na početni ekran</span>
+      <span class="pot__ok cilj cilj--pravo">Dodaj<span class="prst"></span></span>
+    </div>
+    <div class="pot__telo">
+      <img src="${IKONA_APP}" alt="" width="24" height="24">
+      <span class="pot__polje"><b>Poruka dana</b><i></i></span>
+    </div>
+  </div>
+  <div class="pocetni">
+    <i></i><i></i><i></i><i></i>
+    <img src="${IKONA_APP}" alt="" width="30" height="30"><i></i><i></i><i></i>
+    <b>Poruka dana</b>
+  </div>`;
+
+/** Padajući meni preglednika (Android Chrome, in-app preglednici). */
+const slojMeni = (redovi) => `
+  <div class="sloj-mak sloj-mak--vrh sloj-mak--meni">${redovi}</div>`;
+
+/** Maketa prozora na računaru; `pad` je otvoreni meni. */
+function makRacunar({ ciljTraka = false, meniTraka = '', pad = '', desno = false } = {}) {
+  return `
+    <div class="mak-pc">
+      <div class="mak-pc__vrh">
+        <span class="mak-pc__tipke"><i></i><i></i><i></i></span>
+        <span class="mak-pc__traka">
+          <span>${esc(location.host)}</span>
+          ${makIk('i-instal', ciljTraka, 'mak__ik--zlatno')}
+        </span>
+        ${meniTraka ? '' : makIk('i-meni', !ciljTraka && !pad)}
+      </div>
+      ${meniTraka}
+      <div class="mak-pc__sadrzaj">
+        ${makSadrzaj()}
+        ${pad ? `<div class="mak-pc__pad${desno ? ' mak-pc__pad--desno' : ''}">${pad}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+const dugmeKopiraj = () =>
+  `<button class="btn btn--obris btn--puni" id="vodic-kopiraj">${ikona('i-kopiraj')} Kopiraj adresu</button>`;
+
+/** Koraci vodiča po platformi. Redoslijed je tačno onaj koji korisnik prolazi. */
+function vodicKoraci() {
+  const o = okolina();
+
+  /* preglednik ugrađen u Instagram/Facebook — odatle instalacije nema */
+  if (o.uApp) return [{
+    naslov: 'Otvori u pravom pregledniku',
+    opis: `Stranicu si otvorio unutar druge aplikacije. Dodirni <b>⋯</b> u uglu ekrana pa
+           <b>${o.iOS ? 'Otvori u Safariju' : 'Otvori u Chromeu'}</b> — instalacija je moguća samo tamo.`,
+    scena: makTelefon({ cilj: 'meni', drugi: true }),
+    dodatno: dugmeKopiraj(),
+  }];
+
+  const iosKoraci = [
+    {
+      naslov: 'Dodirni Podijeli',
+      opis: `Ikonica ${uIkona('i-ios-dijeli')} <b>Podijeli</b> je ${o.iPad ? 'u gornjoj traci, desno' : 'na dnu ekrana, u sredini'}.`,
+      scena: makTelefon({ cilj: 'dijeli', iPad: o.iPad }),
+    },
+    {
+      naslov: 'Odaberi Dodaj na početni ekran',
+      opis: `Otvorit će se lista. Skrolaj malo niže i dodirni ${uIkona('i-plus-kv')} <b>Dodaj na početni ekran</b>.`,
+      scena: makTelefon({ sloj: slojLista(), iPad: o.iPad }),
+    },
+    {
+      naslov: 'Potvrdi sa Dodaj',
+      opis: 'Dodirni <b>Dodaj</b> u gornjem desnom uglu. Ikonica se pojavi među aplikacijama — otvori je odatle.',
+      scena: makTelefon({ sloj: slojPotvrda(), iPad: o.iPad }),
+    },
+  ];
+
+  /* iPhone, ali nije Safari: WebKit je isti, ali „Dodaj na početni ekran“
+     ima samo Safari — zato prvo prelazak, pa ista tri koraka. */
+  if (o.iosDrugi) return [{
+    naslov: 'Otvori u Safariju',
+    opis: 'Chrome i ostali preglednici na iPhoneu nemaju „Dodaj na početni ekran“. Kopiraj adresu i zalijepi je u Safari.',
+    scena: makTelefon({ cilj: 'meni', drugi: true }),
+    dodatno: dugmeKopiraj(),
+  }, ...iosKoraci];
+
+  if (o.iOS) return iosKoraci;
+
+  if (o.android) return [
+    {
+      naslov: 'Dodirni meni preglednika',
+      opis: `Ikonica ${uIkona('i-meni')} <b>⋮</b> je u gornjem desnom uglu.`,
+      scena: makTelefon({ cilj: 'meni', drugi: true }),
+    },
+    {
+      naslov: 'Odaberi Instaliraj aplikaciju',
+      opis: 'U meniju traži <b>Instaliraj aplikaciju</b> — na starijim verzijama piše <b>Dodaj na početni ekran</b>.',
+      scena: makTelefon({ drugi: true, sloj: slojMeni(
+        makRed('i-strelica', 'Nova kartica', 'mred--slabo') +
+        `<div class="mred mred--cilj cilj cilj--pravo">${ikona('i-instal')}<span>Instaliraj aplikaciju</span><span class="prst"></span></div>` +
+        makRed('i-info', 'Historija', 'mred--slabo')) }),
+    },
+    {
+      naslov: 'Potvrdi sa Instaliraj',
+      opis: 'Preglednik pita za potvrdu. Poslije toga aplikacija ima svoju ikonicu i otvara se u svom prozoru.',
+      scena: makTelefon({ drugi: true, sloj: slojPotvrda() }),
+    },
+  ];
+
+  if (o.macSafari) return [
+    {
+      naslov: 'Otvori meni File',
+      opis: 'U traci menija na vrhu ekrana otvori <b>File</b>. Traži macOS Sonoma ili noviji.',
+      scena: makRacunar({ meniTraka: '<div class="mak-pc__meni"><span style="color:var(--gold)">File</span><span>Edit</span><span>View</span><span>History</span></div>' }),
+    },
+    {
+      naslov: 'Odaberi Add to Dock…',
+      opis: 'Klikni <b>Add to Dock…</b> pa potvrdi sa <b>Add</b>. Aplikaciju pokreni iz Docka.',
+      scena: makRacunar({
+        meniTraka: '<div class="mak-pc__meni"><span style="color:var(--gold)">File</span><span>Edit</span><span>View</span><span>History</span></div>',
+        pad: makRed('i-strelica', 'New Tab', 'mred--slabo') +
+             `<div class="mred mred--cilj cilj cilj--pravo">${ikona('i-instal')}<span>Add to Dock…</span><span class="prst"></span></div>` +
+             makRed('i-preuzmi', 'Print…', 'mred--slabo'),
+      }),
+    },
+  ];
+
+  /* računar bez preglednikovog dijaloga (Firefox, stariji Chrome…) */
+  return [
+    {
+      naslov: 'Potraži ikonicu u adresnoj traci',
+      opis: `Na desnoj strani adresne trake klikni ${uIkona('i-instal')} <b>Instaliraj</b>.`,
+      scena: makRacunar({ ciljTraka: true }),
+    },
+    {
+      naslov: 'Ako je nema, otvori meni',
+      opis: 'U meniju preglednika traži <b>Instaliraj…</b> ili <b>Dodaj na početni ekran</b>. Podsjetnici najbolje rade na telefonu.',
+      scena: makRacunar({
+        desno: true,
+        pad: makRed('i-strelica', 'Nova kartica', 'mred--slabo') +
+             `<div class="mred mred--cilj cilj cilj--pravo">${ikona('i-instal')}<span>Instaliraj…</span><span class="prst"></span></div>` +
+             makRed('i-info', 'Historija', 'mred--slabo'),
+      }),
+    },
+  ];
+}
+
+let vodicIdx = 0;
+let vodicSad = [];
+
+/** Otvara vodič; `korak` služi razvojnoj simulaciji i vraćanju na isti korak. */
+function otvoriUputu(korak = 0) {
+  vodicSad = vodicKoraci();
+  vodicIdx = Math.min(Math.max(korak | 0, 0), vodicSad.length - 1);
+  crtajVodic();
   otvori(el.mInstal);
+}
+
+function crtajVodic() {
+  const k = vodicSad[vodicIdx];
+  if (!k) return;
+  const n = vodicSad.length;
+
+  el.vodicTacke.hidden = n < 2;
+  el.vodicTacke.innerHTML = vodicSad.map((_, i) => `<i class="${i === vodicIdx ? 'on' : ''}"></i>`).join('');
+  el.vodicBrojac.textContent = n > 1 ? `Korak ${vodicIdx + 1} od ${n}` : 'Instalacija';
+  el.vodicNaslov.textContent = k.naslov;
+  el.vodicOpis.innerHTML = k.opis;
+  el.vodicScena.innerHTML = k.scena;                 // novi DOM = animacija ispočetka
+  el.vodicDodatno.innerHTML = k.dodatno || '';
+  if (k.dodatno) vezikopiraj('#vodic-kopiraj');
+
+  el.vodicDugmad.dataset.sam = vodicIdx === 0 ? '1' : '0';
+  el.vodicDalje.innerHTML = vodicIdx === n - 1
+    ? `${ikona('i-kvaka')} Razumijem`
+    : `Dalje ${ikona('i-strelica')}`;
+}
+
+function vodicPomjeri(korak) {
+  if (!el.mInstal.classList.contains('on')) return;
+  const novi = vodicIdx + korak;
+  if (novi < 0) return;
+  if (novi >= vodicSad.length) return zatvoriSve();
+  vodicIdx = novi;
+  crtajVodic();
+}
+
+/* --- razvojna simulacija stanja instalacije (samo localhost) --- */
+const SIM_STANJA = [
+  { id: 'android',     ime: 'Android · native prompt', nap: 'dijalog preglednika', s: { o: { android: true }, prompt: true } },
+  { id: 'android-bez', ime: 'Android · bez prompta',   nap: 'vodič ⋮ → Instaliraj', s: { o: { android: true } } },
+  { id: 'ios-1',       ime: 'iPhone · korak 1',        nap: 'Podijeli',             s: { o: { iOS: true }, korak: 0 } },
+  { id: 'ios-2',       ime: 'iPhone · korak 2',        nap: 'lista dijeljenja',     s: { o: { iOS: true }, korak: 1 } },
+  { id: 'ios-3',       ime: 'iPhone · korak 3',        nap: 'potvrda + ekran',      s: { o: { iOS: true }, korak: 2 } },
+  { id: 'ipad',        ime: 'iPad · Safari',           nap: 'Podijeli je gore',     s: { o: { iOS: true, iPad: true } } },
+  { id: 'ios-chrome',  ime: 'iPhone · Chrome',         nap: 'prvo u Safari',        s: { o: { iOS: true, iosDrugi: true } } },
+  { id: 'uapp',        ime: 'Instagram/FB preglednik', nap: 'otvori vani',          s: { o: { uApp: true, android: true } } },
+  { id: 'desktop',     ime: 'Računar · native prompt', nap: 'dijalog preglednika',  s: { o: { desktop: true }, prompt: true } },
+  { id: 'desktop-bez', ime: 'Računar · bez prompta',   nap: 'adresna traka',        s: { o: { desktop: true } } },
+  { id: 'mac',         ime: 'macOS Safari',            nap: 'File → Add to Dock',   s: { o: { desktop: true, macSafari: true } } },
+  { id: 'instalirano', ime: 'Već instalirano',         nap: 'dugmeta nema',         s: { instalirano: true } },
+  { id: 'nepodrzano',  ime: 'Preglednik ne podržava',  nap: 'dugmeta nema',         s: { o: { desktop: true }, podrzano: false } },
+];
+
+function primijeniSim(id) {
+  if (!RAZVOJ) return;
+  const st = SIM_STANJA.find(x => x.id === id);
+  simInstalId = st ? st.id : null;
+  simInstal = st ? { korak: 0, ...st.s } : null;
+
+  osvjeziInstal();
+  osvjeziNotif();
+  crtajSimPanel();
+  el.rzPwa.setAttribute('aria-pressed', String(!!st));
+
+  if (!st) { zatvoriSve(); return poruka('Simulacija instalacije isključena', 'i-instal'); }
+  // stanja u kojima nema šta pokazati u vodiču
+  if (simInstal.instalirano || simInstal.podrzano === false || simInstal.prompt) {
+    zatvoriSve();
+    return poruka(`Simulacija: ${st.ime}`, 'i-instal');
+  }
+  otvoriUputu(simInstal.korak || 0);
+}
+
+/** Dok je panel otvoren traka ide iznad modala — inače stoji ispod njega. */
+function pokaziSimPanel(otvori) {
+  el.rzPanel.hidden = !otvori;
+  if (otvori) el.razvoj.dataset.panel = '1';
+  else delete el.razvoj.dataset.panel;
+}
+
+function crtajSimPanel() {
+  if (!RAZVOJ) return;
+  el.rzPanel.innerHTML = `
+    <b>Stanja instalacije</b>
+    ${SIM_STANJA.map(x => `
+      <button data-sim="${x.id}" aria-pressed="${x.id === simInstalId}">
+        ${esc(x.ime)}${x.nap ? `<i>${esc(x.nap)}</i>` : ''}
+      </button>`).join('')}
+    <button data-sim="" aria-pressed="${!simInstalId}">Bez simulacije<i>pravo stanje</i></button>`;
 }
 
 /* ---------- 12. KNJIGE ---------- */
@@ -1473,9 +1770,13 @@ function okolina() {
   // Safari na Macu instalira iz menija File, ne iz adresne trake
   const macSafari = !iOS && /Macintosh/.test(ua) &&
                     /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Brave/.test(ua);
+  if (simInstal?.o) return { ...OKOLINA_NULE, ...simInstal.o };
   return { iOS, android, uApp, iosDrugi, macSafari,
            iPad: /iPad/.test(ua) || iPadOS, desktop: !iOS && !android };
 }
+
+const OKOLINA_NULE = { iOS: false, android: false, uApp: false, iosDrugi: false,
+                       macSafari: false, iPad: false, desktop: false };
 
 const stanjeOk   = t => `<span class="uvod__stanje uvod__stanje--ok">${ikona('i-kvaka')} ${t}</span>`;
 const stanjePazi = t => `<span class="uvod__stanje uvod__stanje--pazi">${ikona('i-pazi')} ${t}</span>`;
@@ -1679,8 +1980,8 @@ const dugmeKopirajAdresu = () =>
 /** Ikonica unutar rečenice — onakva kakvu korisnik traži na ekranu. */
 const uIkona = id => `<span class="korak__ik">${ikona(id)}</span>`;
 
-function vezikopiraj() {
-  $('#uvod-kopiraj')?.addEventListener('click', async () => {
+function vezikopiraj(sel = '#uvod-kopiraj') {
+  $(sel)?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(location.href);
       poruka('Adresa kopirana', 'i-kopiraj');
@@ -2016,7 +2317,12 @@ function vezi() {
     rResetOpis: $('#r-reset-opis'), resetNapomena: $('#reset-napomena'),
     razvoj: $('#razvoj'), rzInfo: $('#rz-info'),
     rzNazad: $('#rz-nazad'), rzNapred: $('#rz-napred'), rzDanas: $('#rz-danas'),
-    mInstal: $('#m-instal'), instalKoraci: $('#instal-koraci'),
+    rzPwa: $('#rz-pwa'), rzPanel: $('#rz-panel'),
+    mInstal: $('#m-instal'),
+    vodicTacke: $('#vodic-tacke'), vodicScena: $('#vodic-scena'),
+    vodicBrojac: $('#vodic-brojac'), vodicNaslov: $('#vodic-naslov'),
+    vodicOpis: $('#vodic-opis'), vodicDodatno: $('#vodic-dodatno'),
+    vodicDugmad: $('#vodic-dugmad'), vodicNazad: $('#vodic-nazad'), vodicDalje: $('#vodic-dalje'),
     formati: $('#dijeli-formati'), stilovi: $('#dijeli-stilovi'),
     platno: $('#platno'), pregled: $('#pregled'),
     mPostavke: $('#m-postavke'), mDijeli: $('#m-dijeli'), mPoruka: $('#m-poruka'),
@@ -2037,6 +2343,12 @@ function slusaci() {
     if (e.key === 'Escape') {
       if ($('.sloj.on')) return zatvoriSve();
       if (stanje.stranica !== 'danas') return naStranicu('danas');
+      return;
+    }
+    // u vodiču strelice mijenjaju korak, ne dan
+    if (el.mInstal.classList.contains('on')) {
+      if (e.key === 'ArrowLeft')  vodicPomjeri(-1);
+      if (e.key === 'ArrowRight') vodicPomjeri(1);
       return;
     }
     if ($('.sloj.on') || el.uvod.classList.contains('on')) return;
@@ -2075,6 +2387,10 @@ function slusaci() {
   $('#r-instal').addEventListener('click', instaliraj);
   el.rReset.addEventListener('click', naReset);
 
+  // vodič za instalaciju
+  el.vodicNazad.addEventListener('click', () => vodicPomjeri(-1));
+  el.vodicDalje.addEventListener('click', () => vodicPomjeri(1));
+
   // nadogradnja: traka na dnu i red u postavkama vode na isto
   el.nvInstaliraj.addEventListener('click', instalirajNadogradnju);
   el.rNadogradnja.addEventListener('click', () => { zatvoriSve(); instalirajNadogradnju(); });
@@ -2088,6 +2404,18 @@ function slusaci() {
     el.rzNazad.addEventListener('click', () => razvojDan(-1));
     el.rzNapred.addEventListener('click', () => razvojDan(1));
     el.rzDanas.addEventListener('click', () => razvojDan(0));
+
+    // panel sa stanjima instalacije
+    el.rzPwa.addEventListener('click', () => pokaziSimPanel(el.rzPanel.hidden));
+    el.rzPanel.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      pokaziSimPanel(false);
+      primijeniSim(b.dataset.sim || null);
+    });
+    document.addEventListener('click', e => {
+      if (!el.rzPanel.hidden && !el.razvoj.contains(e.target)) pokaziSimPanel(false);
+    });
   }
 
   // sačuvano
@@ -2164,6 +2492,7 @@ async function start() {
   if (RAZVOJ) {
     document.documentElement.dataset.razvoj = '1';
     el.razvoj.hidden = false;
+    crtajSimPanel();
   }
 
   try {
@@ -2193,6 +2522,9 @@ async function start() {
   await ucitajPushConfig();
   osvjeziNotif();
   if (stanje.notif && Notification.permission === 'granted') pretplatiPush();
+
+  // razvojna simulacija iz URL-a (?instal=ios-2) — samo na localhostu
+  if (RAZVOJ && simIzUrl) { primijeniSim(simIzUrl); return; }
 
   // U pregledniku vodimo do početnog ekrana, u aplikaciji do dozvole.
   // Dva odvojena zapisa, jer korisnik prolazi kroz oba — svaki jednom.

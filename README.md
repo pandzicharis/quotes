@@ -218,6 +218,34 @@ preglednika njene podatke ne dodiruje.
 
 ---
 
+## Instalacija aplikacije
+
+Jedan ulaz: **Postavke → Instaliraj aplikaciju**. Šta se iza njega desi
+određuje platforma, a red se **sakrije** kad je aplikacija instalirana ili
+kad preglednik instalaciju ne podržava (`display-mode: standalone`,
+`navigator.standalone`, `appinstalled`, nema `serviceWorker`).
+
+| Platforma | Ponašanje |
+| --- | --- |
+| Android / desktop Chrome | `beforeinstallprompt` → **preglednikov vlastiti dijalog**. Nikad se ne traži da korisnik sam otvara meni kad dijalog postoji. |
+| iPhone / iPad (Safari) | iOS ne dopušta programsko dodavanje na ekran — otvara se **vodič u tri koraka** sa maketom telefona: Podijeli → Dodaj na početni ekran → Dodaj. |
+| iPhone, ali Chrome/Firefox | Isti WebKit, ali „Dodaj na početni ekran“ ima samo Safari — prvi korak vodi u Safari (uz dugme za kopiranje adrese), pa ista tri koraka. |
+| Android bez dijaloga | Vodič: ⋮ → Instaliraj aplikaciju → potvrda. |
+| macOS Safari | Vodič: File → Add to Dock… |
+| Preglednik u Instagramu/FB-u | Jedan korak: otvori u pravom pregledniku (instalacije odatle nema). |
+| Ostali računari | Vodič: ikonica u adresnoj traci, pa meni preglednika. |
+
+Vodič je HTML + CSS + postojeće SVG ikone — **bez ijedne nove biblioteke**.
+Maketa je `aria-hidden`, pa svaki korak nosi naslov i opis: čitač ekrana i
+`prefers-reduced-motion` dobiju cijelu uputu bez animacije. Zato statičko
+stanje makete već pokazuje ono što treba dodirnuti, a animacija je samo
+pokret. Kroz korake se ide dugmadima **Nazad / Dalje** ili strelicama.
+
+Uvod (onboarding) ima svoj korak instalacije sa istim uputama u tekstu i
+nije mijenjan — vodič sa maketom živi za dugmetom u postavkama.
+
+---
+
 ## Razvojne alatke
 
 Vide se **samo na `localhost`**; na objavljenoj verziji ih nema:
@@ -227,6 +255,16 @@ Vide se **samo na `localhost`**; na objavljenoj verziji ih nema:
   datum, pomak, koja je poruka po redu, njen `id` i knjigu — tako se odmah
   vidi da se knjige ne ponavljaju. Isto rade strelice na tastaturi i swipe
   po kartici, samo sa animacijom.
+- **PWA** u istoj traci otvara spisak stanja instalacije i glumi platformu,
+  pa se cijeli vodič (i iPhone i iPad i Android) provjeri sa računara, bez
+  telefona. Isto radi i `?instal=<stanje>`:
+
+  `android`, `android-bez`, `ios-1`, `ios-2`, `ios-3`, `ipad`, `ios-chrome`,
+  `uapp`, `desktop`, `desktop-bez`, `mac`, `instalirano`, `nepodrzano`
+
+  Simulacija **ne dira pravi API preglednika** — `beforeinstallprompt` se ne
+  glumi; za stanja sa dijalogom se samo kaže da bi ga preglednik otvorio.
+  Van `localhost`-a je prekidač mrtav.
 - **Pošalji test notifikaciju** i **Ponovi uvod** u postavkama.
 
 Prekidači u URL-u rade i na objavljenoj adresi, pa se tok može provjeriti na

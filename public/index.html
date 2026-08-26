@@ -439,15 +439,33 @@
   </div>
 </div>
 
-<!-- ===== UPUTA ZA INSTALACIJU (kad preglednik ne nudi svoj dijalog) ===== -->
+<!-- ===== VODIČ ZA INSTALACIJU (kad preglednik ne nudi svoj dijalog) ===== -->
 <div class="sloj" id="m-instal"><div class="sloj__zav" data-zatvori></div>
-  <div class="modal" role="dialog" aria-modal="true" aria-label="Instaliraj aplikaciju">
+  <div class="modal modal--vodic" role="dialog" aria-modal="true" aria-label="Instaliraj aplikaciju">
     <i class="modal__rucka" aria-hidden="true"></i>
     <div class="modal__nas">
-      <h3>Instaliraj aplikaciju</h3>
+      <span class="modal__ikona"><svg><use href="#i-instal"/></svg></span>
+      <h3 id="vodic-zaglavlje">Instaliraj aplikaciju</h3>
       <button class="icon-btn" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
     </div>
-    <div class="modal__telo" id="instal-koraci"></div>
+    <div class="modal__telo">
+      <div class="vodic">
+        <div class="vodic__tacke" id="vodic-tacke" aria-hidden="true"></div>
+        <div class="vodic__scena" id="vodic-scena" aria-hidden="true"></div>
+        <div class="vodic__tekst" aria-live="polite">
+          <span class="vodic__brojac" id="vodic-brojac"></span>
+          <b class="vodic__naslov" id="vodic-naslov"></b>
+          <p class="vodic__opis" id="vodic-opis"></p>
+        </div>
+        <div class="vodic__dodatno" id="vodic-dodatno"></div>
+      </div>
+    </div>
+    <div class="modal__pod">
+      <div class="vodic__dugmad" id="vodic-dugmad">
+        <button class="btn btn--obris" id="vodic-nazad"><svg><use href="#i-nazad"/></svg> Nazad</button>
+        <button class="btn btn--zlatno" id="vodic-dalje">Dalje <svg><use href="#i-strelica"/></svg></button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -459,6 +477,8 @@
   <button class="razvoj__btn" id="rz-napred" title="Dan poslije (→)" aria-label="Dan poslije">
     <svg><use href="#i-strelica"/></svg></button>
   <button class="razvoj__danas" id="rz-danas" title="Vrati se na danas">Danas</button>
+  <button class="razvoj__danas razvoj__pwa" id="rz-pwa" title="Simuliraj stanja instalacije">PWA</button>
+  <div class="razvoj__panel" id="rz-panel" hidden></div>
 </div>
 
 <div class="toast-hold" id="toasts" aria-live="polite"></div>
