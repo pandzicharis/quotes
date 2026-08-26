@@ -4,10 +4,11 @@
    1 Konstante · 2 Helperi · 3 Datum · 4 Stanje · 5 Podaci
    6 Kartica · 7 Dani + swipe · 8 Akcije · 9 Sačuvano
    10 Tema · 11 Notifikacije · 12 Knjige · 13 Dijeljenje
-   14 Modali · 15 Toast · 16 Uvod · 17 Start
+   14 Modali · 15 Toast · 16 Uvod · 17 Nadogradnja i reset
+   18 Start
    ============================================================ */
 
-const VERZIJA = '1.2.0';
+const VERZIJA = '1.3.0';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
@@ -129,10 +130,16 @@ function hidzri(d) {
      ?uvod=web    ponovo pokreni tok u pregledniku
      ?uvod=pwa    ponovo pokreni tok aplikacije
      ?pwa=1       glumi da je aplikacija na početnom ekranu
-     ?reset       obriši sve zapise aplikacije i kreni ispočetka          */
+     ?reset       obriši aplikaciju sa uređaja i kreni ispočetka
+
+   Na localhostu se otvara i traka za pomjeranje dana (vidi 17), pa se
+   poruke mogu pregledati i unaprijed. Na objavljenoj verziji je nema. */
+
+const RAZVOJ = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
 
 let prisilanUvod = null;
 let pwaSimulacija = false;
+let resetUToku = false;
 
 (function testniPrekidaci() {
   let q;
@@ -140,10 +147,7 @@ let pwaSimulacija = false;
   if (!q || ![...q.keys()].length) return;
 
   if (q.has('reset')) {
-    try {
-      Object.values(LS).forEach(k => localStorage.removeItem(k));
-    } catch { /* private mode */ }
-    location.replace(location.pathname);
+    ocistiUredjaj().then(() => location.replace(location.pathname));
     return;
   }
 
@@ -247,6 +251,7 @@ function prikaziDan(animiraj = true) {
   el.danDanas.hidden     = jeDanas;
 
   osvjeziFav();
+  osvjeziRazvoj();
 }
 
 /**
@@ -286,7 +291,8 @@ function pomjeriDan(korak) {
   if (prijelazUToku) return false;
   const novi = new Date(stanje.datum);
   novi.setDate(novi.getDate() + korak);
-  if (novi > danasnji()) return false;
+  // lokalno se smije i naprijed — poruke se tako pregledaju unaprijed
+  if (novi > danasnji() && !RAZVOJ) return false;
   prijedjiNa(novi, korak < 0 ? 1 : -1);
   return true;
 }
@@ -626,9 +632,8 @@ function kratkaPoruka(tekst, maks = NOTIF_MAKS) {
   return `${isjecak.replace(/[\s.,;:!?…„“”»«—–-]+$/, '')}…`;
 }
 
-/* Test notifikacija je razvojna alatka — na objavljenoj verziji je nema.
-   Endpoint /api/test je tamo takođe zatvoren. */
-const RAZVOJ = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+/* Test notifikacija je razvojna alatka (RAZVOJ, vidi 3b) — na objavljenoj
+   verziji je nema, a endpoint /api/test je tamo takođe zatvoren. */
 
 async function ucitajPushConfig() {
   try {
@@ -1353,6 +1358,7 @@ function otvori(sloj) {
 function zatvoriSve() {
   $$('.sloj.on').forEach(s => s.classList.remove('on'));
   document.body.style.overflow = '';
+  resetPocetno();                     // potvrda brisanja se ne nosi u sljedeće otvaranje
 }
 
 async function otvoriDijeljenje() {
@@ -1803,7 +1809,188 @@ addEventListener('appinstalled', () => {
   if (el.uvod?.classList.contains('on') && uvodKoraci()[uvodIdx]?.id === 'instal') crtajKorakInstal();
 });
 
-/* ---------- 17. START ---------- */
+/* ---------- 17. NADOGRADNJA I RESET ---------- */
+/* Aplikacija se ne smije mijenjati korisniku pod rukom, pa novi service
+   worker stoji u stanju „waiting“ dok se ne potvrdi (vidi sw.js). Traka na
+   dnu ekrana i red u postavkama nude instalaciju; kada novi worker preuzme
+   kontrolu, stranica se osvježi i radi na novoj verziji. */
+
+let swReg = null;
+let nadogradnjaKrenula = false;
+
+function pokaziNadogradnju() {
+  if (nadogradnjaKrenula) return;
+  if (el.rNadogradnja) el.rNadogradnja.hidden = false;
+  if (!el.nadogradnja) return;
+  el.nadogradnja.hidden = false;
+  // toast i razvojna traka se dižu iznad trake, da se ne poklope
+  document.documentElement.dataset.nadogradnja = '1';
+}
+
+function sakrijNadogradnju() {
+  el.nadogradnja.hidden = true;
+  delete document.documentElement.dataset.nadogradnja;
+}
+
+function instalirajNadogradnju() {
+  const ceka = swReg?.waiting;
+  if (!ceka) return location.reload();
+
+  nadogradnjaKrenula = true;
+  el.nvInstaliraj.disabled = true;
+  el.nadogradnjaOpis.textContent = 'Instaliram novu verziju…';
+  ceka.postMessage({ tip: 'PRESKOCI_CEKANJE' });
+
+  // ako `controllerchange` ne dođe (stariji WebKit), osvježi ipak
+  setTimeout(() => location.reload(), 3500);
+}
+
+function postaviServiceWorker() {
+  if (!('serviceWorker' in navigator) || resetUToku) return;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (nadogradnjaKrenula) location.reload();
+  });
+
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+    .then(reg => {
+      swReg = reg;
+
+      // novi worker je preuzet u nekom ranijem otvaranju i još čeka
+      if (reg.waiting && navigator.serviceWorker.controller) pokaziNadogradnju();
+
+      reg.addEventListener('updatefound', () => {
+        const novi = reg.installing;
+        if (!novi) return;
+        novi.addEventListener('statechange', () => {
+          // bez kontrolera ovo je prva instalacija, a ne nadogradnja
+          if (novi.state === 'installed' && navigator.serviceWorker.controller) pokaziNadogradnju();
+        });
+      });
+
+      /* Instalirana aplikacija se zna držati otvorena danima, a i sam
+         preglednik provjerava sw.js samo pri navigaciji — zato provjeru
+         tražimo sami, pri svakom vraćanju u aplikaciju i periodično. */
+      const provjeri = () => { try { reg.update(); } catch { /* tiho */ } };
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') provjeri();
+      });
+      setInterval(provjeri, 30 * 60 * 1000);
+    })
+    .catch(() => { /* bez service workera aplikacija radi, samo bez offlinea */ });
+}
+
+/** Koja je verzija keša aktivna na ovom uređaju — ide pored verzije aplikacije. */
+function verzijaKesa() {
+  return new Promise(daj => {
+    const sw = navigator.serviceWorker?.controller;
+    if (!sw) return daj(null);
+    const kanal = new MessageChannel();
+    const kraj = setTimeout(() => daj(null), 900);
+    kanal.port1.onmessage = e => { clearTimeout(kraj); daj(e.data?.verzija || null); };
+    try { sw.postMessage({ tip: 'VERZIJA' }, [kanal.port2]); }
+    catch { clearTimeout(kraj); daj(null); }
+  });
+}
+
+function ispisiVerziju(kes) {
+  $('#verzija').textContent = kes ? `Verzija ${VERZIJA} · keš ${kes}` : `Verzija ${VERZIJA}`;
+}
+
+/* --- brisanje aplikacije sa uređaja --- */
+/* Instalirana aplikacija na iPhoneu ima svoj prostor, odvojen od Safarija,
+   pa ?reset iz preglednika ne dodiruje njene podatke. Zato dugme živi u
+   postavkama same aplikacije: skida service worker, keš i sve zapise, tako
+   da se pri sljedećem otvaranju sve preuzme ispočetka. */
+
+async function ocistiUredjaj() {
+  resetUToku = true;
+
+  try { await odjaviPush(); } catch { /* tiho */ }
+
+  try {
+    const regs = (await navigator.serviceWorker?.getRegistrations?.()) || [];
+    await Promise.all(regs.map(r => r.unregister().catch(() => false)));
+  } catch { /* tiho */ }
+
+  try {
+    const imena = await caches.keys();
+    await Promise.all(imena.map(n => caches.delete(n).catch(() => false)));
+  } catch { /* tiho */ }
+
+  try {
+    const svi = new Set([...Object.keys(localStorage).filter(k => k.startsWith('pd.')), ...Object.values(LS)]);
+    svi.forEach(k => localStorage.removeItem(k));
+  } catch { /* private mode */ }
+}
+
+const RESET_NAS  = 'Obriši verziju sa ovog uređaja';
+const RESET_OPIS = 'Briše keširanu verziju i sve zapise — aplikacija se instalira ispočetka';
+
+let resetPotvrda = 0;
+
+function resetPocetno() {
+  if (!el.rReset) return;
+  clearTimeout(resetPotvrda);
+  resetPotvrda = 0;
+  el.rReset.removeAttribute('data-potvrda');
+  el.rResetNas.textContent = RESET_NAS;
+  el.rResetOpis.textContent = RESET_OPIS;
+  el.resetNapomena.hidden = true;
+}
+
+/** Dva dodira: prvi traži potvrdu, drugi briše. Potvrda sama istekne. */
+async function naReset() {
+  if (!resetPotvrda) {
+    el.rReset.dataset.potvrda = '1';
+    el.rResetNas.textContent = 'Potvrdi brisanje';
+    el.rResetOpis.textContent = 'Dodirni još jednom — nema vraćanja';
+    el.resetNapomena.hidden = false;
+    el.resetNapomena.textContent = 'Brišu se sačuvane poruke, podsjetnik i keširana verzija. '
+      + 'Ikona ostaje na početnom ekranu; kad je otvoriš, aplikacija se preuzima ispočetka.';
+    resetPotvrda = setTimeout(resetPocetno, 6000);
+    return;
+  }
+
+  clearTimeout(resetPotvrda);
+  el.rReset.setAttribute('aria-disabled', 'true');
+  el.rResetNas.textContent = 'Brišem…';
+  el.rResetOpis.textContent = 'Aplikacija se ponovo učitava';
+  await ocistiUredjaj();
+  location.replace(location.pathname);
+}
+
+/* --- razvojna traka: pomjeranje dana (samo localhost) --- */
+/* Uz strelice na tastaturi i swipe po kartici, ovdje su dugmad i ispis koja
+   je poruka po redu — tako se odmah vidi i da se knjige ne ponavljaju.
+
+   Dugmad ne animiraju karticu: animacija traje ~0,7 s i pojede svaki brzi
+   klik, a kroz cijelu listu se prolazi upravo brzim klikanjem. Strelice i
+   swipe rade kao i prije, sa animacijom. */
+function razvojDan(korak) {
+  const novi = new Date(stanje.datum);
+  if (korak) novi.setDate(novi.getDate() + korak);
+  stanje.datum = korak ? novi : danasnji();
+  prikaziDan(false);
+}
+
+function osvjeziRazvoj() {
+  if (!RAZVOJ || !el.razvoj || !stanje.podaci) return;
+
+  const d = stanje.datum;
+  const p = porukaZa(d);
+  const k = knjigaPo(p.knjiga);
+  const n = stanje.podaci.poruke.length;
+  const i = stanje.podaci.poruke.indexOf(p) + 1;
+  const razlika = brojDana(d) - brojDana(danasnji());
+  const pomak = razlika === 0 ? 'danas' : `${razlika > 0 ? '+' : '−'}${Math.abs(razlika)}`;
+
+  el.rzInfo.innerHTML = `<b>${esc(kratkiDatum(d))} · ${esc(pomak)}</b>`
+    + esc(`${i}/${n} · #${p.id} · ${k ? k.naslov : '—'}`);
+  el.rzDanas.disabled = razlika === 0;
+}
+
+/* ---------- 18. START ---------- */
 function vezi() {
   Object.assign(el, {
     dan: $('#d-dan'), danTekst: $('#d-dan-tekst'), datum: $('#d-datum'), hidzri: $('#d-hidzri'),
@@ -1822,6 +2009,13 @@ function vezi() {
     notifNapomena: $('#notif-napomena'), rTestNotif: $('#r-test-notif'),
     rInstal: $('#r-instal'), instalOpis: $('#r-instal-opis'),
     rPonoviUvod: $('#r-ponovi-uvod'),
+    rNadogradnja: $('#r-nadogradnja'),
+    nadogradnja: $('#nadogradnja'), nadogradnjaOpis: $('#nadogradnja-opis'),
+    nvInstaliraj: $('#nv-instaliraj'), nvKasnije: $('#nv-kasnije'),
+    rReset: $('#r-reset'), rResetNas: $('#r-reset-nas'),
+    rResetOpis: $('#r-reset-opis'), resetNapomena: $('#reset-napomena'),
+    razvoj: $('#razvoj'), rzInfo: $('#rz-info'),
+    rzNazad: $('#rz-nazad'), rzNapred: $('#rz-napred'), rzDanas: $('#rz-danas'),
     mInstal: $('#m-instal'), instalKoraci: $('#instal-koraci'),
     formati: $('#dijeli-formati'), stilovi: $('#dijeli-stilovi'),
     platno: $('#platno'), pregled: $('#pregled'),
@@ -1879,6 +2073,22 @@ function slusaci() {
     pokreniUvod(jeInstalirana() ? 'pwa' : 'web');
   });
   $('#r-instal').addEventListener('click', instaliraj);
+  el.rReset.addEventListener('click', naReset);
+
+  // nadogradnja: traka na dnu i red u postavkama vode na isto
+  el.nvInstaliraj.addEventListener('click', instalirajNadogradnju);
+  el.rNadogradnja.addEventListener('click', () => { zatvoriSve(); instalirajNadogradnju(); });
+  el.nvKasnije.addEventListener('click', () => {
+    sakrijNadogradnju();
+    poruka('Nova verzija čeka u postavkama', 'i-preuzmi');
+  });
+
+  // razvojna traka: dan lijevo/desno (isto rade strelice i swipe)
+  if (RAZVOJ) {
+    el.rzNazad.addEventListener('click', () => razvojDan(-1));
+    el.rzNapred.addEventListener('click', () => razvojDan(1));
+    el.rzDanas.addEventListener('click', () => razvojDan(0));
+  }
 
   // sačuvano
   el.pretragaSac.addEventListener('input', crtajSacuvano);
@@ -1948,7 +2158,13 @@ async function start() {
   cekajVidljivost();
   primijeniTemu();
   slusaci();
-  $('#verzija').textContent = `Verzija ${VERZIJA}`;
+  ispisiVerziju(null);
+  verzijaKesa().then(ispisiVerziju);
+
+  if (RAZVOJ) {
+    document.documentElement.dataset.razvoj = '1';
+    el.razvoj.hidden = false;
+  }
 
   try {
     stanje.podaci = await ucitajPodatke();
@@ -1991,9 +2207,6 @@ async function start() {
 start();
 
 /* --- service worker: potreban je za push i offline; mrežа-prvo strategija
-       u sw.js znači da se izmjene i u razvoju vide odmah --- */
-if ('serviceWorker' in navigator) {
-  addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
-  });
-}
+       u sw.js znači da se izmjene i u razvoju vide odmah. Registracija i
+       ponuda nadogradnje su u odjeljku 17. --- */
+addEventListener('load', postaviServiceWorker);

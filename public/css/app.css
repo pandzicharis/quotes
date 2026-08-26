@@ -10,7 +10,8 @@
    1 Tokeni · 2 Reset · 3 Ambijent · 4 Header · 5 Ornamenti
    6 Kartica · 7 Svajp · 8 Sekcije · 9 Traka · 10 Modali
    11 Redovi · 12 Sačuvano · 13 Dijeljenje · 14 Toast
-   15 Uvod · 16 Responzivno · 17 Pomoćno
+   15 Uvod · 16 Nadogradnja · 17 Razvojna traka
+   18 Responzivno · 19 Pomoćno
    ============================================================ */
 
 /* ugao za pokretni obrub kartice — registrovan da bi bio animiran */
@@ -762,6 +763,15 @@ img { max-width: 100%; display: block; }
 .red__vise svg { width: 11px; height: 11px; }
 .red[aria-disabled="true"] { opacity: .4; pointer-events: none; }
 
+/* red koji briše podatke: prigušen dok ne bude dodirnut, crven u potvrdi */
+.red--pazi .red__ikona { color: var(--ink-mute); background: color-mix(in srgb, var(--ink-mute) 14%, transparent); }
+.red--pazi[data-potvrda] {
+  border-color: color-mix(in srgb, #D9704F 55%, transparent);
+  background: color-mix(in srgb, #D9704F 10%, var(--surface));
+}
+.red--pazi[data-potvrda] .red__telo b { color: #E3866A; }
+.red--pazi[data-potvrda] .red__ikona { color: #E3866A; background: color-mix(in srgb, #D9704F 16%, transparent); }
+
 .napomena { font-size: 10px; color: var(--ink-mute); line-height: 1.55; margin: 8px 5px 0; }
 .napomena--sredina { text-align: center; margin: 22px auto 0; max-width: 300px; }
 .verzija { font-size: 8.5px; letter-spacing: .18em; text-transform: uppercase;
@@ -1038,7 +1048,81 @@ input.mini:focus { outline: none; border-color: var(--gold); }
   background: color-mix(in srgb, var(--gold) 9%, transparent); }
 .uvod__stanje--pazi { color: var(--ink-mute); border: 1px solid var(--line); }
 
-/* ---------- 16. RESPONZIVNO ---------- */
+/* ---------- 16. NADOGRADNJA ----------
+   Traka „nova verzija“ stoji fiksno na dnu: nadogradnja se često primijeti
+   dok je korisnik već zaglibio u tekst, pa traka u toku dokumenta ostane
+   iznad ekrana i nikad se ne vidi. Ostale fiksne stvari (toast, razvojna
+   traka) se pomjeraju iznad nje. */
+.nadogradnja {
+  position: fixed; z-index: 130; left: 0; right: 0;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  padding: 0 var(--pad);
+  animation: nadogradnjaUlaz .42s var(--ease) both;
+}
+@keyframes nadogradnjaUlaz { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.nadogradnja__inner {
+  max-width: var(--maxw); margin: 0 auto;
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 12px 11px 13px; border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--gold) 9%, var(--surface-2));
+  border: 1px solid color-mix(in srgb, var(--gold) 38%, transparent);
+  box-shadow: var(--shadow);
+}
+.nadogradnja__ik {
+  width: 31px; height: 31px; flex: none; display: grid; place-items: center;
+  border-radius: 9px; color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 14%, transparent);
+}
+.nadogradnja__ik svg { width: 15px; height: 15px; }
+.nadogradnja__telo { flex: 1; min-width: 0; }
+.nadogradnja__telo b { display: block; font-size: 13px; font-weight: 600; }
+.nadogradnja__telo span { display: block; font-size: 10.5px; color: var(--ink-mute); margin-top: 2px; line-height: 1.45; }
+.nadogradnja__btn { padding: 10px 16px; font-size: 10.5px; }
+.nadogradnja__x { width: 30px; height: 30px; flex: none; }
+.nadogradnja__x svg { width: 14px; height: 14px; }
+
+/* ---------- 17. RAZVOJNA TRAKA ----------
+   Vidi se samo na localhostu (<html data-razvoj>): pomjeranje dana
+   lijevo/desno, uključujući dane u budućnosti, da se poruke mogu pregledati
+   unaprijed. Na objavljenoj verziji ovog elementa nema. */
+.razvoj {
+  position: fixed; z-index: 140;
+  right: max(14px, env(safe-area-inset-right));
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 7px; border-radius: 999px;
+  background: var(--surface-2); border: 1px solid var(--line);
+  box-shadow: var(--shadow); font-family: var(--sans);
+}
+.razvoj__btn {
+  width: 30px; height: 30px; flex: none; border-radius: 50%;
+  display: grid; place-items: center; color: var(--ink-soft);
+  transition: color var(--t-fast), background var(--t-fast);
+}
+.razvoj__btn:hover { color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.razvoj__btn:active { transform: scale(.92); }
+.razvoj__btn svg { width: 13px; height: 13px; }
+.razvoj__info {
+  min-width: 190px; padding: 0 6px; text-align: center;
+  font-size: 9px; line-height: 1.4; color: var(--ink-mute);
+}
+.razvoj__info b { display: block; font-size: 10.5px; font-weight: 700; color: var(--ink); }
+.razvoj__danas {
+  padding: 0 9px 0 5px; font-size: 8.5px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--gold);
+  transition: opacity var(--t-fast);
+}
+.razvoj__danas[disabled] { opacity: .32; pointer-events: none; }
+
+/* Fiksne stvari na dnu se slažu jedna iznad druge, ne jedna preko druge.
+   Stanje nosi <html data-razvoj> / <html data-nadogradnja> — atribut, a ne
+   klasa, da se ne poklopi sa selektorom samog elementa (npr. `.razvoj`). */
+html[data-razvoj] .nadogradnja { bottom: calc(68px + env(safe-area-inset-bottom)); }
+html[data-razvoj] .toast-hold { bottom: calc(76px + env(safe-area-inset-bottom)); }
+html[data-nadogradnja] .toast-hold { bottom: calc(96px + env(safe-area-inset-bottom)); }
+html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-area-inset-bottom)); }
+
+/* ---------- 18. RESPONZIVNO ---------- */
 @media (min-width: 760px) {
   .karta { min-height: 520px; transition: box-shadow var(--t) var(--ease); }
   .karta:hover { box-shadow: 0 36px 82px -32px rgba(0,0,0,.92), inset 0 1px 0 rgba(255,255,255,.045); }
@@ -1088,7 +1172,7 @@ html:not(.anim) .karta__tekst .w { opacity: 1; filter: none; transform: none; }
 html:not(.anim) .karta__uglovi span { opacity: .3; }
 html:not(.anim) .stavka { opacity: 1; transform: none; }
 
-/* ---------- 17. POMOĆNO ---------- */
+/* ---------- 19. POMOĆNO ---------- */
 [hidden] { display: none !important; }
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0,0,0,0); white-space: nowrap; border: 0; }

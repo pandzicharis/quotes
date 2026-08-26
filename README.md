@@ -53,22 +53,25 @@ vercel.json                 cache zaglavlja
 Uredi `public/data/poruke.json`:
 
 ```json
-{ "id": 13, "tekst": "…", "knjiga": "na-putu-ka-milosti", "tema": "Milost" }
+{ "id": 36, "tekst": "…", "knjiga": "na-putu-ka-milosti", "poglavlje": "Sudbina" }
 ```
 
-- `id` — jedinstven broj (veže sačuvane poruke)
+- `id` — jedinstven broj, nikad se ne mijenja (sačuvane poruke se vežu za njega)
 - `knjiga` — `id` iz liste `knjige`
-- `tema` — kratka oznaka ispod naslova knjige
+- `poglavlje` — poglavlje knjige, ispisuje se ispod naslova
 
 Poruka dana se bira **determinisano po datumu**: `broj_dana % broj_poruka`.
 Isti dan uvijek daje istu poruku, i klijent i server koriste istu formulu.
 Poruke se smiju ponavljati — kad ih ima manje od 365, ciklus se vrti.
 
+**Redoslijed liste jeste redoslijed dana**, pa su knjige izmiješane: nikad
+više od **dvije poruke iste knjige jedna za drugom**, računajući i prelaz s
+kraja liste na početak. Nove poruke uklopi u to miješanje i daj im novi id —
+ne moraju ići na kraj liste, jer sačuvane poruke prate id, ne poziciju.
+Poredak se lako provjeri razvojnom trakom (vidi „Razvojne alatke“).
+
 Knjige imaju svoj `url` (`/knjiga/...`), pa klik na izvor vodi direktno na
 tu knjigu. `autor.knjige_url` je fallback (`/shop`).
-
-> Trenutni sadržaj je **placeholder** za testiranje izgleda — nisu citati iz
-> knjiga. Zamijeniti prije objave.
 
 ---
 
@@ -189,6 +192,45 @@ početni ekran**. U Safari tabu prekidač neće raditi — zato je u postavkama
 
 Čuvaju se u `localStorage`, po uređaju. Nema računa ni servera — svaki
 korisnik ima svoju zbirku i ona ne izlazi s uređaja.
+
+---
+
+## Nadogradnja i brisanje sa uređaja
+
+Instalirana aplikacija ne uzima novi kod sama od sebe: novi service worker
+ostaje u stanju `waiting`, a korisnik dobije traku **„Nova verzija je
+spremna“** na dnu ekrana (i red u postavkama, ako traku odgodi). Dodir na
+**Instaliraj** pošalje workeru `PRESKOCI_CEKANJE`, on preuzme kontrolu i
+stranica se osvježi. Provjera se traži pri svakom vraćanju u aplikaciju i
+svakih 30 minuta, jer instalirana aplikacija zna ostati otvorena danima.
+
+**Pri objavi nove verzije podigni dvije stvari:** `VERZIJA` u `public/sw.js`
+(mijenja ime keša i pokreće nadogradnju) i `VERZIJA` u `public/js/app.js`
+(ispisuje se u postavkama). Aktivna verzija keša piše pored nje, npr.
+`Verzija 1.3.0 · keš v6` — po tome se vidi šta uređaj stvarno ima.
+
+**Postavke → Obriši verziju sa ovog uređaja** skida service worker, sve
+keševe i sve `pd.*` zapise, pa se aplikacija pri sljedećem otvaranju
+preuzima ispočetka i uvod ide od početka. Traži dva dodira (potvrda sama
+istekne). Dugme je u aplikaciji, a ne samo `?reset` u URL-u, jer instalirana
+aplikacija na iPhoneu ima svoj prostor odvojen od Safarija — brisanje iz
+preglednika njene podatke ne dodiruje.
+
+---
+
+## Razvojne alatke
+
+Vide se **samo na `localhost`**; na objavljenoj verziji ih nema:
+
+- **Traka za dane** na dnu ekrana: `‹` / `›` pomjeraju dan (i u budućnost,
+  da se poruke pregledaju unaprijed), `Danas` vraća na današnji. Ispisuje
+  datum, pomak, koja je poruka po redu, njen `id` i knjigu — tako se odmah
+  vidi da se knjige ne ponavljaju. Isto rade strelice na tastaturi i swipe
+  po kartici, samo sa animacijom.
+- **Pošalji test notifikaciju** i **Ponovi uvod** u postavkama.
+
+Prekidači u URL-u rade i na objavljenoj adresi, pa se tok može provjeriti na
+pravom telefonu: `?uvod=web`, `?uvod=pwa`, `?pwa=1`, `?reset`.
 
 ---
 

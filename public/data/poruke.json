@@ -1,6 +1,6 @@
 {
   "verzija": 2,
-  "_napomena": "Stvarni citati iz knjiga hafiza Ammara Bašića. Shema poruke: {id, tekst, knjiga (id iz 'knjige'), poglavlje}. Poruka dana se bira determinisano po datumu (broj_dana % broj_poruka), pa se pri manjem broju poruka ciklus ponavlja. Nove poruke dodavati na kraj liste da se sačuvane poruke ne pomjere. Mreže: autor.mreze — ako je url prazan, red se prikaže bez linka.",
+  "_napomena": "Stvarni citati iz knjiga hafiza Ammara Bašića. Shema poruke: {id, tekst, knjiga (id iz 'knjige'), poglavlje}. Poruka dana se bira determinisano po datumu (broj_dana % broj_poruka), pa redoslijed liste jeste redoslijed dana — zato su knjige izmiješane tako da se nikad ne pojave više od dvije poruke iste knjige jedna za drugom (računa se i prelaz s kraja liste na početak). Kad dodaješ nove poruke, uklopi ih u to miješanje i daj im novi, neiskorišten id — sačuvane poruke se vežu za id, ne za mjesto u listi. Mreže: autor.mreze — ako je url prazan, red se prikaže bez linka.",
   "autor": {
     "ime": "Hafiz Ammar Bašić",
     "tagline": "Duhovnost kao stil života",
@@ -72,56 +72,8 @@
   ],
   "poruke": [
     {
-      "id": 1,
-      "tekst": "Nekada ti Allah odredi da se razočaraš u ljude, projekte, bezvrijedne neke ideje i svoje navike, kako bi uvidio besmislenost vezanja srca za bilo koga ili bilo šta osim za Živog i Vječnog Koji ne umire. Živ si koliko ti srce zna za Živog.",
-      "knjiga": "probudi-svoje-srce",
-      "poglavlje": "Vjeruj svom Stvoritelju"
-    },
-    {
-      "id": 2,
-      "tekst": "Nemoj dopustiti da te poraze loši ljudi i njihova okrutna srca. Nemoj dozvoliti da te njihove riječi uvrijede. Ne dopusti da neko od takvih u tvoje srce posadi očaj! Očaj je hrana šejtanova, a ti prokletnika ne želiš hraniti. Ti svoj put znaš, a mnoštvo onih koji drugim putem idu, neće te pokolebati do tvog cilja. To da li će te neko poštovati ili će sa tobom „pomesti pod“, tvoj je izbor. Ako ti ne cijeniš sebe, neće te sigurno ni neko drugi cijeniti. A samo se pred Allahom kičma savija!",
-      "knjiga": "probudi-svoje-srce",
-      "poglavlje": "Najbolji je čovjek onaj koji koristi drugima"
-    },
-    {
-      "id": 3,
-      "tekst": "Dunjaluk će nam na kraju uzeti sve najljepše što imamo, a mi se opet za njega brinemo. A Džennet nam opet daje sve najljepše što možemo poželjeti, a opet se najmanje za njega brinemo. Zato prije nego što legneš, i ujutro kada ustaneš, prouči Poslanikovu dovu: „Allahu moj, nemoj da dunjaluk bude moja najveća briga!“",
-      "knjiga": "probudi-svoje-srce",
-      "poglavlje": "Prihvati dunjaluk rukama, a ne srcem"
-    },
-    {
-      "id": 4,
-      "tekst": "Ako nisi spreman sada, u ovom trenutku, bez obzira na sve, kazati: „Ja sam najsretniji čovjek na svijetu“ — to je znak da još uvijek nisi okusio slast imana (vjerovanja) u svom srcu!",
-      "knjiga": "probudi-svoje-srce",
-      "poglavlje": "Sreća je tvoja u tebi"
-    },
-    {
-      "id": 5,
-      "tekst": "Podigni glavu, nasmij se, ne gubi nadu, šta te to na dunjaluku može slomiti dok si sa Onim Ko stvori i upravlja dunjalukom?! Kao što pas sluša svog vlasnika, tako i dunjaluk ponizno dolazi pred čovjeka koji se pokori Vlasniku dunjaluka! Kad si sa Allahom, čitav svijet je tvoj!",
-      "knjiga": "probudi-svoje-srce",
-      "poglavlje": "Podigni svoje ambicije"
-    },
-    {
-      "id": 6,
-      "tekst": "Bolna je istina da kad kucaš na jedna vrata, a ona se ne otvaraju — ta vrata nisu za tebe. Ohrabrujuća je istina da kad ti se zatvore ta jedna vrata — Gospodar ti otvara druga dvoja. Jer samo On je Onaj Koji otvara, El-Fettah!",
-      "knjiga": "ucvrsti-svoje-srce",
-      "poglavlje": "Vjeruj"
-    },
-    {
-      "id": 7,
-      "tekst": "Oni koji su spoznali i osjetili ljepotu Allahove ljubavi, to su vidjeli većim i od dunjaluka, imetka, porodice, života, samih sebe, pa čak i od same nagrade, vječne džennetske ljepote, jer Uzvišeni u Kur'anu kaže: „Allahovo zadovoljstvo je najveće.“ (Et-Tevba, 72)",
-      "knjiga": "oni-koje-allah-voli",
-      "poglavlje": "Koraci ka vječnoj ljubavi"
-    },
-    {
       "id": 8,
       "tekst": "Najveća nesreća nije biti siromašan ili izgubiti imetak. Najveća je nesreća doživjeti odlazak sa ovoga svijeta bez da je taj čovjek ikada osjetio želju da se približi svome Gospodaru! Ima ljudi koji duboku starost dočekaju, ali nikada u svome životu nisu osjetili poticaj da se približe Gospodaru. Razlog tome je što nije tražio od Allaha, nije kucao na vrata Njegove milosti. Zbog svega toga, mi smo u potrebi probuditi ovaj osjećaj i podići svoju ambiciju.",
-      "knjiga": "na-putu-ka-milosti",
-      "poglavlje": "Buđenje emocija"
-    },
-    {
-      "id": 9,
-      "tekst": "Njegovo ime je El-Vedud, Onaj Koji voli i Onaj Koji je voljen, jer jedino Božije svojstvo koje ima povratno značenje i od Njega prema nama i od nas prema Njemu jeste ljubav.",
       "knjiga": "na-putu-ka-milosti",
       "poglavlje": "Buđenje emocija"
     },
@@ -132,10 +84,202 @@
       "poglavlje": "Iskrenost"
     },
     {
+      "id": 1,
+      "tekst": "Nekada ti Allah odredi da se razočaraš u ljude, projekte, bezvrijedne neke ideje i svoje navike, kako bi uvidio besmislenost vezanja srca za bilo koga ili bilo šta osim za Živog i Vječnog Koji ne umire. Živ si koliko ti srce zna za Živog.",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Vjeruj svom Stvoritelju"
+    },
+    {
+      "id": 9,
+      "tekst": "Njegovo ime je El-Vedud, Onaj Koji voli i Onaj Koji je voljen, jer jedino Božije svojstvo koje ima povratno značenje i od Njega prema nama i od nas prema Njemu jeste ljubav.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Buđenje emocija"
+    },
+    {
       "id": 11,
       "tekst": "Onaj ko stavi dunjaluk ispred Ahireta — izgubit će oboje, a onaj ko Ahiret stavi ispred dunjaluka — dobit će oboje.",
       "knjiga": "na-putu-ka-milosti",
       "poglavlje": "Organizacija vremena"
+    },
+    {
+      "id": 2,
+      "tekst": "Nemoj dopustiti da te poraze loši ljudi i njihova okrutna srca. Nemoj dozvoliti da te njihove riječi uvrijede. Ne dopusti da neko od takvih u tvoje srce posadi očaj! Očaj je hrana šejtanova, a ti prokletnika ne želiš hraniti. Ti svoj put znaš, a mnoštvo onih koji drugim putem idu, neće te pokolebati do tvog cilja. To da li će te neko poštovati ili će sa tobom „pomesti pod“, tvoj je izbor. Ako ti ne cijeniš sebe, neće te sigurno ni neko drugi cijeniti. A samo se pred Allahom kičma savija!",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Najbolji je čovjek onaj koji koristi drugima"
+    },
+    {
+      "id": 12,
+      "tekst": "Bez obzira da li smo probudili svoje ambicije kroz strah, želju za nagradom, ljubav prema Allahu ili kroz druženje sa čestitima, imamo obavezu taj impuls za dobrom čuvati, jačati i odazvati mu se kroz djelo.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Buđenje ambicija"
+    },
+    {
+      "id": 13,
+      "tekst": "Allah čovjeku daje iskušenje ili da ga očisti od grijeha ili da mu podigne stepen vjerovanja.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Sudbina"
+    },
+    {
+      "id": 6,
+      "tekst": "Bolna je istina da kad kucaš na jedna vrata, a ona se ne otvaraju — ta vrata nisu za tebe. Ohrabrujuća je istina da kad ti se zatvore ta jedna vrata — Gospodar ti otvara druga dvoja. Jer samo On je Onaj Koji otvara, El-Fettah!",
+      "knjiga": "ucvrsti-svoje-srce",
+      "poglavlje": "Vjeruj"
+    },
+    {
+      "id": 14,
+      "tekst": "Možda pojedinac nikada neće uspjeti u svom cilju, da bude bolji i da promijeni neku mahanu, ali Gospodar ne traži pobjednika već borca u čijem srcu izgara nastojanje da bude bolji.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Sudbina"
+    },
+    {
+      "id": 3,
+      "tekst": "Dunjaluk će nam na kraju uzeti sve najljepše što imamo, a mi se opet za njega brinemo. A Džennet nam opet daje sve najljepše što možemo poželjeti, a opet se najmanje za njega brinemo. Zato prije nego što legneš, i ujutro kada ustaneš, prouči Poslanikovu dovu: „Allahu moj, nemoj da dunjaluk bude moja najveća briga!“",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Prihvati dunjaluk rukama, a ne srcem"
+    },
+    {
+      "id": 15,
+      "tekst": "Iskušenje se ne treba prizivati, ali kad se desi — treba ga razumjeti.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Sudbina"
+    },
+    {
+      "id": 16,
+      "tekst": "Samo treba imati zahvalno srce i dobra djela, a sve ostalo u našim životima Plemeniti Allah, prije ili kasnije, poravna na najljepši način.",
+      "knjiga": "ucvrsti-svoje-srce",
+      "poglavlje": "Vjeruj"
+    },
+    {
+      "id": 17,
+      "tekst": "Allah ne pomaže one koji ne urade sve što je u njihovoj mogućnosti.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Životni oslonac"
+    },
+    {
+      "id": 4,
+      "tekst": "Ako nisi spreman sada, u ovom trenutku, bez obzira na sve, kazati: „Ja sam najsretniji čovjek na svijetu“ — to je znak da još uvijek nisi okusio slast imana (vjerovanja) u svom srcu!",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Sreća je tvoja u tebi"
+    },
+    {
+      "id": 18,
+      "tekst": "Ako ti Allah oduzme nešto što nisi očekivao da ćeš izgubiti — podarit će ti nešto što nisi očekivao da ćeš dobiti. Samo budi zahvalan Allahu uvijek, u svakoj situaciji!",
+      "knjiga": "ucvrsti-svoje-srce",
+      "poglavlje": "Vjeruj"
+    },
+    {
+      "id": 19,
+      "tekst": "Iskrena vjera u Allaha vjernika čuva od očaja, jer zna da puno više ima nego što pomisli da mu nedostaje.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Životni oslonac"
+    },
+    {
+      "id": 5,
+      "tekst": "Podigni glavu, nasmij se, ne gubi nadu, šta te to na dunjaluku može slomiti dok si sa Onim Ko stvori i upravlja dunjalukom?! Kao što pas sluša svog vlasnika, tako i dunjaluk ponizno dolazi pred čovjeka koji se pokori Vlasniku dunjaluka! Kad si sa Allahom, čitav svijet je tvoj!",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Podigni svoje ambicije"
+    },
+    {
+      "id": 20,
+      "tekst": "Iskušenja će biti dok je čovjek živ. Samo će se forma mijenjati. Ako ne bude ovo — bit će ono. I zato ne treba očekivati da ona prestanu, jer neće. Treba samo kroz iskušenja učiti i jači postajati. Zadržimo li strpljenje, ojačamo li zahvalnost i učvrstimo li svoj karakter — iskušenja će ustvari poklon postati!",
+      "knjiga": "ucvrsti-svoje-srce",
+      "poglavlje": "Vjeruj"
+    },
+    {
+      "id": 21,
+      "tekst": "Uradimo ono malo što je do nas, pa će nam Gospodar ono puno što nije do nas pomoći.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Životni oslonac"
+    },
+    {
+      "id": 7,
+      "tekst": "Oni koji su spoznali i osjetili ljepotu Allahove ljubavi, to su vidjeli većim i od dunjaluka, imetka, porodice, života, samih sebe, pa čak i od same nagrade, vječne džennetske ljepote, jer Uzvišeni u Kur'anu kaže: „Allahovo zadovoljstvo je najveće.“ (Et-Tevba, 72)",
+      "knjiga": "oni-koje-allah-voli",
+      "poglavlje": "Koraci ka vječnoj ljubavi"
+    },
+    {
+      "id": 22,
+      "tekst": "Jedna antistresna poruka svima koji se bore sa dunjalučkim izazovima: „Dunjaluk kod Allaha ne vrijedi ništa, a pripada Njemu. Pa što ti da mu pridaješ značaj, a ni ne pripada tebi?!“",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Prihvati dunjaluk rukama, a ne srcem"
+    },
+    {
+      "id": 23,
+      "tekst": "Kada nešto istinski želiš, nikada nemoj prestati sa traženjem toga od Allaha. Jer, ili će ti Allah nešto dati kada dođe pravo vrijeme za to, ili će ti to zamijeniti sa nečim boljim. Vjerujmo Allahu!",
+      "knjiga": "ucvrsti-svoje-srce",
+      "poglavlje": "Vjeruj"
+    },
+    {
+      "id": 24,
+      "tekst": "Koliko god teška neka situacija izgledala, obaveza nam je svoj maksimum dati, pa se srcem na Allaha osloniti.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Životni oslonac"
+    },
+    {
+      "id": 25,
+      "tekst": "U svakom vremenu će postojati izazovi s kojima će se suočavati ljudska duša, a odgovor na sve te izazove treba biti Božija riječ, tačnije razmišljanje o Njegovom govoru.",
+      "knjiga": "oni-koje-allah-voli",
+      "poglavlje": "Početak putovanja — tražiti viši smisao"
+    },
+    {
+      "id": 26,
+      "tekst": "Sve dok ne shvatiš da u ovom životu, po Božijem zakonu, neće i ne može doći dan nakon kojeg više nećeš imati problema — bit ćeš u problemu. Taj trenutak je rezervisan za onu prvu stopu u Džennetu. A ovo je dunjaluk. Zato ne tuguj…",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Prihvati dunjaluk rukama, a ne srcem"
+    },
+    {
+      "id": 27,
+      "tekst": "Nekada Gospodar uspori ili prekine tvoje planove, jer On Uzvišeni zna i vidi da bi ti planovi mogli usporiti ili prekinuti tebe. Uraditi što je do nas, iz grešaka naučiti lekcije i imati povjerenje u Stvoritelja — ključ je zadovoljstva u srcu i osmijeha na licu.",
+      "knjiga": "ucvrsti-svoje-srce",
+      "poglavlje": "Rasti"
+    },
+    {
+      "id": 28,
+      "tekst": "Čovjek je nesavršen i sve što Allah traži od njega je da iznova radi na sebi i da nikada ne bude od onih koji smatraju da su bez mahane. Najvažnija stvar na putu prema Gospodaru jeste da gledamo stanje svoga srca.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Borba s vlastitim nedostacima"
+    },
+    {
+      "id": 29,
+      "tekst": "Bez unutrašnje čistoće, iskrenosti i pokajanja, nemoguće je ostvariti i izvanjsku, fizičku čistoću, čija su posebna simbolika abdest i namaz. Ko želi da ga Allah zavoli, neka pogleda u svoje srce, a potom neka pogleda u svoja djela — pa će znati da li korača ispravnim putem!",
+      "knjiga": "oni-koje-allah-voli",
+      "poglavlje": "Očistiti se izvana"
+    },
+    {
+      "id": 30,
+      "tekst": "Onaj osjećaj da ti „kamen spadne sa srca“ može dati samo Gospodar srca i to tek onda kada ti je životni princip da ti nikome „kamenja po srcu“ ne stavljaš.",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Prihvati dunjaluk rukama, a ne srcem"
+    },
+    {
+      "id": 31,
+      "tekst": "Neke od stvari koje nas mogu koštati u životu: naš egoizam, pesimizam, loše društvo, stalno slušanje drugih mišljenja, uzdisanje za tuđim blagodatima, pogrešne navike i opterećenost materijalnim kao najvećom brigom. Naša djela i naši izbori odredit će i naš život!",
+      "knjiga": "ucvrsti-svoje-srce",
+      "poglavlje": "Oslobodi se"
+    },
+    {
+      "id": 32,
+      "tekst": "Strah od Uzvišenog Allaha će ukloniti strah od ljudi.",
+      "knjiga": "na-putu-ka-milosti",
+      "poglavlje": "Dostojanstvo"
+    },
+    {
+      "id": 33,
+      "tekst": "Od znakova Allahove ljubavi prema čovjeku jeste da mu On Uzvišeni podari ispravan odnos prema materijalnom, tj. da udalji dunjaluk od njega.",
+      "knjiga": "oni-koje-allah-voli",
+      "poglavlje": "Završetak putovanja"
+    },
+    {
+      "id": 34,
+      "tekst": "Da budeš sretan u životu — uspjet ćeš kada u svakoj sitnici budeš vidio Allahovu dobrotu prema tebi. Sve dok izvan sebe sreću budeš očekivao, šta god da se desi, da postigneš, ostvariš ili dobiješ — dugotrajnu sreću osjetiti nećeš i opet ćeš tražiti nešto novo „da te usreći“. Zato jer sreća nije pitanje onoga što imaš ili nemaš, već je pitanje srca koje: ili jeste ili nije zahvalno Gospodaru svemira.",
+      "knjiga": "probudi-svoje-srce",
+      "poglavlje": "Sreća je tvoja u tebi"
+    },
+    {
+      "id": 35,
+      "tekst": "Prestanite smirivati oluju, već smirite sebe. Oluja će svakako sama proći. Najbolji način da se osvetite nekome za koga mislite da to zaslužuje jeste da uopće više o osveti ne razmišljate. Stvoreni smo da robujemo Gospodaru, a ne ljudima ili svome egu.",
+      "knjiga": "ucvrsti-svoje-srce",
+      "poglavlje": "Oslobodi se"
     }
   ]
 }

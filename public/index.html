@@ -187,6 +187,19 @@
     </div>
   </header>
 
+  <!-- ===== NOVA VERZIJA (service worker čeka na aktivaciju) ===== -->
+  <div class="nadogradnja" id="nadogradnja" hidden>
+    <div class="nadogradnja__inner">
+      <span class="nadogradnja__ik"><svg><use href="#i-preuzmi"/></svg></span>
+      <div class="nadogradnja__telo">
+        <b>Nova verzija je spremna</b>
+        <span id="nadogradnja-opis">Instaliraj je da dobiješ najnovije poruke i popravke.</span>
+      </div>
+      <button class="btn btn--zlatno nadogradnja__btn" id="nv-instaliraj">Instaliraj</button>
+      <button class="icon-btn nadogradnja__x" id="nv-kasnije" aria-label="Kasnije"><svg><use href="#i-x"/></svg></button>
+    </div>
+  </div>
+
   <main class="main">
     <div class="wrap">
 
@@ -346,6 +359,11 @@
 
       <div class="grupa">
         <div class="grupa__nas">Aplikacija</div>
+        <button class="red" id="r-nadogradnja" hidden>
+          <span class="red__ikona"><svg><use href="#i-preuzmi"/></svg></span>
+          <span class="red__telo"><b>Instaliraj novu verziju</b><span>Nova verzija je preuzeta i čeka</span></span>
+          <span class="red__kraj"><svg><use href="#i-strelica"/></svg></span>
+        </button>
         <button class="red" id="r-instal">
           <span class="red__ikona"><svg><use href="#i-instal"/></svg></span>
           <span class="red__telo"><b>Instaliraj aplikaciju</b><span id="r-instal-opis">Dodaj na početni ekran</span></span>
@@ -356,6 +374,15 @@
           <span class="red__telo"><b>Ponovi uvod</b><span>Razvojna alatka — samo lokalno</span></span>
           <span class="red__kraj"><svg><use href="#i-strelica"/></svg></span>
         </button>
+        <button class="red red--pazi" id="r-reset">
+          <span class="red__ikona"><svg><use href="#i-pazi"/></svg></span>
+          <span class="red__telo">
+            <b id="r-reset-nas">Obriši verziju sa ovog uređaja</b>
+            <span id="r-reset-opis">Briše keširanu verziju i sve zapise — aplikacija se instalira ispočetka</span>
+          </span>
+          <span class="red__kraj"><svg><use href="#i-strelica"/></svg></span>
+        </button>
+        <p class="napomena" id="reset-napomena" hidden></p>
       </div>
 
       <p class="verzija" id="verzija"></p>
@@ -422,6 +449,16 @@
     </div>
     <div class="modal__telo" id="instal-koraci"></div>
   </div>
+</div>
+
+<!-- ===== RAZVOJNA TRAKA: pomjeranje dana (samo localhost) ===== -->
+<div class="razvoj" id="razvoj" hidden>
+  <button class="razvoj__btn" id="rz-nazad" title="Dan ranije (←)" aria-label="Dan ranije">
+    <svg><use href="#i-nazad"/></svg></button>
+  <div class="razvoj__info" id="rz-info" aria-live="polite">—</div>
+  <button class="razvoj__btn" id="rz-napred" title="Dan poslije (→)" aria-label="Dan poslije">
+    <svg><use href="#i-strelica"/></svg></button>
+  <button class="razvoj__danas" id="rz-danas" title="Vrati se na danas">Danas</button>
 </div>
 
 <div class="toast-hold" id="toasts" aria-live="polite"></div>

@@ -8,9 +8,14 @@
    Push:
      · 'push'             → prikaz notifikacije sa ikonicom aplikacije
      · 'notificationclick'→ fokusira otvoreni tab ili otvara aplikaciju
+   Nadogradnja:
+     Novi worker se NE aktivira sam (nema skipWaiting u installu) — ostaje
+     u stanju „waiting“ dok aplikacija ne pokaže traku „nova verzija“ i
+     korisnik ne potvrdi. Tek tada stranica pošalje {tip:'PRESKOCI_CEKANJE'}.
+     Bez toga bi se kod mijenjao ispod ruke, na sredini korištenja.
    ============================================================ */
 
-const VERZIJA = 'v5';
+const VERZIJA = 'v6';
 const KESH = `poruka-dana-${VERZIJA}`;
 
 const LJUSKA = [
@@ -28,13 +33,27 @@ const LJUSKA = [
   '/assets/icons/icon-512.png',
 ];
 
+/* Prva instalacija nema šta čekati — tu se aktiviramo odmah. Kod svake
+   sljedeće (postoji stari worker koji kontroliše stranice) čekamo potvrdu. */
 self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(KESH)
-      .then(c => c.addAll(LJUSKA))
-      .then(() => self.skipWaiting())
-      .catch(() => self.skipWaiting())
-  );
+  e.waitUntil((async () => {
+    try {
+      const c = await caches.open(KESH);
+      await c.addAll(LJUSKA);
+    } catch { /* offline pri instalaciji — keš se puni kroz fetch */ }
+
+    // `registration.active` postoji samo ako neki worker već kontroliše
+    // stranice; kad ga nema, ovo je prva instalacija i čekanje nema smisla
+    if (!self.registration.active) await self.skipWaiting();
+  })());
+});
+
+/* Stranica traži da preuzmemo kontrolu (korisnik je dodirnuo „Instaliraj“),
+   ili pita koja je verzija keša — odgovor ide natrag kroz MessageChannel. */
+self.addEventListener('message', e => {
+  const tip = e.data?.tip;
+  if (tip === 'PRESKOCI_CEKANJE') { self.skipWaiting(); return; }
+  if (tip === 'VERZIJA') { e.ports?.[0]?.postMessage({ verzija: VERZIJA }); }
 });
 
 self.addEventListener('activate', e => {
