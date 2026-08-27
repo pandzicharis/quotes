@@ -207,15 +207,15 @@ svima. Vercelov cron nema taj problem jer ne čeka odgovor.
 
 ## Uvod (onboarding)
 
-Uvod je namjerno kratak — dva ekrana po toku, i to je sve. Izbor izgleda
-(Sistem / Dnevna / Noćna) tu više ne stoji kao poseban korak — živi u
-Postavkama, gdje mu je i mjesto. Postoje dva odvojena toka, svaki sa svojom
-verzijom u `localStorage` pa nadogradnja jednog ne tjera korisnika ponovo
-kroz drugi:
+Uvod ima dva odvojena toka, svaki sa svojom verzijom u `localStorage` pa
+nadogradnja jednog ne tjera korisnika ponovo kroz drugi. Podjela je po
+namjeni: u pregledniku je jedini cilj da aplikacija dođe na početni ekran,
+sve ostalo (izgled, dozvola za notifikacije) čeka dok se prvi put ne otvori
+odatle.
 
 **Tok `web`** — prikaže se pri prvom otvaranju u pregledniku i ponovo kad se
 podigne `UVOD_VERZIJA` u `public/js/app.js` (`VERZIJA` je odvojena i ne dira
-uvod):
+uvod). Samo dva ekrana:
 
 1. **Dobrodošlica**
 2. **Na telefonu:** *Dodaj na početni ekran* — maketa telefona sa označenim
@@ -225,15 +225,17 @@ uvod):
    **Na računaru:** *Sve je spremno* — instalacije nema (vidi ispod), pa nema
    ni koraka za nju; podsjetnik ostaje dostupan u postavkama.
 
-**Tok `pwa`** — dozvola za notifikacije se u pregledniku **ne traži**;
-traži se kad se aplikacija prvi put otvori sa početnog ekrana. Na iPhoneu
+**Tok `pwa`** — prikaže se kad se aplikacija prvi put otvori sa početnog
+ekrana. Dozvola za notifikacije se u pregledniku **ne traži** — na iPhoneu
 push iz Safari taba i ne radi, a na Androidu je uredniji jedan zahtjev, u
 aplikaciji:
 
 1. **Dozvoli podsjetnik** — prvi dodir samo traži dozvolu, ne pušta dalje.
    Kad je preglednik trajno odbije (`denied`) ili notifikacije nisu podržane,
    korak se otključa uz objašnjenje umjesto da ostane zaglavljen bez izlaza.
-2. **Sve je spremno**
+2. **Odaberi izgled** — Sistem / Dnevna / Noćna, primjenjuje se odmah; isti
+   izbor kao u Postavkama, gdje se uvijek može promijeniti kasnije.
+3. **Sve je spremno**
 
 ## Notifikacije
 

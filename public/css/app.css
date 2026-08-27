@@ -983,16 +983,38 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 .uvod__tacke i { width: 5px; height: 5px; border-radius: 50%; background: var(--line); transition: all var(--t); }
 .uvod__tacke i.on { background: var(--gold); width: 18px; border-radius: 999px; }
 
+/* izbor teme u uvodu */
+.tema-izbor { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+.tema-opcija {
+  display: grid; gap: 10px; justify-items: center; padding: 11px 6px 12px;
+  border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink-mute);
+  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast),
+              transform var(--t-fast) var(--ease-back);
+}
+.tema-opcija__vizual {
+  width: 100%; max-width: 52px; aspect-ratio: 4 / 3; border-radius: 7px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+}
+.tema-opcija__ime { font-size: 8.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.tema-opcija:active { transform: scale(.96); }
+.tema-opcija[aria-pressed="true"] {
+  color: var(--gold); border-color: color-mix(in srgb, var(--gold) 52%, transparent);
+  background: color-mix(in srgb, var(--gold) 8%, var(--surface));
+}
+
 /* koraci instalacije u uvodu */
 /* Zbijeno: tri kratka koraka ne traže prozračnost cijelog odjeljka — sitniji
    prored, manji broj i manji razmak, pa se sva tri čitaju kao jedna cjelina.
 
-   Tekst MORA biti lijevo poravnat. Uvod je inače centriran, pa je i tekst
-   koraka bježao u sredinu — brojevi lijevo, tekst u sredini, i razmaci su
-   izgledali dvostruko veći nego što jesu. */
+   Tekst MORA biti lijevo poravnat, uz broj, bez razmaka ispod. `.uvod p`
+   ima istu specifičnost kao `.korak p` (jedna klasa + element), pa bi bez
+   ove margine njena `margin: 0 auto 26px` pobijedila po redoslijedu u
+   datoteci — auto lijevo/desno bi odgurnuo tekst od broja prema sredini
+   reda, a 26px ispod udvostručio razmak između koraka. */
 .koraci--uvod { margin-top: 12px; gap: 6px; }
 .koraci--uvod .korak { gap: 9px; align-items: center; }
-.koraci--uvod .korak p { font-size: 12.5px; line-height: 1.4; text-align: left; }
+.koraci--uvod .korak p { margin: 0; font-size: 12.5px; line-height: 1.4; text-align: left; }
 .koraci--uvod .korak__br { width: 20px; height: 20px; font-size: 9.5px; margin-top: 0; }
 .korak__ik {
   display: inline-grid; place-items: center; vertical-align: -3px;

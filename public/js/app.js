@@ -12,8 +12,8 @@ const VERZIJA = '1.4.0';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
-   ponovo kroz onboarding. Tok je prepisan, pa ide 2. */
-const UVOD_VERZIJA = 2;
+   ponovo kroz onboarding. Dodan korak izbora izgleda u PWA toku, pa ide 3. */
+const UVOD_VERZIJA = 3;
 
 /* ---------- 1. KONSTANTE ---------- */
 const DAN_MS = 86400000;
@@ -56,10 +56,11 @@ const UVOD_KORACI = {
     t: 'Nova poruka te čeka svaki dan.' },
 };
 
-/* Uvod je namjerno kratak: dva ekrana, i to je sve. Izbor izgleda je izbačen
-   odavde — živi u postavkama, gdje mu je i mjesto — a „otvori sa početnog
-   ekrana“ je zadnji red upute, ne poseban ekran. Na računaru instalacije
-   nema, pa tamo idu dobrodošlica i kraj. */
+/* Web tok je namjerno kratak: dva ekrana, i to je sve. Izbor izgleda tu ne
+   stoji kao poseban korak — na telefonu je jedini cilj početni ekran, izgled
+   dolazi na red u toku `pwa` (ispod). „Otvori sa početnog ekrana“ je zadnji
+   red upute, ne poseban ekran. Na računaru instalacije nema, pa tamo idu
+   dobrodošlica i kraj. */
 const uvodWeb = () => okolina().desktop
   ? [UVOD_KORACI.pocetak, UVOD_KORACI.kraj]
   : [UVOD_KORACI.pocetak, UVOD_KORACI.instal];
@@ -67,8 +68,16 @@ const uvodWeb = () => okolina().desktop
 const UVOD_PWA = [
   { id: 'notif', n: 'Dozvoli podsjetnik',
     t: 'Ostao je još samo jedan dodir.' },
+  { id: 'tema', n: 'Odaberi izgled',
+    t: 'Noć, papir ili prema postavkama tvog telefona. Uvijek se može promijeniti u postavkama.' },
   { id: 'gotovo', n: 'Sve je spremno',
     t: 'Poruka će te nalaziti svaki dan u isto vrijeme.' },
+];
+
+const TEME = [
+  { id: 'auto',     ime: 'Sistem',  boje: 'linear-gradient(135deg,#F7F1E2 0 50%,#0F1E16 50% 100%)' },
+  { id: 'svijetla', ime: 'Dnevna',  boje: 'linear-gradient(160deg,#FDFBF6,#E8DFCB)' },
+  { id: 'tamna',    ime: 'Noćna',   boje: 'linear-gradient(160deg,#163023,#0A140E)' },
 ];
 
 const LS = {
@@ -1857,12 +1866,37 @@ function crtajUvod() {
 
   if (k.id === 'instal')        crtajKorakInstal();
   else if (k.id === 'notif')    crtajKorakNotif();
+  else if (k.id === 'tema')     crtajIzborTeme();
   else if (k.id === 'gotovo')   crtajKorakGotovo();
   else if (k.id === 'kraj')     crtajKorakKraj();
   else el.uvodDalje.textContent = 'Dalje';
 }
 
 /* --- korak: tema --- */
+function crtajIzborTeme() {
+  const izabran = stanje.autoTema ? 'auto' : stanje.tema;
+  el.uvodSadrzaj.innerHTML = `
+    <div class="tema-izbor" id="tema-izbor">
+      ${TEME.map(t => `
+        <button class="tema-opcija" data-izbor="${t.id}" aria-pressed="${t.id === izabran}">
+          <span class="tema-opcija__vizual" style="background:${t.boje}"></span>
+          <span class="tema-opcija__ime">${t.ime}</span>
+        </button>`).join('')}
+    </div>`;
+  el.uvodDalje.textContent = 'Dalje';
+
+  $('#tema-izbor').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const izbor = b.dataset.izbor;
+    stanje.autoTema = izbor === 'auto';
+    pisi(LS.autoTema, stanje.autoTema);
+    if (!stanje.autoTema) { stanje.tema = izbor; pisi(LS.tema, izbor); }
+    primijeniTemu();
+    crtajIzborTeme();
+  });
+}
+
 /* --- korak: instalacija (samo u WEB toku, samo telefon) --- */
 /* Ovo je korak koji ne pušta dalje. Gdje preglednik nudi svoj dijalog
    (Android Chrome) zovemo ga direktno; gdje ga nema (iPhone) stoji maketa
