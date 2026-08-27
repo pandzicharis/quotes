@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": "public",
+  "functions": {
+    "api/send.js": { "maxDuration": 300 }
+  },
   "headers": [
     {
       "source": "/sw.js",

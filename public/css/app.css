@@ -361,8 +361,17 @@ img { max-width: 100%; display: block; }
 .karta::before {
   content: ''; position: absolute; inset: 0; z-index: 2;
   border-radius: inherit; padding: 2.5px; pointer-events: none;
+  /* Dvije svijetle linije u istom gradijentu, razmaknute tačno 180deg — pa
+     su, dok obilaze, uvijek dijagonalno jedna naspram druge. Jedan rotirajući
+     gradijent to drži sam po sebi: nema drugog sloja koji bi se raspao. */
   background: conic-gradient(from var(--ugao),
     var(--nit-slabo)  0deg,
+    var(--nit-slabo)   16deg,
+    var(--nit-nula)    54deg,
+    var(--nit-jako)   104deg,
+    var(--nit-jako)   136deg,
+    var(--nit-nula)   170deg,
+    var(--nit-slabo)  177deg,
     var(--nit-slabo)  196deg,
     var(--nit-nula)   234deg,
     var(--nit-jako)   284deg,
@@ -377,6 +386,7 @@ img { max-width: 100%; display: block; }
   animation: nitObilazi 9s linear infinite;
 }
 @keyframes nitObilazi { to { --ugao: 360deg; } }
+
 
 .karta__vrh { text-align: center; }
 
@@ -973,50 +983,22 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 .uvod__tacke i { width: 5px; height: 5px; border-radius: 50%; background: var(--line); transition: all var(--t); }
 .uvod__tacke i.on { background: var(--gold); width: 18px; border-radius: 999px; }
 
-/* izbor teme u uvodu */
-.tema-izbor { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
-.tema-opcija {
-  display: grid; gap: 10px; justify-items: center; padding: 11px 6px 12px;
-  border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface);
-  color: var(--ink-mute);
-  transition: border-color var(--t-fast), color var(--t-fast), background var(--t-fast),
-              transform var(--t-fast) var(--ease-back);
-}
-.tema-opcija__vizual {
-  width: 100%; max-width: 52px; aspect-ratio: 4 / 3; border-radius: 7px;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
-}
-.tema-opcija__ime { font-size: 8.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.tema-opcija:active { transform: scale(.96); }
-.tema-opcija[aria-pressed="true"] {
-  color: var(--gold); border-color: color-mix(in srgb, var(--gold) 52%, transparent);
-  background: color-mix(in srgb, var(--gold) 8%, var(--surface));
-}
-
 /* koraci instalacije u uvodu */
-.koraci--uvod { text-align: left; margin-top: 18px; }
-.koraci--uvod .korak p { font-size: 13px; }
+/* Zbijeno: tri kratka koraka ne traže prozračnost cijelog odjeljka — sitniji
+   prored, manji broj i manji razmak, pa se sva tri čitaju kao jedna cjelina.
+
+   Tekst MORA biti lijevo poravnat. Uvod je inače centriran, pa je i tekst
+   koraka bježao u sredinu — brojevi lijevo, tekst u sredini, i razmaci su
+   izgledali dvostruko veći nego što jesu. */
+.koraci--uvod { margin-top: 12px; gap: 6px; }
+.koraci--uvod .korak { gap: 9px; align-items: center; }
+.koraci--uvod .korak p { font-size: 12.5px; line-height: 1.4; text-align: left; }
+.koraci--uvod .korak__br { width: 20px; height: 20px; font-size: 9.5px; margin-top: 0; }
 .korak__ik {
   display: inline-grid; place-items: center; vertical-align: -3px;
   width: 15px; height: 15px; color: var(--gold);
 }
 .korak__ik svg { width: 15px; height: 15px; }
-
-/* korak „Otvori aplikaciju“ — ikona koju treba dodirnuti */
-.otvori { display: grid; justify-items: center; gap: 10px; margin-bottom: 6px; }
-.otvori__ikona {
-  width: 76px; height: 76px; border-radius: 18px;
-  box-shadow: 0 16px 34px -14px rgba(0,0,0,.6), 0 0 0 1px var(--line);
-  animation: otvoriDah 2.6s var(--ease-soft) infinite;
-}
-@keyframes otvoriDah {
-  0%, 100% { transform: scale(1);    box-shadow: 0 16px 34px -14px rgba(0,0,0,.6), 0 0 0 1px var(--line); }
-  55%      { transform: scale(1.05); box-shadow: 0 20px 40px -14px rgba(0,0,0,.7), 0 0 0 3px color-mix(in srgb, var(--gold) 34%, transparent); }
-}
-.otvori__ime {
-  font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
-  font-weight: 700; color: var(--ink-soft);
-}
 
 /* dugme preko cijele širine (uvod) */
 .btn--puni { width: 100%; }
@@ -1141,15 +1123,23 @@ html[data-nadogradnja] .toast-hold { bottom: calc(96px + env(safe-area-inset-bot
 html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-area-inset-bottom)); }
 
 /* ---------- 18. VODIČ ZA INSTALACIJU ----------
+   Samo iPhone i Android — na računaru instalacije nema, pa nema ni makete.
+
    iOS ne dozvoljava da stranica sama doda aplikaciju na ekran, pa je jedino
    iskreno rješenje pokazati korisniku šta da dodirne. Umjesto spiska koraka,
-   ovdje je maketa telefona koja odigra isti potez koji korisnik treba
-   ponoviti: dijeljenje → lista → potvrda → ikona na ekranu.
+   ovdje je maketa telefona u stanju u kojem će biti i korisnikov ekran:
+   dijeljenje → lista → potvrda → ikona na ekranu. Maketa oponaša pravi
+   sistem — iOS list ima red aplikacija i glif desno od natpisa, Chromeov
+   meni visi ispod ⋮ sa ikonicom lijevo — jer se po tim detaljima ekran
+   prepoznaje.
+
+   Označeno mjesto nosi punu zlatnu konturu i oblačić sa strelicom, a
+   oblačić je dijete cilja pa mu je pozicija tačna gdje god cilj bio.
 
    Sve je CSS i postojeće SVG ikone, bez ijedne nove biblioteke. Maketa je
    ukras (aria-hidden), pa korak nosi tekst — čitač ekrana i `prefers-
-   reduced-motion` dobiju potpunu uputu bez animacije. Zato su animacije
-   samo pokret: statičko stanje makete već pokazuje tačno ono što treba. */
+   reduced-motion` dobiju potpunu uputu bez animacije. Zato animacija nikad
+   nije jedini nosilac informacije: statična maketa već pokazuje sve. */
 
 .vodic { display: grid; gap: 15px; }
 .vodic__tacke { display: flex; gap: 6px; justify-content: center; }
@@ -1173,179 +1163,260 @@ html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-
 .vodic__dugmad[data-sam="1"] #vodic-nazad { display: none; }
 .vodic__dugmad .btn--obris { padding-inline: 15px; }
 
-/* --- maketa telefona --- */
+/* --- maketa telefona ---
+   Kroma je u BOJAMA SISTEMA, ne aplikacije: iOS sheet je #1c1c1e sa bijelim
+   tekstom i plavim akcentima, Chromeov meni je #292a2d — jer korisnik na
+   svom ekranu traži tačno ono što mu pokazujemo. Unutra je naša stranica, u
+   našim bojama, baš kako i izgleda na pravom screenshotu.
+
+   Uvijek tamna varijanta: postoji na svakom uređaju, sjeda na obje naše teme
+   i znači pola koda. Zlatna kontura i oblačić su NAŠA oznaka preko vjerne
+   slike — zato i odskaču od sistemskih sivih. */
 .mak {
-  position: relative; width: 172px; aspect-ratio: 172 / 252; flex: none;
-  border-radius: 25px; padding: 4px;
-  background: linear-gradient(155deg, #38443d, #131b16);
-  box-shadow: 0 22px 46px -20px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.06);
+  position: relative; width: var(--mak-w, 240px); aspect-ratio: 240 / 344; flex: none;
+  border-radius: 30px; padding: 3px;
+  background: linear-gradient(158deg, #52525a, #17171a);
+  box-shadow: 0 24px 50px -22px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.07);
 }
 .mak__ekran {
-  position: relative; height: 100%; border-radius: 21px; overflow: hidden;
-  background: var(--bg); display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  position: relative; height: 100%; border-radius: 27px; overflow: hidden;
+  display: flex; flex-direction: column; background: #000;
 }
-.mak__zvuk { position: absolute; z-index: 6; top: 6px; left: 50%; translate: -50% 0;
-  width: 42px; height: 4px; border-radius: 999px; background: rgba(0,0,0,.6); }
+.mak--and .mak__ekran { background: #202124; }
+/* dynamic island na iPhoneu, kamera-oko na Androidu */
+.mak__ostrvo { position: absolute; z-index: 7; top: 6px; left: 50%; translate: -50% 0;
+  width: 56px; height: 16px; border-radius: 999px; background: #000; }
+.mak__oko { position: absolute; z-index: 7; top: 5px; left: 50%; translate: -50% 0;
+  width: 7px; height: 7px; border-radius: 50%; background: #000; }
 
-/* Safari: adresna traka gore, alatna traka dolje */
-.mak__vrh { display: flex; align-items: center; gap: 4px; padding: 14px 7px 5px; }
-.mak__traka { flex: 1; height: 15px; border-radius: 6px; display: grid; place-items: center;
-  background: var(--surface-2); border: 1px solid var(--line-soft);
-  font-size: 6px; letter-spacing: .03em; color: var(--ink-mute); }
-.mak__dno { display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 10px 9px; background: var(--surface); border-top: 1px solid var(--line-soft); }
-.mak__ik { width: 13px; height: 13px; color: var(--ink-mute); flex: none; }
-.mak__ik svg { width: 13px; height: 13px; }
-.mak__ik--slabo { opacity: .4; }
-.mak__ik--zlatno { color: var(--gold); }
+/* statusna traka — sitnica po kojoj se ekran odmah čita kao telefonski */
+/* Safari tinta statusnu traku bojom stranice — zato je ovdje boja naše
+   stranice, a ne crna: tako se i dynamic island (crn) vidi na njoj. */
+.mstatus { flex: none; display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 14px 3px; font-size: 8px; font-weight: 700; color: #fff; letter-spacing: .01em; }
+.mak--ios .mstatus { background: #0f1e16; padding-bottom: 5px; }
+.mstatus__d { display: flex; align-items: center; gap: 3px; }
+.mstatus__d i { width: 9px; height: 7px; border-radius: 1px; background: rgba(255,255,255,.85); }
+.mstatus__d i:last-of-type { width: 8px; }
+.mstatus__d u { width: 15px; height: 7.5px; border-radius: 2px;
+  border: 1px solid rgba(255,255,255,.55); position: relative; }
+.mstatus__d u::after { content: ''; position: absolute; inset: 1px; width: 65%;
+  border-radius: 1px; background: rgba(255,255,255,.85); }
 
-/* sadržaj lažnog ekrana — naša kartica u malom */
-.mak__sadrzaj { padding: 7px; display: grid; gap: 5px; align-content: stretch; min-height: 0; }
-.mak__nad { height: 4px; width: 38%; border-radius: 999px; margin: 1px auto 2px;
-  background: color-mix(in srgb, var(--gold) 55%, transparent); }
-.mak__karta { border-radius: 9px; border: 1px solid var(--line); background: var(--surface);
-  padding: 8px 7px; display: grid; gap: 4px; align-content: center; }
-.mak__karta i { height: 3px; border-radius: 999px; background: var(--line); }
-.mak__karta i:nth-child(1) { width: 92%; }
-.mak__karta i:nth-child(2) { width: 78%; }
-.mak__karta i:nth-child(3) { width: 86%; }
-.mak__karta i:nth-child(4) { width: 54%; }
-/* podnožje kartice: korice knjige i dva reda teksta */
-.mak__izvor { display: flex; align-items: center; gap: 6px; padding: 6px 7px;
-  border-radius: 9px; border: 1px solid var(--line); background: var(--surface); }
-.mak__izvor u { flex: none; width: 13px; height: 19px; border-radius: 2px;
-  background: color-mix(in srgb, var(--gold) 26%, var(--surface-2)); }
-.mak__izvor span { flex: 1; display: grid; gap: 3px; }
-.mak__izvor i { display: block; height: 3px; border-radius: 999px; background: var(--line); }
-.mak__izvor i:first-child { width: 62%; }
-.mak__izvor i:last-child { width: 40%; background: color-mix(in srgb, var(--gold) 40%, transparent); }
+/* naša stranica u malom — ovo je sadržaj, pa ostaje u našim bojama */
+.mstrana { flex: 1; min-height: 0; padding: 9px; display: grid; gap: 6px;
+  align-content: center; background: #0f1e16; }
+.mstrana__nad { height: 4px; width: 38%; border-radius: 999px; margin: 0 auto 2px;
+  background: rgba(198,169,104,.55); }
+.mstrana__karta { border-radius: 10px; padding: 9px 8px; display: grid; gap: 5px;
+  border: 1px solid rgba(198,169,104,.16); background: rgba(255,255,255,.03); }
+.mstrana__karta i { height: 3px; border-radius: 999px; background: rgba(198,169,104,.22); }
+.mstrana__karta i:nth-child(1) { width: 92%; }
+.mstrana__karta i:nth-child(2) { width: 78%; }
+.mstrana__karta i:nth-child(3) { width: 86%; }
+.mstrana__karta i:nth-child(4) { width: 54%; }
+.mstrana__izvor { display: flex; align-items: center; gap: 7px; padding: 7px 8px;
+  border-radius: 10px; border: 1px solid rgba(198,169,104,.16); background: rgba(255,255,255,.03); }
+.mstrana__izvor u { flex: none; width: 15px; height: 22px; border-radius: 2px;
+  background: rgba(198,169,104,.3); }
+.mstrana__izvor span { flex: 1; display: grid; gap: 3px; }
+.mstrana__izvor i { display: block; height: 3px; border-radius: 999px; background: rgba(198,169,104,.22); }
+.mstrana__izvor i:first-child { width: 62%; }
+.mstrana__izvor i:last-child { width: 40%; background: rgba(198,169,104,.4); }
 
-/* --- cilj: prsten koji pulsira + prst koji dodiruje --- */
-.cilj { position: relative; }
-.cilj::after {
-  content: ''; position: absolute; inset: -5px; border-radius: 999px;
-  border: 1.5px solid var(--gold); opacity: .9;
-  animation: ciljPuls 2s var(--ease-soft) infinite;
-}
-.cilj--pravo::after { inset: -1px -3px; border-radius: 7px; }
-@keyframes ciljPuls {
-  0%, 100% { opacity: .5; transform: scale(1); }
-  50%      { opacity: 1; transform: scale(1.16); }
-}
-/* Dodir je halo, a ne prst: puni krug bi prekrio upravo ono što korisnik
-   treba prepoznati na svom ekranu. */
-.prst {
-  position: absolute; z-index: 7; left: 50%; top: 50%; width: 22px; height: 22px;
-  margin: -11px 0 0 -11px; border-radius: 50%; pointer-events: none;
-  background: radial-gradient(circle, rgba(255,255,255,.34), rgba(255,255,255,.06) 62%, transparent 70%);
-  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.55);
-  animation: prstDodir 2s var(--ease) infinite;
-}
-@keyframes prstDodir {
-  0%, 100% { opacity: 0; transform: translate(5px, 12px) scale(.75); }
-  36%      { opacity: 1; transform: none; }
-  58%      { opacity: 1; transform: scale(.82); }
-  84%      { opacity: 0; transform: scale(.95); }
-}
+/* ---------- iPhone: Safari drži adresu i alatnu traku NA DNU ---------- */
+.ios-dno { flex: none; padding: 6px 10px 8px;
+  background: rgba(28,28,30,.97); border-top: .5px solid #38383a; }
+.ios-polje { display: flex; align-items: center; justify-content: center; gap: 4px;
+  height: 21px; border-radius: 8px; background: #2c2c2e;
+  font-size: 8px; color: rgba(235,235,245,.6); }
+.ios-polje svg { width: 8px; height: 8px; color: #8e8e93; }
+.ios-alat { display: flex; align-items: center; justify-content: space-between; padding: 6px 5px 0; }
+/* u Safariju su ikonice alatne trake plave; nazad/naprijed su sive kad nema historije */
+.ios-alat__ik { position: relative; width: 16px; height: 16px; color: #0a84ff; }
+.ios-alat__ik svg { width: 16px; height: 16px; }
+.ios-alat__ik:nth-child(1), .ios-alat__ik:nth-child(2) { color: #48484a; }
 
-/* --- sloj: iOS lista dijeljenja --- */
-.sloj-mak {
-  position: absolute; left: 3px; right: 3px; bottom: 3px; z-index: 5;
-  border-radius: 13px; overflow: hidden;
-  background: color-mix(in srgb, var(--surface-2) 90%, #000);
-  border: 1px solid var(--line);
-  box-shadow: 0 -16px 32px -16px rgba(0,0,0,.75);
-  animation: slojUlaz .52s var(--ease) both;
-}
-@keyframes slojUlaz { from { opacity: 0; transform: translateY(58%); } to { opacity: 1; transform: none; } }
-.sloj-mak--vrh { top: 3px; bottom: auto; }
+/* Minimalna traka preglednika ugrađenog u drugu aplikaciju (Instagram/FB) —
+   ista na iOS-u i Androidu, pa je ovdje jedina definicija za oba slučaja. */
+.ios-vrhtraka { flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px 7px; }
+.ios-vrhtraka svg:first-child { width: 13px; height: 13px; color: rgba(255,255,255,.7); flex: none; }
+.ios-vrhtraka__adr { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 8px; color: rgba(255,255,255,.6); }
+.ios-vrhtraka__adr svg { width: 9px; height: 9px; flex: none; color: rgba(255,255,255,.5); }
+.ios-vrhtraka__meni { position: relative; flex: none; width: 15px; height: 15px; color: #fff; }
+.ios-vrhtraka__meni svg { width: 15px; height: 15px; }
+
+/* iOS lista dijeljenja */
+.ios-sheet { position: absolute; left: 4px; right: 4px; bottom: 4px; z-index: 5;
+  border-radius: 13px; overflow: hidden; background: #1c1c1e;
+  box-shadow: 0 -20px 40px -18px rgba(0,0,0,.9);
+  animation: slojUlaz .5s var(--ease) both; }
+@keyframes slojUlaz    { from { opacity: 0; transform: translateY(58%); } to { opacity: 1; transform: none; } }
 @keyframes slojUlazVrh { from { opacity: 0; transform: translateY(-42%); } to { opacity: 1; transform: none; } }
-.sloj-mak--vrh { animation-name: slojUlazVrh; }
-/* padajući meni preglednika visi ispod trake, ne preko nje */
-.sloj-mak--meni { top: 27px; left: auto; right: 5px; width: 118px; }
-.sloj-mak__ruc { width: 24px; height: 3px; border-radius: 999px; background: var(--line);
-  margin: 5px auto 0; }
-.sloj-mak__zag { display: flex; align-items: center; gap: 6px; padding: 7px;
-  border-bottom: 1px solid var(--line-soft); }
-.sloj-mak__zag img { width: 19px; height: 19px; border-radius: 5px; flex: none; }
-.sloj-mak__ime { font-size: 6.5px; font-weight: 700; line-height: 1.3; }
-.sloj-mak__ime span { display: block; font-weight: 400; color: var(--ink-mute); }
-.mred { display: flex; align-items: center; gap: 7px; padding: 6px 8px;
-  font-size: 7px; color: var(--ink-soft); border-top: 1px solid var(--line-soft); }
-.mred:first-child { border-top: 0; }
-.mred svg { width: 10px; height: 10px; color: var(--ink-mute); flex: none; }
-.mred span { flex: 1; }
-.mred--cilj { color: var(--ink); font-weight: 700;
-  background: color-mix(in srgb, var(--gold) 14%, transparent); }
-.mred--cilj svg { color: var(--gold); }
-.mred--slabo { opacity: .45; }
+.ios-sheet__ruc { display: block; width: 34px; height: 4px; border-radius: 999px;
+  background: #48484a; margin: 6px auto 5px; }
+.ios-sheet__zag { display: flex; align-items: center; gap: 8px; margin: 0 7px 8px;
+  padding: 8px 9px; border-radius: 10px; background: #2c2c2e; }
+.ios-sheet__zag img { width: 30px; height: 30px; border-radius: 7px; flex: none; }
+.ios-sheet__ime { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.ios-sheet__ime b { font-size: 8.5px; color: #fff; font-weight: 600; }
+.ios-sheet__ime span { font-size: 7.5px; color: #8e8e93; }
+.ios-sheet__opcije { flex: none; font-size: 7.5px; color: #0a84ff; }
+/* red aplikacija — po njemu se sheet prepoznaje na prvi pogled */
+.ios-apps { display: flex; justify-content: space-between; padding: 0 11px 10px; }
+.ios-app { display: grid; justify-items: center; gap: 3px; font-size: 6.5px; color: #fff; }
+.ios-app__ik { width: 31px; height: 31px; border-radius: 50%; }
+.ios-app__ik--airdrop { background: linear-gradient(#54a0ff, #0a5bd3); }
+.ios-app__ik--poruke  { background: linear-gradient(#6ee06e, #17b34a); }
+.ios-app__ik--mail    { background: linear-gradient(#57b0ff, #1878e0); }
+.ios-app__ik--vise    { background: #3a3a3c; }
+.ios-lista { margin: 0 7px 7px; border-radius: 10px; overflow: hidden; background: #2c2c2e; }
+.ios-red { position: relative; display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; font-size: 8.5px; color: #fff; }
+/* razdjelnik je uvučen s lijeve strane, kao u pravoj listi */
+.ios-red + .ios-red::after { content: ''; position: absolute; left: 10px; right: 0; top: 0;
+  height: .5px; background: #38383a; }
+.ios-red span { flex: 1; }
+.ios-red svg { width: 13px; height: 13px; color: #fff; flex: none; }
+.ios-red--cilj { font-weight: 600; }
 
-/* --- sloj: potvrda „Dodaj na početni ekran“ --- */
-.pot__vrh { display: flex; align-items: center; justify-content: space-between;
-  gap: 6px; padding: 7px 8px; border-bottom: 1px solid var(--line-soft); font-size: 6.5px; }
-.pot__nas { font-weight: 700; font-size: 7px; }
-.pot__tiho { color: var(--ink-mute); }
-.pot__ok { display: inline-block; color: var(--gold); font-weight: 700; }
-.pot__telo { display: flex; align-items: center; gap: 7px; padding: 8px; }
-.pot__telo img { width: 24px; height: 24px; border-radius: 6px; flex: none; }
-.pot__polje { flex: 1; display: grid; gap: 3px; }
-.pot__polje b { font-size: 7px; }
-.pot__polje i { display: block; height: 3px; width: 60%; border-radius: 999px; background: var(--line); }
+/* iOS potvrda „Na početni ekran“ */
+/* Počinje ispod statusne trake i dynamic islanda — na pravom iPhoneu sheet
+   nikad ne ide pod njih. */
+.ios-potvrda { position: absolute; left: 4px; right: 4px; top: 28px; z-index: 5;
+  border-radius: 13px; overflow: hidden; background: #1c1c1e;
+  box-shadow: 0 20px 40px -18px rgba(0,0,0,.9);
+  animation: slojUlazVrh .5s var(--ease) both; }
+.ios-potvrda__vrh { display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 10px; background: #2c2c2e; font-size: 8.5px; }
+.ios-potvrda__vrh b { color: #fff; font-size: 9px; font-weight: 600; }
+.ios-potvrda__tiho { color: #0a84ff; }
+.ios-potvrda__ok { position: relative; color: #0a84ff; font-weight: 700; }
+.ios-potvrda__telo { display: flex; align-items: center; gap: 10px; padding: 11px 10px 9px; }
+.ios-potvrda__telo img { width: 42px; height: 42px; border-radius: 9px; flex: none; }
+.ios-potvrda__polje { flex: 1; min-width: 0; display: grid; gap: 2px;
+  padding: 6px 8px; border-radius: 7px; background: #2c2c2e; }
+.ios-potvrda__polje b { font-size: 8.5px; color: #fff; font-weight: 600; }
+.ios-potvrda__polje span { font-size: 7px; color: #8e8e93; }
+.ios-potvrda__nota { padding: 0 10px 11px; font-size: 7px; line-height: 1.45; color: #8e8e93; }
 
-/* --- sloj: početni ekran, ikona sleti na svoje mjesto ---
-   Ciklus, a ne jednokratni prelaz: korak traži da se dodirne „Dodaj“, pa se
-   maketa mora vraćati na potvrdu. Ishod se pokaže i skloni, ne zauzme scenu.
-   Kad je pokret isključen, animacija stane na zadnjem kadru — dakle na
-   potvrdi, koja i jeste uputa ovog koraka. */
+/* ---------- Android: Chrome drži adresu na vrhu ---------- */
+.and-traka { flex: none; display: flex; align-items: center; gap: 7px; padding: 3px 9px 8px; }
+.and-polje { flex: 1; display: flex; align-items: center; gap: 5px; height: 22px;
+  padding: 0 9px; border-radius: 999px; background: #303134;
+  font-size: 8px; color: #bdc1c6; }
+.and-polje svg { width: 9px; height: 9px; color: #9aa0a6; }
+.and-tabovi { flex: none; width: 14px; height: 14px; display: grid; place-items: center;
+  border: 1.5px solid #e8eaed; border-radius: 3px;
+  font-size: 7px; font-weight: 700; color: #e8eaed; }
+.and-meni-ik { position: relative; flex: none; width: 15px; height: 15px; color: #e8eaed; }
+.and-meni-ik svg { width: 15px; height: 15px; }
+
+/* Chromeov meni: red ikonica na vrhu, pa stavke — poravnat desno, ispod ⋮ */
+/* Visi ispod alatne trake (statusna ~21px + traka ~33px), poravnat desno pod
+   ⋮ — pa ⋮ i brojač kartica ostaju vidljivi, kao u pravom Chromeu. */
+.and-meni { position: absolute; z-index: 5; top: 56px; right: 7px; width: 146px;
+  padding: 4px 0; border-radius: 8px; overflow: hidden; background: #292a2d;
+  box-shadow: 0 14px 30px -8px rgba(0,0,0,.85);
+  animation: slojUlazVrh .4s var(--ease) both; }
+.and-meni__vrh { display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 12px 8px; margin-bottom: 4px; border-bottom: 1px solid #3c4043; }
+.and-meni__vrh svg { width: 12px; height: 12px; color: #9aa0a6; }
+.and-red { position: relative; display: flex; align-items: center; gap: 11px;
+  padding: 7px 12px; font-size: 8.5px; color: #e8eaed; }
+.and-red svg { width: 13px; height: 13px; color: #9aa0a6; flex: none; }
+.and-red span { flex: 1; }
+.and-red--cilj { font-weight: 700; }
+
+/* Chromeov dijalog instalacije */
+.and-dijalog { position: absolute; z-index: 5; left: 13px; right: 13px; top: 50%;
+  translate: 0 -50%; padding: 14px; border-radius: 14px; background: #292a2d;
+  box-shadow: 0 20px 40px -14px rgba(0,0,0,.9);
+  animation: modalIn .36s var(--ease-back) both; }
+.and-dijalog__vrh { display: flex; align-items: center; gap: 10px; }
+.and-dijalog__vrh img { width: 38px; height: 38px; border-radius: 9px; flex: none; }
+.and-dijalog__ime { display: grid; gap: 2px; }
+.and-dijalog__ime b { font-size: 9px; color: #e8eaed; }
+.and-dijalog__ime span { font-size: 7.5px; color: #9aa0a6; }
+.and-dijalog__dug { display: flex; justify-content: flex-end; gap: 17px; margin-top: 15px;
+  font-size: 8.5px; font-weight: 700; }
+.and-dijalog__tiho { color: #9aa0a6; }
+.and-dijalog__ok { position: relative; color: #8ab4f8; }
+
+/* --- cilj: puna kontura, čita se i bez pokreta ---
+   Prije je ovdje bio tanak prsten sa prozirnim krugom; na maketi te veličine
+   se nije čitalo šta je označeno. */
+.cilj { position: relative; z-index: 8; }
+.cilj::before {
+  content: ''; position: absolute; inset: -5px; border-radius: 9px; pointer-events: none;
+  border: 2px solid var(--gold);
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+  animation: ciljSjaj 2.2s var(--ease-soft) infinite;
+}
+.cilj--red::before   { inset: 0; border-radius: 7px; }
+.cilj--tekst::before { inset: -3px -6px; border-radius: 999px; }
+@keyframes ciljSjaj {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 50%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 6px transparent; }
+}
+
+/* --- oblačić: kaže na šta se pritiska ---
+   Dijete je označenog cilja, pa mu je pozicija tačna gdje god cilj bio.
+   `--dolje` stoji iznad cilja i pokazuje dolje, `--gore` obratno. */
+.oblacic {
+  position: absolute; z-index: 9; left: 50%; translate: -50% 0;
+  padding: 3px 7px; border-radius: 7px; white-space: nowrap;
+  font-size: 8px; font-weight: 700; line-height: 1.35; letter-spacing: .01em;
+  color: #10201a; background: var(--gold);
+  box-shadow: 0 5px 12px -4px rgba(0,0,0,.7);
+  animation: oblacicUlaz .42s var(--ease-back) both;
+}
+.oblacic::after {
+  content: ''; position: absolute; left: 50%; translate: -50% 0;
+  width: 7px; height: 7px; background: var(--gold); rotate: 45deg; border-radius: 1px;
+}
+.oblacic--dolje { bottom: calc(100% + 10px); }
+.oblacic--dolje::after { top: calc(100% - 3.5px); }
+.oblacic--gore { top: calc(100% + 10px); }
+.oblacic--gore::after { bottom: calc(100% - 3.5px); }
+/* cilj u samom uglu ekrana — oblačić se poravna desno da ne izađe iz makete */
+.oblacic--kraj { left: auto; right: -3px; translate: none; }
+.oblacic--kraj::after { left: auto; right: 10px; translate: none; }
+@keyframes oblacicUlaz { from { opacity: 0; scale: .82; } to { opacity: 1; scale: 1; } }
+
+/* --- ishod: ikona na početnom ekranu ---
+   Ciklus, a ne jednokratni prelaz: korak traži da se dodirne potvrda, pa se
+   maketa mora vraćati na nju. Kad je pokret isključen, sloj ostaje sklonjen
+   i vidi se potvrda — koja i jeste uputa ovog koraka. */
 .pocetni {
-  position: absolute; inset: 3px; z-index: 6; border-radius: 21px;
-  padding: 26px 12px 12px; display: grid; align-content: start;
-  grid-template-columns: repeat(4, 1fr); gap: 11px 9px;
-  background: linear-gradient(168deg, #1a2f24, #08110c);
+  position: absolute; inset: 0; z-index: 6; border-radius: 27px;
+  padding: 36px 15px 15px; display: grid; align-content: start;
+  grid-template-columns: repeat(4, 1fr); gap: 13px 11px;
+  background: linear-gradient(165deg, #2d3c4d, #0f151c);
   opacity: 0;                       /* bez animacije ostaje sklonjen, a uputa vidljiva */
-  animation: pocetniCiklus 5.4s var(--ease) infinite;
+  animation: pocetniCiklus 5.6s var(--ease) infinite;
 }
 @keyframes pocetniCiklus {
   0%, 46%   { opacity: 0; }
   55%, 88%  { opacity: 1; }
   97%, 100% { opacity: 0; }
 }
-.pocetni i { aspect-ratio: 1; border-radius: 7px; background: rgba(255,255,255,.08); }
-.pocetni img { width: 100%; aspect-ratio: 1; border-radius: 7px;
+.pocetni i { aspect-ratio: 1; border-radius: 8px; background: rgba(255,255,255,.1); }
+.pocetni img { width: 100%; aspect-ratio: 1; border-radius: 8px;
   box-shadow: 0 4px 10px -3px rgba(0,0,0,.6);
-  animation: ikonaSleti 5.4s var(--ease-back) infinite; }
+  animation: ikonaSleti 5.6s var(--ease-back) infinite; }
 @keyframes ikonaSleti {
   0%, 55%   { opacity: 0; transform: scale(.34); }
   64%, 100% { opacity: 1; transform: none; }
 }
-.pocetni b { grid-column: 1 / -1; text-align: center; font-size: 7px; font-weight: 700;
-  color: var(--ink-soft); }
+.pocetni b { grid-column: 1 / -1; text-align: center; font-size: 8px; font-weight: 600;
+  color: rgba(255,255,255,.85); }
 
-/* --- maketa prozora na računaru --- */
-.mak-pc {
-  width: min(100%, 258px); border-radius: 12px; overflow: hidden;
-  border: 1px solid var(--line); background: var(--bg-2);
-  box-shadow: 0 20px 44px -22px rgba(0,0,0,.8);
-}
-.mak-pc__vrh { display: flex; align-items: center; gap: 7px; padding: 8px 9px;
-  background: var(--surface); border-bottom: 1px solid var(--line-soft); }
-.mak-pc__tipke { display: flex; gap: 3px; flex: none; }
-.mak-pc__tipke i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
-.mak-pc__traka { flex: 1; height: 16px; border-radius: 6px; display: flex; align-items: center;
-  justify-content: space-between; padding: 0 5px; background: var(--surface-2);
-  border: 1px solid var(--line-soft); font-size: 6.5px; color: var(--ink-mute); }
-.mak-pc__traka .mak__ik { width: 10px; height: 10px; }
-.mak-pc__traka .mak__ik svg { width: 10px; height: 10px; }
-.mak-pc__meni { display: flex; gap: 9px; padding: 6px 10px; font-size: 6.5px;
-  color: var(--ink-mute); border-bottom: 1px solid var(--line-soft); }
-.mak-pc__sadrzaj { position: relative; padding: 12px 10px; display: grid; gap: 6px; min-height: 92px; }
-.mak-pc__pad {
-  position: absolute; z-index: 5; top: 0; left: 12px; width: 118px;
-  border-radius: 8px; overflow: hidden; background: color-mix(in srgb, var(--surface-2) 92%, #000);
-  border: 1px solid var(--line); box-shadow: 0 14px 26px -14px rgba(0,0,0,.7);
-  animation: slojUlazVrh .42s var(--ease) both;
-}
-.mak-pc__pad--desno { left: auto; right: 12px; }
+/* Maketa u koraku uvoda je malo manja — tamo dijeli prostor sa listom koraka. */
+.uvod__scena { display: grid; place-items: center; --mak-w: 214px; margin-bottom: 4px; }
 
 /* ---------- 19. RESPONZIVNO ---------- */
 @media (min-width: 760px) {
@@ -1381,7 +1452,7 @@ html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-
   .stavka { opacity: 1; transform: none; }
   .karta__uglovi span { opacity: .3; }
   .karta::before, .razdjelnik svg,
-  .karta__aura, .otvori__ikona,
+  .karta__aura,
   .ambient__zraka, .razdjelnik__znak { animation: none; }
 }
 

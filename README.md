@@ -151,25 +151,89 @@ curl -H "x-cron-secret: <CRON_SECRET>" https://<domen>/api/send
 ```
 
 Odgovor kaže i zašto ništa nije izašlo — `pretplata: 0` znači da nijedan
-uređaj nije registrovan u bazi, `greske` nosi prve odbijenice push servisa.
-Isti poziv smije se ponavljati koliko treba; svaki šalje notifikaciju.
+uređaj nije registrovan u bazi. Isti poziv smije se ponavljati koliko treba;
+svaki šalje notifikaciju.
+
+Polja odgovora koja vrijedi gledati:
+
+| polje         | znači                                                        |
+|---------------|--------------------------------------------------------------|
+| `ok`          | `false` ako slanje nije stiglo do kraja (vidi `preskoceno`)   |
+| `poslano`     | push servis je primio notifikaciju                           |
+| `palo`        | nije primio — razlozi su u `greske`                           |
+| `ocisceno`    | mrtvih pretplata obrisano iz baze                            |
+| `preskoceno`  | koliko je ostalo neobrađeno jer je istekao rok                |
+| `trajanjeMs`  | koliko je krug trajao — rezerva do `maxDuration`             |
+| `greske`      | po HTTP kodu: `{ "503": { broj, primjer } }`                  |
+
+`poslano + palo + preskoceno` se uvijek zatvara na `pretplata`.
+
+---
+
+## Kapacitet
+
+Slanje ide u bazenu od 100 paralelnih zahtjeva, ne u serijama — spor uređaj
+drži samo svoje mjesto u bazenu umjesto da zaustavi cijelu grupu. Uz
+`maxDuration` od 300 s (postavljen u `vercel.json`) i rok od 240 s, mjereno na
+realističnoj distribuciji latencija:
+
+| pretplata | krug  | rezerva do roka |
+|-----------|-------|-----------------|
+| 4.000     | ~15 s | 16×             |
+| 7.000     | ~20 s | 12×             |
+| 25.000    | ~55 s | 4,5×            |
+
+Vrijeme, dakle, nije prva granica. Prva granica je `SMEMBERS`: cijeli set se
+čita u jednom odgovoru, a zapis je ~380 B, pa je na 25.000 pretplata odgovor
+~9,5 MB — na samoj ivici Upstashovog limita veličine. Preko toga `svePretplate()`
+treba prebaciti na `SSCAN` s paginacijom; sve ostalo ostaje isto.
+
+Tri stvari koje čuvaju dostavu:
+
+- **`timeout` od 8 s** na svakom push zahtjevu (`_lib/push.js`). Bez njega
+  Node čeka na visećem socketu neograničeno.
+- **Jedan ponovni pokušaj** na prolazne kodove (429, 5xx, mrežni prekid).
+  404/410 se ne ponavljaju — pretplata više ne postoji, briše se.
+- **Rok od 240 s**: kad se približi granici, funkcija prestaje uzimati nove
+  pretplate i vraća izvještaj s `preskoceno` umjesto da je platforma
+  presiječe na 504 bez podatka dokle se stiglo.
+
+Krug od minutu je duži od onoga koliko vanjski cron servisi čekaju odgovor
+(obično 30–60 s), pa će konzola prijaviti timeout iako je slanje prošlo.
+**Isključi „retry on failure"** na cron servisu — drugi poziv ponovo zvoni
+svima. Vercelov cron nema taj problem jer ne čeka odgovor.
 
 ---
 
 ## Uvod (onboarding)
 
-Prikaže se pri prvom otvaranju i ponovo kad se promijeni `VERZIJA` u
-`public/js/app.js`. Četiri koraka:
+Uvod je namjerno kratak — dva ekrana po toku, i to je sve. Izbor izgleda
+(Sistem / Dnevna / Noćna) tu više ne stoji kao poseban korak — živi u
+Postavkama, gdje mu je i mjesto. Postoje dva odvojena toka, svaki sa svojom
+verzijom u `localStorage` pa nadogradnja jednog ne tjera korisnika ponovo
+kroz drugi:
+
+**Tok `web`** — prikaže se pri prvom otvaranju u pregledniku i ponovo kad se
+podigne `UVOD_VERZIJA` u `public/js/app.js` (`VERZIJA` je odvojena i ne dira
+uvod):
 
 1. **Dobrodošlica**
-2. **Izbor teme** — Sistem / Dnevna / Noćna, primjenjuje se odmah
-3. **Notifikacije** — dozvola je obavezna; dugme ne pušta dalje dok se ne
-   riješi. Ako je preglednik trajno odbio (`denied`) ili ne podržava
-   notifikacije, korak se otključa uz objašnjenje — inače bi aplikacija
-   ostala zaglavljena bez izlaza.
-4. **Instalacija** — koraci za dodavanje na početni ekran, prilagođeni
-   platformi (iOS Safari / Android Chrome / desktop). Ako preglednik nudi
-   `beforeinstallprompt`, tu je i dugme koje odmah otvara njegov dijalog.
+2. **Na telefonu:** *Dodaj na početni ekran* — maketa telefona sa označenim
+   mjestom i tri kratka koraka. Gdje preglednik nudi `beforeinstallprompt`
+   (Android Chrome) dugme odmah otvara njegov dijalog; gdje ga nema, korisnik
+   potvrdi sa „Dodao sam“.
+   **Na računaru:** *Sve je spremno* — instalacije nema (vidi ispod), pa nema
+   ni koraka za nju; podsjetnik ostaje dostupan u postavkama.
+
+**Tok `pwa`** — dozvola za notifikacije se u pregledniku **ne traži**;
+traži se kad se aplikacija prvi put otvori sa početnog ekrana. Na iPhoneu
+push iz Safari taba i ne radi, a na Androidu je uredniji jedan zahtjev, u
+aplikaciji:
+
+1. **Dozvoli podsjetnik** — prvi dodir samo traži dozvolu, ne pušta dalje.
+   Kad je preglednik trajno odbije (`denied`) ili notifikacije nisu podržane,
+   korak se otključa uz objašnjenje umjesto da ostane zaglavljen bez izlaza.
+2. **Sve je spremno**
 
 ## Notifikacije
 
@@ -220,29 +284,46 @@ preglednika njene podatke ne dodiruje.
 
 ## Instalacija aplikacije
 
-Jedan ulaz: **Postavke → Instaliraj aplikaciju**. Šta se iza njega desi
-određuje platforma, a red se **sakrije** kad je aplikacija instalirana ili
-kad preglednik instalaciju ne podržava (`display-mode: standalone`,
+Instalacija je **samo telefonska** — iPhone i Android. Na računaru se red
+**Postavke → Instaliraj aplikaciju** sakrije i uvod nema korak instalacije:
+podsjetnik ionako pripada telefonu, a dugme koje ništa ne može uraditi je
+gore od nikakvog. Red se sakrije i kad je aplikacija instalirana ili kad
+preglednik instalaciju ne podržava (`display-mode: standalone`,
 `navigator.standalone`, `appinstalled`, nema `serviceWorker`).
 
 | Platforma | Ponašanje |
 | --- | --- |
-| Android / desktop Chrome | `beforeinstallprompt` → **preglednikov vlastiti dijalog**. Nikad se ne traži da korisnik sam otvara meni kad dijalog postoji. |
-| iPhone / iPad (Safari) | iOS ne dopušta programsko dodavanje na ekran — otvara se **vodič u tri koraka** sa maketom telefona: Podijeli → Dodaj na početni ekran → Dodaj. |
-| iPhone, ali Chrome/Firefox | Isti WebKit, ali „Dodaj na početni ekran“ ima samo Safari — prvi korak vodi u Safari (uz dugme za kopiranje adrese), pa ista tri koraka. |
+| Android Chrome | `beforeinstallprompt` → **preglednikov vlastiti dijalog**. Nikad se ne traži da korisnik sam otvara meni kad dijalog postoji. |
 | Android bez dijaloga | Vodič: ⋮ → Instaliraj aplikaciju → potvrda. |
-| macOS Safari | Vodič: File → Add to Dock… |
+| iPhone / iPad (Safari) | iOS ne dopušta programsko dodavanje na ekran — **vodič u tri koraka** sa maketom: Podijeli → Dodaj na početni ekran → Dodaj. |
+| iPhone, ali Chrome/Firefox | Isti WebKit, ali „Dodaj na početni ekran“ ima samo Safari — prvi korak vodi u Safari (uz dugme za kopiranje adrese), pa ista tri koraka. |
 | Preglednik u Instagramu/FB-u | Jedan korak: otvori u pravom pregledniku (instalacije odatle nema). |
-| Ostali računari | Vodič: ikonica u adresnoj traci, pa meni preglednika. |
+| Računar | Nema instalacije — ni reda u postavkama ni koraka u uvodu. |
 
 Vodič je HTML + CSS + postojeće SVG ikone — **bez ijedne nove biblioteke**.
-Maketa je `aria-hidden`, pa svaki korak nosi naslov i opis: čitač ekrana i
-`prefers-reduced-motion` dobiju cijelu uputu bez animacije. Zato statičko
-stanje makete već pokazuje ono što treba dodirnuti, a animacija je samo
-pokret. Kroz korake se ide dugmadima **Nazad / Dalje** ili strelicama.
 
-Uvod (onboarding) ima svoj korak instalacije sa istim uputama u tekstu i
-nije mijenjan — vodič sa maketom živi za dugmetom u postavkama.
+Maketa oponaša pravi sistem, jer se ekran po tim detaljima i prepoznaje: iOS
+lista dijeljenja ima ručku, zaglavlje stranice, red aplikacija i glif **desno**
+od natpisa; Chromeov meni visi ispod ⋮, poravnat desno, sa ikonicom **lijevo**.
+
+**Pokazivač** je dvodijelan i namjerno različit po vrsti cilja:
+
+- **Sitan cilj** (ikonica Podijeli, ⋮, dugme potvrde) — puna zlatna kontura
+  plus **oblačić sa strelicom** („Dodirni ovdje“). Oblačić je dijete cilja u
+  DOM-u, pa mu je pozicija tačna gdje god cilj bio.
+- **Red u listi** — samo kontura, bez oblačića. Red je širok koliko i sheet,
+  pa ga kontura i podebljan tekst već izdvajaju, a oblačić bi — gdje god
+  stao — pokrio susjedni red.
+
+Maketa je `aria-hidden`, pa svaki korak nosi naslov i opis: čitač ekrana i
+`prefers-reduced-motion` dobiju cijelu uputu bez animacije. Zato kontura i
+oblačić stoje i bez pokreta — animacija nikad nije jedini nosilac
+informacije. Kroz korake se ide dugmadima **Nazad / Dalje** ili strelicama.
+
+Korak instalacije u uvodu koristi **iste makete**, ali sve na jednom ekranu i
+bez koračanja: korisnik odlazi iz preglednika da to izvede, a čim otvori
+listu dijeljenja stranica je pokrivena i „Dalje“ nema ko stisnuti. Vodič
+korak-po-korak ostaje za dugmetom u postavkama.
 
 ---
 
@@ -260,7 +341,7 @@ Vide se **samo na `localhost`**; na objavljenoj verziji ih nema:
   telefona. Isto radi i `?instal=<stanje>`:
 
   `android`, `android-bez`, `ios-1`, `ios-2`, `ios-3`, `ipad`, `ios-chrome`,
-  `uapp`, `desktop`, `desktop-bez`, `mac`, `instalirano`, `nepodrzano`
+  `uapp`, `racunar`, `instalirano`
 
   Simulacija **ne dira pravi API preglednika** — `beforeinstallprompt` se ne
   glumi; za stanja sa dijalogom se samo kaže da bi ga preglednik otvorio.

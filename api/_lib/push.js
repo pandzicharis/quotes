@@ -74,15 +74,42 @@ export function napraviSadrzaj(podaci, poruka) {
   };
 }
 
-/** Vraća true ako je pretplata mrtva i treba je obrisati. */
-export async function posalji(pretplata, sadrzaj) {
-  try {
-    await webpush.sendNotification(pretplata, JSON.stringify(sadrzaj), { TTL: 20 * 3600 });
-    return { ok: true, mrtva: false };
-  } catch (e) {
-    const kod = e.statusCode || 0;
-    return { ok: false, mrtva: kod === 404 || kod === 410, greska: `${kod} ${e.message}` };
+/* Bez `timeout` Node čeka na visećem socketu neograničeno. Jedan zaglavljen
+   push servis tako pojede cijeli budžet funkcije, pa slanje mora imati kraj. */
+export const PUSH_TIMEOUT_MS = 8000;
+
+/* Prolazne greške push servisa — vrijedi pokušati još jednom. Kod 0 je mrežni
+   prekid ili istekao socket. Kodove 4xx (osim 429) ne ponavljamo: odbijeni su
+   zbog sadržaja ili ključeva, drugi pokušaj bi pao isto. */
+const PROLAZNO = new Set([0, 429, 500, 502, 503, 504]);
+
+const pauza = ms => new Promise(r => setTimeout(r, ms));
+
+/**
+ * Šalje jednu notifikaciju, uz ponovni pokušaj na prolaznu grešku.
+ * Vraća `{ ok, mrtva, kod, greska }` — `mrtva` znači da pretplata više ne
+ * postoji (404/410) i da je treba obrisati iz baze.
+ *
+ * `sadrzaj` prima i gotov string, da se isti payload ne serijalizuje po uređaju.
+ */
+export async function posalji(pretplata, sadrzaj, pokusaja = 2) {
+  const tijelo = typeof sadrzaj === 'string' ? sadrzaj : JSON.stringify(sadrzaj);
+  let zadnja = { kod: 0, greska: '0 nije pokušano' };
+
+  for (let i = 1; i <= pokusaja; i++) {
+    try {
+      await webpush.sendNotification(pretplata, tijelo, { TTL: 20 * 3600, timeout: PUSH_TIMEOUT_MS });
+      return { ok: true, mrtva: false, kod: 201 };
+    } catch (e) {
+      const kod = e.statusCode || 0;
+      if (kod === 404 || kod === 410) return { ok: false, mrtva: true, kod, greska: `${kod} pretplata ne postoji` };
+
+      zadnja = { kod, greska: `${kod} ${e.message}` };
+      if (i < pokusaja && PROLAZNO.has(kod)) { await pauza(250 * i); continue; }
+      break;
+    }
   }
+  return { ok: false, mrtva: false, ...zadnja };
 }
 
 export function citajTijelo(req) {

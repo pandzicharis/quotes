@@ -47,28 +47,28 @@ const STILOVI = [
    Safari taba, a i na Androidu je uredniji jedan zahtjev, u aplikaciji.
 
    Kad se aplikacija prvi put otvori sa početnog ekrana, traži se dozvola. */
-const UVOD_WEB = [
-  { id: 'pocetak', n: 'Poruka dana',
-    t: 'Svaki dan po jedna poruka iz knjiga hafiza Ammara Bašića. Sačuvaj onu koja te dotakne i podijeli je s drugima.' },
-  { id: 'tema', n: 'Odaberi izgled',
-    t: 'Noć, papir ili prema postavkama tvog telefona. Uvijek se može promijeniti u postavkama.' },
-  { id: 'instal', n: 'Dodaj na početni ekran',
-    t: 'Bez ovog koraka podsjetnik ne može raditi. Traje petnaest sekundi.' },
-  { id: 'otvori', n: 'Otvori aplikaciju',
-    t: 'Aplikacija je na tvom ekranu. Otvori je odatle — podsjetnik se uključuje unutra.' },
-];
+const UVOD_KORACI = {
+  pocetak: { id: 'pocetak', n: 'Poruka dana',
+    t: 'Svaki dan po jedna poruka iz knjiga hafiza Ammara Bašića.' },
+  instal: { id: 'instal', n: 'Dodaj na početni ekran',
+    t: 'Bez ovoga podsjetnik ne može raditi.' },
+  kraj: { id: 'kraj', n: 'Sve je spremno',
+    t: 'Nova poruka te čeka svaki dan.' },
+};
+
+/* Uvod je namjerno kratak: dva ekrana, i to je sve. Izbor izgleda je izbačen
+   odavde — živi u postavkama, gdje mu je i mjesto — a „otvori sa početnog
+   ekrana“ je zadnji red upute, ne poseban ekran. Na računaru instalacije
+   nema, pa tamo idu dobrodošlica i kraj. */
+const uvodWeb = () => okolina().desktop
+  ? [UVOD_KORACI.pocetak, UVOD_KORACI.kraj]
+  : [UVOD_KORACI.pocetak, UVOD_KORACI.instal];
 
 const UVOD_PWA = [
   { id: 'notif', n: 'Dozvoli podsjetnik',
     t: 'Ostao je još samo jedan dodir.' },
   { id: 'gotovo', n: 'Sve je spremno',
     t: 'Poruka će te nalaziti svaki dan u isto vrijeme.' },
-];
-
-const TEME = [
-  { id: 'auto',     ime: 'Sistem',  boje: 'linear-gradient(135deg,#F7F1E2 0 50%,#0F1E16 50% 100%)' },
-  { id: 'svijetla', ime: 'Dnevna',  boje: 'linear-gradient(160deg,#FDFBF6,#E8DFCB)' },
-  { id: 'tamna',    ime: 'Noćna',   boje: 'linear-gradient(160deg,#163023,#0A140E)' },
 ];
 
 const LS = {
@@ -689,10 +689,11 @@ async function odjaviPush() {
   const sub = await reg?.pushManager?.getSubscription();
   if (!sub) return;
   try {
+    // šaljemo i ključeve: server tako briše zapis odmah, bez prolaska kroz set
     await fetch('/api/unsubscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ endpoint: sub.endpoint }),
+      body: JSON.stringify({ endpoint: sub.endpoint, keys: sub.toJSON().keys }),
     });
   } catch { /* tiho */ }
   try { await sub.unsubscribe(); } catch { /* tiho */ }
@@ -844,11 +845,11 @@ function cekajPrompt(ms = 1400) {
   });
 }
 
-/* Jedini ulaz u instalaciju. Kad je aplikacija instalirana — ili je
-   preglednik takav da instalacije nema — red se sakriva, jer dugme koje
-   ništa ne može uraditi je gore od nikakvog. */
+/* Jedini ulaz u instalaciju. Red se sakriva kad je aplikacija instalirana,
+   kad preglednik instalaciju ne podržava, i na računaru — dugme koje ništa
+   ne može uraditi je gore od nikakvog. */
 function osvjeziInstal() {
-  const nema = jeInstalirana() || !instalMoguc();
+  const nema = jeInstalirana() || !instalMoguc() || okolina().desktop;
   el.rInstal.hidden = nema;
   if (nema) return;
   el.rInstal.removeAttribute('aria-disabled');
@@ -886,127 +887,213 @@ async function instaliraj() {
 }
 
 /* ---------- 11b. VODIČ ZA INSTALACIJU ---------- */
-/* iOS ne dozvoljava da stranica sama doda aplikaciju na početni ekran i to
-   se ne može zaobići. Zato ovaj vodič ne objašnjava nego pokazuje: maketa
-   telefona odigra tačno onaj potez koji korisnik treba ponoviti, korak po
-   korak. Isti mehanizam pokriva i Android bez dijaloga, računar i preglednik
-   ugrađen u drugu aplikaciju — mijenjaju se samo scena i tekst.
+/* Samo iPhone i Android. Na računaru instalacije nema — red se sakriva, a
+   uvod ima dva ekrana (vidi `uvodWeb()`), jer podsjetnik pripada telefonu.
 
-   Maketa je ukras (`aria-hidden` na sceni), pa svaki korak nosi i naslov i
+   Maketa je namjerno u BOJAMA SISTEMA, ne aplikacije: korisnik na svom
+   ekranu traži tačno ono što mu pokazujemo, pa bi zelena kartica u našoj
+   paleti odmagala. Zato je kroma preglednika vjerna — iOS sheet je tamnosiv
+   sa bijelim tekstom, Chromeov meni je Chromeov — a unutra je naša stranica,
+   baš kako i izgleda na pravom screenshotu.
+
+   Uvijek tamna varijanta: postoji na svakom uređaju i sjeda na obje naše
+   teme, a jedna varijanta znači pola koda i pola rizika.
+
+   Označeno mjesto: sitan cilj (ikonica u traci, dugme potvrde) nosi zlatnu
+   konturu i oblačić sa strelicom; cijeli red u listi nosi samo konturu —
+   red je širok koliko i sheet, kontura ga već izdvaja, a oblačić bi gdje god
+   stao pokrio susjedni red.
+
+   Maketa je ukras (`aria-hidden` na sceni), pa svaki korak nosi naslov i
    opis: čitač ekrana i `prefers-reduced-motion` dobiju cijelu uputu bez
    ijedne animacije. */
 
 const IKONA_APP = '/assets/icons/icon-192.png';
 
-/** Ikonica u alatnoj traci makete; `cilj` dodaje prsten i prst. */
-const makIk = (id, cilj = false, klase = '') =>
-  `<span class="mak__ik ${klase}${cilj ? ' cilj' : ''}">${ikona(id)}${cilj ? '<span class="prst"></span>' : ''}</span>`;
+/**
+ * Oblačić sa strelicom. Ide unutar označenog cilja, pa mu je pozicija tačna
+ * gdje god cilj bio. `smjer`: 'dolje' (iznad cilja) | 'gore' (ispod cilja).
+ */
+const oblacic = (tekst, smjer = 'dolje', kraj = false) =>
+  `<span class="oblacic oblacic--${smjer}${kraj ? ' oblacic--kraj' : ''}">${esc(tekst)}</span>`;
 
-const makRed = (ik, tekst, vrsta = '') =>
-  `<div class="mred ${vrsta}">${ikona(ik)}<span>${tekst}</span></div>`;
-
-/** Sadržaj lažnog ekrana — naša kartica u malom, da maketa liči na app. */
-const makSadrzaj = () => `
-  <div class="mak__sadrzaj">
-    <span class="mak__nad"></span>
-    <div class="mak__karta"><i></i><i></i><i></i><i></i></div>
-    <div class="mak__izvor"><u></u><span><i></i><i></i></span></div>
+/** Statusna traka — sitnica po kojoj se ekran odmah čita kao telefonski. */
+const status = () => `
+  <div class="mstatus">
+    <b>9:41</b>
+    <span class="mstatus__d"><i></i><i></i><u></u></span>
   </div>`;
 
-/**
- * Maketa telefona.
- * `cilj`  — šta pulsira: 'dijeli' | 'meni' | ''
- * `sloj`  — HTML preko ekrana (lista dijeljenja, potvrda, početni ekran)
- * `iPad`  — na iPadu je Podijeli u gornjoj traci, ne u donjoj
- * `drugi` — traka preglednika koji nije Safari (Chrome, in-app)
- */
-function makTelefon({ cilj = '', sloj = '', iPad = false, drugi = false } = {}) {
-  const gore = drugi || iPad;
-  const desnoGore = drugi ? makIk('i-meni', cilj === 'meni')
-                  : iPad  ? makIk('i-ios-dijeli', cilj === 'dijeli')
-                  : '';
-  const dno = gore ? '' : `
-    <div class="mak__dno">
-      ${makIk('i-nazad', false, 'mak__ik--slabo')}
-      ${makIk('i-strelica', false, 'mak__ik--slabo')}
-      ${makIk('i-ios-dijeli', cilj === 'dijeli')}
-      ${makIk('i-knjiga', false, 'mak__ik--slabo')}
-      ${makIk('i-kopiraj', false, 'mak__ik--slabo')}
-    </div>`;
+/** Naša stranica u malom — ovo je sadržaj, pa ostaje u našim bojama. */
+const stranica = () => `
+  <div class="mstrana">
+    <span class="mstrana__nad"></span>
+    <div class="mstrana__karta"><i></i><i></i><i></i><i></i></div>
+    <div class="mstrana__izvor"><u></u><span><i></i><i></i></span></div>
+  </div>`;
+
+/* ---------- iPhone ---------- */
+/* Safari na iPhoneu (iOS 15+) drži adresu i alatnu traku NA DNU — zato je
+   ikonica Podijeli tamo gdje je uputa i kaže.
+
+   `vrhMeni` mijenja gornju traku u minimalnu traku preglednika ugrađenog u
+   drugu aplikaciju (Instagram/FB): X za zatvaranje lijevo, ⋯ desno — tako
+   ti preglednici zaista izgledaju, na iOS-u i na Androidu podjednako, pa
+   nema potrebe za posebnom Android inačicom ovog slučaja.
+   `dnoMeni` mijenja zadnju ikonicu alatne trake u ⋮ — Chrome na iPhoneu (za
+   razliku od Safarija) drži svoj meni tamo, ne u zasebnoj traci. */
+function makIphone({ cilj = '', poziv = '', sloj = '', vrhMeni = false, dnoMeni = false } = {}) {
+  const alat = (id, oznaka) => `
+    <span class="ios-alat__ik${cilj === oznaka ? ' cilj' : ''}">
+      ${ikona(id)}${cilj === oznaka ? poziv : ''}
+    </span>`;
+
+  const vrh = vrhMeni ? `
+    <div class="ios-vrhtraka">
+      ${ikona('i-x')}
+      <span class="ios-vrhtraka__adr">${ikona('i-vani')}${esc(location.host)}</span>
+      <span class="ios-vrhtraka__meni${cilj === 'meni' ? ' cilj' : ''}">
+        ${ikona('i-meni')}${cilj === 'meni' ? poziv : ''}
+      </span>
+    </div>` : '';
 
   return `
-    <div class="mak">
+    <div class="mak mak--ios">
       <div class="mak__ekran">
-        <i class="mak__zvuk"></i>
-        <div class="mak__vrh">
-          <span class="mak__traka">${esc(location.host)}</span>
-          ${desnoGore}
+        <i class="mak__ostrvo"></i>
+        ${status()}
+        ${vrh}
+        ${stranica()}
+        <div class="ios-dno">
+          <span class="ios-polje">${ikona('i-lupa')}<span>${esc(location.host)}</span></span>
+          <div class="ios-alat">
+            ${alat('i-nazad', 'nazad')}
+            ${alat('i-strelica', 'naprijed')}
+            ${alat('i-ios-dijeli', 'dijeli')}
+            ${dnoMeni ? alat('i-meni', 'meni') : alat('i-knjiga', 'knjige')}
+            ${alat('i-kopiraj', 'tabovi')}
+          </div>
         </div>
-        ${makSadrzaj()}
-        ${dno}
         ${sloj}
       </div>
     </div>`;
 }
 
-/** iOS lista dijeljenja, sa „Dodaj na početni ekran“ kao ciljem. */
-const slojLista = () => `
-  <div class="sloj-mak">
-    <i class="sloj-mak__ruc"></i>
-    <div class="sloj-mak__zag">
-      <img src="${IKONA_APP}" alt="" width="19" height="19">
-      <span class="sloj-mak__ime">Poruka dana<span>${esc(location.host)}</span></span>
-    </div>
-    ${makRed('i-kopiraj', 'Kopiraj', 'mred--slabo')}
-    ${makRed('i-knjiga', 'Dodaj u listu za čitanje', 'mred--slabo')}
-    <div class="mred mred--cilj cilj cilj--pravo">
-      ${ikona('i-plus-kv')}<span>Dodaj na početni ekran</span><span class="prst"></span>
-    </div>
-    ${makRed('i-info', 'Označi stranicu', 'mred--slabo')}
+/** Red u iOS listi — natpis lijevo, glif desno, kako i jeste. */
+const iosRed = (tekst, ik, cilj = false) => `
+  <div class="ios-red${cilj ? ' ios-red--cilj cilj cilj--red' : ''}">
+    <span>${tekst}</span>${ikona(ik)}
   </div>`;
 
-/** Potvrda „Dodaj na početni ekran“, pa ikona koja sleti na ekran. */
-const slojPotvrda = () => `
-  <div class="sloj-mak sloj-mak--vrh">
-    <div class="pot__vrh">
-      <span class="pot__tiho">Otkaži</span>
-      <span class="pot__nas">Na početni ekran</span>
-      <span class="pot__ok cilj cilj--pravo">Dodaj<span class="prst"></span></span>
+/** Kružić aplikacije u redu za dijeljenje — po njemu se sheet i prepoznaje. */
+const iosApp = (ime, vrsta) => `
+  <span class="ios-app">
+    <i class="ios-app__ik ios-app__ik--${vrsta}"></i><span>${ime}</span>
+  </span>`;
+
+/** iOS lista dijeljenja. */
+const iosSheetDijeli = () => `
+  <div class="ios-sheet">
+    <i class="ios-sheet__ruc"></i>
+    <div class="ios-sheet__zag">
+      <img src="${IKONA_APP}" alt="" width="30" height="30">
+      <span class="ios-sheet__ime"><b>Poruka dana</b><span>${esc(location.host)}</span></span>
+      <span class="ios-sheet__opcije">Opcije ›</span>
     </div>
-    <div class="pot__telo">
-      <img src="${IKONA_APP}" alt="" width="24" height="24">
-      <span class="pot__polje"><b>Poruka dana</b><i></i></span>
+    <div class="ios-apps">
+      ${iosApp('AirDrop', 'airdrop')}
+      ${iosApp('Poruke', 'poruke')}
+      ${iosApp('Mail', 'mail')}
+      ${iosApp('Više', 'vise')}
     </div>
+    <div class="ios-lista">
+      ${iosRed('Kopiraj', 'i-kopiraj')}
+      ${iosRed('Dodaj u listu za čitanje', 'i-knjiga')}
+      ${iosRed('Dodaj oznaku', 'i-zvijezda')}
+      ${iosRed('Dodaj na početni ekran', 'i-plus-kv', true)}
+      ${iosRed('Nađi na stranici', 'i-lupa')}
+    </div>
+  </div>`;
+
+/** iOS potvrda „Na početni ekran“ — Dodaj je gore desno. */
+const iosSheetPotvrda = () => `
+  <div class="ios-potvrda">
+    <div class="ios-potvrda__vrh">
+      <span class="ios-potvrda__tiho">Otkaži</span>
+      <b>Na početni ekran</b>
+      <span class="ios-potvrda__ok cilj cilj--tekst">Dodaj${oblacic('Potvrdi', 'gore', true)}</span>
+    </div>
+    <div class="ios-potvrda__telo">
+      <img src="${IKONA_APP}" alt="" width="42" height="42">
+      <span class="ios-potvrda__polje"><b>Poruka dana</b><span>${esc(location.host)}</span></span>
+    </div>
+    <p class="ios-potvrda__nota">Na početni ekran dodat će se ikona za brz pristup ovoj stranici.</p>
   </div>
-  <div class="pocetni">
-    <i></i><i></i><i></i><i></i>
-    <img src="${IKONA_APP}" alt="" width="30" height="30"><i></i><i></i><i></i>
-    <b>Poruka dana</b>
-  </div>`;
+  ${pocetniEkran()}`;
 
-/** Padajući meni preglednika (Android Chrome, in-app preglednici). */
-const slojMeni = (redovi) => `
-  <div class="sloj-mak sloj-mak--vrh sloj-mak--meni">${redovi}</div>`;
-
-/** Maketa prozora na računaru; `pad` je otvoreni meni. */
-function makRacunar({ ciljTraka = false, meniTraka = '', pad = '', desno = false } = {}) {
+/* ---------- Android ---------- */
+function makAndroid({ cilj = '', poziv = '', sloj = '' } = {}) {
   return `
-    <div class="mak-pc">
-      <div class="mak-pc__vrh">
-        <span class="mak-pc__tipke"><i></i><i></i><i></i></span>
-        <span class="mak-pc__traka">
-          <span>${esc(location.host)}</span>
-          ${makIk('i-instal', ciljTraka, 'mak__ik--zlatno')}
-        </span>
-        ${meniTraka ? '' : makIk('i-meni', !ciljTraka && !pad)}
-      </div>
-      ${meniTraka}
-      <div class="mak-pc__sadrzaj">
-        ${makSadrzaj()}
-        ${pad ? `<div class="mak-pc__pad${desno ? ' mak-pc__pad--desno' : ''}">${pad}</div>` : ''}
+    <div class="mak mak--and">
+      <div class="mak__ekran">
+        <i class="mak__oko"></i>
+        ${status()}
+        <div class="and-traka">
+          <span class="and-polje">${ikona('i-lupa')}<span>${esc(location.host)}</span></span>
+          <span class="and-tabovi">3</span>
+          <span class="and-meni-ik${cilj === 'meni' ? ' cilj' : ''}">
+            ${ikona('i-meni')}${cilj === 'meni' ? poziv : ''}
+          </span>
+        </div>
+        ${stranica()}
+        ${sloj}
       </div>
     </div>`;
 }
+
+/** Red u Chromeovom meniju — ikonica lijevo, natpis desno, kako i jeste. */
+const andRed = (tekst, ik, cilj = false) => `
+  <div class="and-red${cilj ? ' and-red--cilj cilj cilj--red' : ''}">
+    ${ikona(ik)}<span>${tekst}</span>
+  </div>`;
+
+/** Chromeov meni: red ikonica na vrhu, pa stavke — kao na pravom telefonu. */
+const andMeni = () => `
+  <div class="and-meni">
+    <div class="and-meni__vrh">
+      ${ikona('i-strelica')}${ikona('i-zvijezda')}${ikona('i-info')}${ikona('i-preuzmi')}
+    </div>
+    ${andRed('Nova kartica', 'i-vani')}
+    ${andRed('Historija', 'i-sat')}
+    ${andRed('Preuzimanja', 'i-preuzmi')}
+    ${andRed('Instaliraj aplikaciju', 'i-instal', true)}
+    ${andRed('Postavke', 'i-postavke')}
+  </div>`;
+
+/** Chromeov dijalog instalacije, pa ikona na početnom ekranu. */
+const andDijalog = () => `
+  <div class="and-dijalog">
+    <div class="and-dijalog__vrh">
+      <img src="${IKONA_APP}" alt="" width="38" height="38">
+      <span class="and-dijalog__ime"><b>Instaliraj aplikaciju</b><span>Poruka dana</span></span>
+    </div>
+    <div class="and-dijalog__dug">
+      <span class="and-dijalog__tiho">Otkaži</span>
+      <span class="and-dijalog__ok cilj cilj--tekst">Instaliraj${oblacic('Potvrdi', 'gore', true)}</span>
+    </div>
+  </div>
+  ${pocetniEkran()}`;
+
+/* ---------- ishod: ikona na početnom ekranu ---------- */
+/* Ciklus, a ne jednokratni prelaz: korak traži da se dodirne potvrda, pa se
+   maketa mora vraćati na nju. Kad je pokret isključen, sloj ostaje sklonjen
+   (`opacity: 0`) i vidi se potvrda — koja i jeste uputa ovog koraka. */
+const pocetniEkran = () => `
+  <div class="pocetni">
+    <i></i><i></i><i></i><i></i>
+    <img src="${IKONA_APP}" alt="" width="34" height="34"><i></i><i></i><i></i>
+    <b>Poruka dana</b>
+  </div>`;
 
 const dugmeKopiraj = () =>
   `<button class="btn btn--obris btn--puni" id="vodic-kopiraj">${ikona('i-kopiraj')} Kopiraj adresu</button>`;
@@ -1015,99 +1102,67 @@ const dugmeKopiraj = () =>
 function vodicKoraci() {
   const o = okolina();
 
-  /* preglednik ugrađen u Instagram/Facebook — odatle instalacije nema */
+  /* Na računaru instalacije nema — nema ni vodiča. */
+  if (!o.iOS && !o.android) return [];
+
+  /* preglednik ugrađen u Instagram/Facebook — odatle instalacije nema.
+     Ta traka izgleda isto na iOS-u i Androidu, pa je maketa ista; samo je
+     uređaj oko nje drugačiji, jer to korisnik i drži u ruci. */
   if (o.uApp) return [{
     naslov: 'Otvori u pravom pregledniku',
-    opis: `Stranicu si otvorio unutar druge aplikacije. Dodirni <b>⋯</b> u uglu ekrana pa
-           <b>${o.iOS ? 'Otvori u Safariju' : 'Otvori u Chromeu'}</b> — instalacija je moguća samo tamo.`,
-    scena: makTelefon({ cilj: 'meni', drugi: true }),
+    opis: `Stranicu si otvorio unutar druge aplikacije. Dodirni ⋮ u uglu, pa
+           <b>${o.iOS ? 'Otvori u Safariju' : 'Otvori u Chromeu'}</b>.`,
+    scena: o.iOS
+      ? makIphone({ vrhMeni: true, cilj: 'meni', poziv: oblacic('Ovdje', 'dolje', true) })
+      : makAndroid({ cilj: 'meni', poziv: oblacic('Ovdje', 'gore', true) }),
     dodatno: dugmeKopiraj(),
   }];
 
   const iosKoraci = [
     {
       naslov: 'Dodirni Podijeli',
-      opis: `Ikonica ${uIkona('i-ios-dijeli')} <b>Podijeli</b> je ${o.iPad ? 'u gornjoj traci, desno' : 'na dnu ekrana, u sredini'}.`,
-      scena: makTelefon({ cilj: 'dijeli', iPad: o.iPad }),
+      opis: `Ikonica ${uIkona('i-ios-dijeli')} <b>Podijeli</b> je na dnu ekrana, u sredini.`,
+      scena: makIphone({ cilj: 'dijeli', poziv: oblacic('Dodirni ovdje') }),
     },
     {
       naslov: 'Odaberi Dodaj na početni ekran',
-      opis: `Otvorit će se lista. Skrolaj malo niže i dodirni ${uIkona('i-plus-kv')} <b>Dodaj na početni ekran</b>.`,
-      scena: makTelefon({ sloj: slojLista(), iPad: o.iPad }),
+      opis: `Otvorit će se lista. Pomjeri se malo niže i dodirni ${uIkona('i-plus-kv')} <b>Dodaj na početni ekran</b>.`,
+      scena: makIphone({ sloj: iosSheetDijeli() }),
     },
     {
-      naslov: 'Potvrdi sa Dodaj',
-      opis: 'Dodirni <b>Dodaj</b> u gornjem desnom uglu. Ikonica se pojavi među aplikacijama — otvori je odatle.',
-      scena: makTelefon({ sloj: slojPotvrda(), iPad: o.iPad }),
+      naslov: 'Dodirni Dodaj',
+      opis: 'Dugme <b>Dodaj</b> je u gornjem desnom uglu. Nakon toga aplikaciju pokreni s početnog ekrana.',
+      scena: makIphone({ sloj: iosSheetPotvrda() }),
     },
   ];
 
-  /* iPhone, ali nije Safari: WebKit je isti, ali „Dodaj na početni ekran“
-     ima samo Safari — zato prvo prelazak, pa ista tri koraka. */
+  /* iPhone, ali nije Safari: „Dodaj na početni ekran“ ima samo Safari. Chrome
+     na iPhoneu i dalje ima iOS-ov izgled (donja traka), samo mu je zadnja
+     ikonica meni ⋮ umjesto tabova — ne Androidov Chrome. */
   if (o.iosDrugi) return [{
     naslov: 'Otvori u Safariju',
     opis: 'Chrome i ostali preglednici na iPhoneu nemaju „Dodaj na početni ekran“. Kopiraj adresu i zalijepi je u Safari.',
-    scena: makTelefon({ cilj: 'meni', drugi: true }),
+    scena: makIphone({ dnoMeni: true, cilj: 'meni', poziv: oblacic('Ovdje') }),
     dodatno: dugmeKopiraj(),
   }, ...iosKoraci];
 
   if (o.iOS) return iosKoraci;
 
-  if (o.android) return [
+  return [
     {
-      naslov: 'Dodirni meni preglednika',
-      opis: `Ikonica ${uIkona('i-meni')} <b>⋮</b> je u gornjem desnom uglu.`,
-      scena: makTelefon({ cilj: 'meni', drugi: true }),
+      naslov: 'Dodirni meni',
+      opis: `Ikonica sa tri tačke ${uIkona('i-meni')} je u gornjem desnom uglu, pored adrese.`,
+      scena: makAndroid({ cilj: 'meni', poziv: oblacic('Dodirni ovdje', 'gore', true) }),
     },
     {
       naslov: 'Odaberi Instaliraj aplikaciju',
-      opis: 'U meniju traži <b>Instaliraj aplikaciju</b> — na starijim verzijama piše <b>Dodaj na početni ekran</b>.',
-      scena: makTelefon({ drugi: true, sloj: slojMeni(
-        makRed('i-strelica', 'Nova kartica', 'mred--slabo') +
-        `<div class="mred mred--cilj cilj cilj--pravo">${ikona('i-instal')}<span>Instaliraj aplikaciju</span><span class="prst"></span></div>` +
-        makRed('i-info', 'Historija', 'mred--slabo')) }),
+      opis: 'U meniju odaberi <b>Instaliraj aplikaciju</b>. Na starijim verzijama piše <b>Dodaj na početni ekran</b>.',
+      scena: makAndroid({ sloj: andMeni() }),
     },
     {
-      naslov: 'Potvrdi sa Instaliraj',
-      opis: 'Preglednik pita za potvrdu. Poslije toga aplikacija ima svoju ikonicu i otvara se u svom prozoru.',
-      scena: makTelefon({ drugi: true, sloj: slojPotvrda() }),
-    },
-  ];
-
-  if (o.macSafari) return [
-    {
-      naslov: 'Otvori meni File',
-      opis: 'U traci menija na vrhu ekrana otvori <b>File</b>. Traži macOS Sonoma ili noviji.',
-      scena: makRacunar({ meniTraka: '<div class="mak-pc__meni"><span style="color:var(--gold)">File</span><span>Edit</span><span>View</span><span>History</span></div>' }),
-    },
-    {
-      naslov: 'Odaberi Add to Dock…',
-      opis: 'Klikni <b>Add to Dock…</b> pa potvrdi sa <b>Add</b>. Aplikaciju pokreni iz Docka.',
-      scena: makRacunar({
-        meniTraka: '<div class="mak-pc__meni"><span style="color:var(--gold)">File</span><span>Edit</span><span>View</span><span>History</span></div>',
-        pad: makRed('i-strelica', 'New Tab', 'mred--slabo') +
-             `<div class="mred mred--cilj cilj cilj--pravo">${ikona('i-instal')}<span>Add to Dock…</span><span class="prst"></span></div>` +
-             makRed('i-preuzmi', 'Print…', 'mred--slabo'),
-      }),
-    },
-  ];
-
-  /* računar bez preglednikovog dijaloga (Firefox, stariji Chrome…) */
-  return [
-    {
-      naslov: 'Potraži ikonicu u adresnoj traci',
-      opis: `Na desnoj strani adresne trake klikni ${uIkona('i-instal')} <b>Instaliraj</b>.`,
-      scena: makRacunar({ ciljTraka: true }),
-    },
-    {
-      naslov: 'Ako je nema, otvori meni',
-      opis: 'U meniju preglednika traži <b>Instaliraj…</b> ili <b>Dodaj na početni ekran</b>. Podsjetnici najbolje rade na telefonu.',
-      scena: makRacunar({
-        desno: true,
-        pad: makRed('i-strelica', 'Nova kartica', 'mred--slabo') +
-             `<div class="mred mred--cilj cilj cilj--pravo">${ikona('i-instal')}<span>Instaliraj…</span><span class="prst"></span></div>` +
-             makRed('i-info', 'Historija', 'mred--slabo'),
-      }),
+      naslov: 'Dodirni Instaliraj',
+      opis: 'Preglednik traži potvrdu. Nakon toga aplikacija ima svoju ikonu i otvara se u svom prozoru.',
+      scena: makAndroid({ sloj: andDijalog() }),
     },
   ];
 }
@@ -1118,6 +1173,7 @@ let vodicSad = [];
 /** Otvara vodič; `korak` služi razvojnoj simulaciji i vraćanju na isti korak. */
 function otvoriUputu(korak = 0) {
   vodicSad = vodicKoraci();
+  if (!vodicSad.length) return;
   vodicIdx = Math.min(Math.max(korak | 0, 0), vodicSad.length - 1);
   crtajVodic();
   otvori(el.mInstal);
@@ -1162,11 +1218,8 @@ const SIM_STANJA = [
   { id: 'ipad',        ime: 'iPad · Safari',           nap: 'Podijeli je gore',     s: { o: { iOS: true, iPad: true } } },
   { id: 'ios-chrome',  ime: 'iPhone · Chrome',         nap: 'prvo u Safari',        s: { o: { iOS: true, iosDrugi: true } } },
   { id: 'uapp',        ime: 'Instagram/FB preglednik', nap: 'otvori vani',          s: { o: { uApp: true, android: true } } },
-  { id: 'desktop',     ime: 'Računar · native prompt', nap: 'dijalog preglednika',  s: { o: { desktop: true }, prompt: true } },
-  { id: 'desktop-bez', ime: 'Računar · bez prompta',   nap: 'adresna traka',        s: { o: { desktop: true } } },
-  { id: 'mac',         ime: 'macOS Safari',            nap: 'File → Add to Dock',   s: { o: { desktop: true, macSafari: true } } },
+  { id: 'racunar',     ime: 'Računar',                 nap: 'nema instalacije',     s: { o: { desktop: true } } },
   { id: 'instalirano', ime: 'Već instalirano',         nap: 'dugmeta nema',         s: { instalirano: true } },
-  { id: 'nepodrzano',  ime: 'Preglednik ne podržava',  nap: 'dugmeta nema',         s: { o: { desktop: true }, podrzano: false } },
 ];
 
 function primijeniSim(id) {
@@ -1181,8 +1234,8 @@ function primijeniSim(id) {
   el.rzPwa.setAttribute('aria-pressed', String(!!st));
 
   if (!st) { zatvoriSve(); return poruka('Simulacija instalacije isključena', 'i-instal'); }
-  // stanja u kojima nema šta pokazati u vodiču
-  if (simInstal.instalirano || simInstal.podrzano === false || simInstal.prompt) {
+  // stanja u kojima nema šta pokazati u vodiču (računar ga uopšte ne dobija)
+  if (simInstal.instalirano || simInstal.podrzano === false || simInstal.prompt || simInstal.o?.desktop) {
     zatvoriSve();
     return poruka(`Simulacija: ${st.ime}`, 'i-instal');
   }
@@ -1739,7 +1792,7 @@ function poruka(tekst, ik = 'i-kvaka') {
 }
 
 /* ---------- 16. UVOD ---------- */
-/* Dva toka, vidi UVOD_WEB / UVOD_PWA. U pregledniku vodimo korisnika do
+/* Dva toka, vidi uvodWeb() / UVOD_PWA. U pregledniku vodimo korisnika do
    početnog ekrana; dozvolu za notifikacije tražimo tek u aplikaciji.
    Ako ovaj korak padne, sve ostalo pada s njim — zato su upute po
    uređaju i pregledniku, a ne jedna generička. */
@@ -1747,7 +1800,7 @@ function poruka(tekst, ik = 'i-kvaka') {
 let uvodIdx = 0;
 let uvodTok = 'web';                                   // 'web' | 'pwa'
 
-const uvodKoraci = () => (uvodTok === 'pwa' ? UVOD_PWA : UVOD_WEB);
+const uvodKoraci = () => (uvodTok === 'pwa' ? UVOD_PWA : uvodWeb());
 
 const notifPodrzan = () => 'Notification' in window;
 const notifStanjeSad = () => (notifPodrzan() ? Notification.permission : 'nepodrzano');
@@ -1767,16 +1820,13 @@ function okolina() {
   const uApp = /FBAN|FBAV|FB_IAB|Instagram|LinkedInApp|Line\/|Twitter|WhatsApp|Snapchat|TikTok|Viber|MicroMessenger|GSA\//i.test(ua);
   // na iPhoneu „Dodaj na početni ekran“ ima samo Safari
   const iosDrugi = iOS && /CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser/.test(ua);
-  // Safari na Macu instalira iz menija File, ne iz adresne trake
-  const macSafari = !iOS && /Macintosh/.test(ua) &&
-                    /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR|Brave/.test(ua);
   if (simInstal?.o) return { ...OKOLINA_NULE, ...simInstal.o };
-  return { iOS, android, uApp, iosDrugi, macSafari,
+  return { iOS, android, uApp, iosDrugi,
            iPad: /iPad/.test(ua) || iPadOS, desktop: !iOS && !android };
 }
 
 const OKOLINA_NULE = { iOS: false, android: false, uApp: false, iosDrugi: false,
-                       macSafari: false, iPad: false, desktop: false };
+                       iPad: false, desktop: false };
 
 const stanjeOk   = t => `<span class="uvod__stanje uvod__stanje--ok">${ikona('i-kvaka')} ${t}</span>`;
 const stanjePazi = t => `<span class="uvod__stanje uvod__stanje--pazi">${ikona('i-pazi')} ${t}</span>`;
@@ -1805,49 +1855,41 @@ function crtajUvod() {
   el.uvodPreskoci.onclick = null;
   el.uvodPreskoci.textContent = 'Preskoči za sada';
 
-  if (k.id === 'tema')        { crtajIzborTeme(); el.uvodDalje.textContent = 'Dalje'; }
-  else if (k.id === 'instal')   crtajKorakInstal();
-  else if (k.id === 'otvori')   crtajKorakOtvori();
+  if (k.id === 'instal')        crtajKorakInstal();
   else if (k.id === 'notif')    crtajKorakNotif();
   else if (k.id === 'gotovo')   crtajKorakGotovo();
+  else if (k.id === 'kraj')     crtajKorakKraj();
   else el.uvodDalje.textContent = 'Dalje';
 }
 
 /* --- korak: tema --- */
-function crtajIzborTeme() {
-  const izabran = stanje.autoTema ? 'auto' : stanje.tema;
-  el.uvodSadrzaj.innerHTML = `
-    <div class="tema-izbor" id="tema-izbor">
-      ${TEME.map(t => `
-        <button class="tema-opcija" data-izbor="${t.id}" aria-pressed="${t.id === izabran}">
-          <span class="tema-opcija__vizual" style="background:${t.boje}"></span>
-          <span class="tema-opcija__ime">${t.ime}</span>
-        </button>`).join('')}
-    </div>`;
-
-  $('#tema-izbor').addEventListener('click', e => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    const izbor = b.dataset.izbor;
-    stanje.autoTema = izbor === 'auto';
-    pisi(LS.autoTema, stanje.autoTema);
-    if (!stanje.autoTema) { stanje.tema = izbor; pisi(LS.tema, izbor); }
-    primijeniTemu();
-    crtajIzborTeme();
-  });
-}
-
-/* --- korak: instalacija (samo u WEB toku) --- */
+/* --- korak: instalacija (samo u WEB toku, samo telefon) --- */
 /* Ovo je korak koji ne pušta dalje. Gdje preglednik nudi svoj dijalog
-   (Android/desktop Chrome) zovemo ga direktno; gdje ga nema (iPhone) daju
-   se tačne upute i korisnik sam potvrdi da je dodao. */
+   (Android Chrome) zovemo ga direktno; gdje ga nema (iPhone) stoji maketa
+   sa označenim mjestom i kratka lista, pa korisnik sam potvrdi.
+
+   Maketa pokazuje onaj trenutak u kojem se ljudi izgube — otvorenu listu sa
+   označenim redom — a ne prvi dodir, koji je i bez slike očit.
+
+   Sve stoji na jednom ekranu, bez koračanja kroz maketu: korisnik odlazi iz
+   preglednika da ovo izvede, a čim otvori listu dijeljenja naša stranica je
+   pokrivena i „Dalje“ nema ko stisnuti. Cijelu uputu zato mora vidjeti
+   prije nego krene. Vodič korak-po-korak ostaje u postavkama.
+
+   Ovo je i zadnji ekran uvoda u pregledniku: dozvola za podsjetnik se traži
+   kad se aplikacija prvi put otvori sa početnog ekrana (tok `pwa`). */
 
 const dodanoRucno = () => cita(LS.dodano, false) === true;
+
+/** Maketa unutar koraka uvoda — ukras, uputa je u tekstu ispod. */
+const uvodScena = html => `<div class="uvod__scena" aria-hidden="true">${html}</div>`;
 
 function crtajKorakInstal() {
   const o = okolina();
 
-  if (jeInstalirana() || dodanoRucno()) { uvodIdx++; crtajUvod(); return; }
+  /* Već dodano — nema šta pokazati. Ide `naprijed()`, ne `uvodIdx++`: instal je
+     sad zadnji korak, pa ručno uvećavanje izađe iz liste i `crtajUvod` pukne. */
+  if (jeInstalirana() || dodanoRucno()) { naprijed(); return; }
 
   /* preglednik ugrađen u Instagram/Facebook — odatle se ne može instalirati */
   if (o.uApp && !okolinaOverride) {
@@ -1885,18 +1927,21 @@ function crtajKorakInstal() {
     return;
   }
 
-  /* iPhone / iPad, Safari — nema API-ja, idu tačne upute */
+  /* iPhone / iPad, Safari — nema API-ja, ide maketa pa tačne upute */
   if (o.iOS) {
-    el.uvodSadrzaj.innerHTML = koraciHtml([
-      `Dodirni ${uIkona('i-ios-dijeli')} <b>Podijeli</b> ${o.iPad ? 'gore desno' : 'na dnu ekrana'}.`,
-      `Skrolaj niz listu do ${uIkona('i-plus-kv')} <b>Dodaj na početni ekran</b>.`,
-      'Potvrdi sa <b>Dodaj</b> u gornjem desnom uglu.',
-    ]);
+    el.uvodSadrzaj.innerHTML = `
+      ${uvodScena(makIphone({ sloj: iosSheetDijeli() }))}
+      ${koraciHtml([
+        `Dodirni ${uIkona('i-ios-dijeli')} <b>Podijeli</b> ${o.iPad ? 'gore desno' : 'na dnu ekrana'}.`,
+        `Pomjeri se niz listu do ${uIkona('i-plus-kv')} <b>Dodaj na početni ekran</b>.`,
+        'Dodirni <b>Dodaj</b> u gornjem desnom uglu.',
+      ])}
+      ${zadnjiRed()}`;
     el.uvodDalje.textContent = 'Dodao sam';
     return;
   }
 
-  /* Android / desktop — preglednik ima svoj dijalog */
+  /* Android — preglednik najčešće ima svoj dijalog, jedan dodir i gotovo */
   if (instalPrompt) {
     el.uvodSadrzaj.innerHTML = `
       <p class="uvod__nota">Dodirni dugme ispod i potvrdi u prozoru koji se otvori.</p>`;
@@ -1904,60 +1949,36 @@ function crtajKorakInstal() {
     return;
   }
 
-  /* Android bez dijaloga */
-  if (o.android) {
-    el.uvodSadrzaj.innerHTML = koraciHtml([
-      `Dodirni ${uIkona('i-meni')} <b>⋮</b> u gornjem desnom uglu.`,
-      'Odaberi <b>Instaliraj aplikaciju</b> ili <b>Dodaj na početni ekran</b>.',
-      'Potvrdi sa <b>Instaliraj</b>.',
-    ]);
-    el.uvodDalje.textContent = 'Dodao sam';
-    return;
-  }
-
-  /* Safari na Macu */
-  if (o.macSafari) {
-    el.uvodSadrzaj.innerHTML = `
-      ${koraciHtml([
-        'U traci menija otvori <b>File</b>.',
-        'Odaberi <b>Add to Dock…</b> pa potvrdi sa <b>Add</b>.',
-        'Aplikaciju pokreni iz Docka — dobija svoj prozor.',
-      ])}
-      <p class="uvod__nota">Traži macOS Sonoma ili noviji. Na starijem Macu
-        otvori ovu stranicu u Chromeu.</p>`;
-    el.uvodDalje.textContent = 'Dodao sam';
-    el.uvodPreskoci.hidden = false;
-    el.uvodPreskoci.textContent = 'Nastavi u pregledniku';
-    return;
-  }
-
-  /* ostali računari bez dijaloga */
+  /* Android bez dijaloga — ide kroz meni preglednika */
   el.uvodSadrzaj.innerHTML = `
+    ${uvodScena(makAndroid({ sloj: andMeni() }))}
     ${koraciHtml([
-      'Klikni ikonicu <b>instalacije</b> na desnoj strani adresne trake.',
-      'Ako je nema, otvori meni preglednika pa <b>Instaliraj…</b>',
+      `Dodirni ikonicu sa tri tačke ${uIkona('i-meni')} u gornjem desnom uglu.`,
+      'Odaberi <b>Instaliraj aplikaciju</b>.',
+      'Dodirni <b>Instaliraj</b> za potvrdu.',
     ])}
-    <p class="uvod__nota">Podsjetnici najbolje rade na telefonu — otvori ovu stranicu i tamo.</p>`;
+    ${zadnjiRed()}`;
   el.uvodDalje.textContent = 'Dodao sam';
-  el.uvodPreskoci.hidden = false;
-  el.uvodPreskoci.textContent = 'Nastavi u pregledniku';
 }
 
-/* --- korak: otvori aplikaciju sa početnog ekrana --- */
-/* Stranica ne može pokrenuti instaliranu aplikaciju — nema takvog API-ja.
-   Zato ovaj korak pokazuje tačno onu ikonu koju treba dodirnuti. */
-function crtajKorakOtvori() {
+/* Uputa koja je prije bila cijeli peti ekran („Otvori aplikaciju“). Jedan red
+   na kraju liste radi isti posao, a uvod je kraći za jedan ekran. */
+const zadnjiRed = () => `
+  <p class="uvod__nota">Aplikaciju zatim pokreni s početnog ekrana —
+    podsjetnik se uključuje unutar nje.</p>`;
+
+/* --- korak: kraj uvoda na računaru --- */
+/* Na računaru se aplikacija ne instalira, pa uvod tu i završava. Podsjetnik
+   ostaje dostupan u postavkama — samo mu je mjesto na telefonu, gdje se
+   poruka i čita. */
+function crtajKorakKraj() {
   el.uvodSadrzaj.innerHTML = `
-    <div class="otvori">
-      <img class="otvori__ikona" src="/assets/icons/icon-192.png" alt="" width="76" height="76">
-      <b class="otvori__ime">Poruka dana</b>
-    </div>
-    ${koraciHtml([
-      'Zatvori ovaj preglednik.',
-      'Na početnom ekranu dodirni ikonu <b>Poruka dana</b>.',
-      'Unutra dozvoli podsjetnik — to je zadnji korak.',
-    ])}`;
-  el.uvodDalje.textContent = 'Razumijem';
+    <p class="uvod__nota">Podsjetnik radi na telefonu. Otvori ovu adresu na telefonu
+      i dodaj aplikaciju na početni ekran. Ovdje možeš čitati i bez podsjetnika, a
+      uključiti ga možeš u postavkama.</p>
+    ${dugmeKopirajAdresu()}`;
+  vezikopiraj();
+  el.uvodDalje.textContent = 'Uđi u aplikaciju';
 }
 
 /** Zadnja brana: ako smo pogrešno prepoznali preglednik, korisnik ne smije

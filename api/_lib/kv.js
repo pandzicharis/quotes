@@ -35,3 +35,18 @@ export const dodajPretplatu  = json => komanda('SADD', KLJUC, json);
 export const skiniPretplatu  = json => komanda('SREM', KLJUC, json);
 export const svePretplate    = () => komanda('SMEMBERS', KLJUC);
 export const brojPretplata   = () => komanda('SCARD', KLJUC);
+
+/* Jedan SREM nosi više članova, pa čišćenje mrtvih pretplata nakon dnevnog
+   slanja ne znači jedan mrežni poziv po zapisu. Grupa je namjerno mala da
+   zahtjev ostane daleko od Upstashovog limita veličine. */
+const GRUPA_BRISANJA = 200;
+
+/** Briše više zapisa u grupama. Vraća koliko ih je zaista obrisano. */
+export async function skiniPretplate(zapisi) {
+  let obrisano = 0;
+  for (let i = 0; i < zapisi.length; i += GRUPA_BRISANJA) {
+    const grupa = zapisi.slice(i, i + GRUPA_BRISANJA);
+    obrisano += (await komanda('SREM', KLJUC, ...grupa)) || 0;
+  }
+  return obrisano;
+}
