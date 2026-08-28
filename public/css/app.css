@@ -1090,9 +1090,15 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
    iznad sebe (razmak ide ovdje, ne na maketu: vodič u postavkama koristi
    istu maketu, a tamo je ispod nje dugmad, ne lista). */
 .koraci--uvod { margin-top: 26px; gap: 6px; }
-.koraci--uvod .korak { gap: 9px; align-items: center; }
+/* Broj se veže za PRVI red teksta, ne za sredinu cijelog koraka: kad se korak
+   prelije u dva reda (npr. „Pokreni aplikaciju…“), `center` bi mu broj spustio
+   na sredinu i on bi visio niže od brojeva jednorednih koraka. Otud
+   `flex-start` plus negativni pomak koji ga centrira na taj prvi red:
+   (17.5px red − 20px krug) / 2 = −1.25px. Jednoredni koraci izgledaju isto
+   kao prije, viševrsni se poravnaju. */
+.koraci--uvod .korak { gap: 9px; align-items: flex-start; }
 .koraci--uvod .korak p { margin: 0; font-size: 12.5px; line-height: 1.4; text-align: left; }
-.koraci--uvod .korak__br { width: 20px; height: 20px; font-size: 9.5px; margin-top: 0; }
+.koraci--uvod .korak__br { width: 20px; height: 20px; font-size: 9.5px; margin-top: -1.25px; }
 .korak__ik {
   display: inline-grid; place-items: center; vertical-align: -3px;
   width: 15px; height: 15px; color: var(--gold);

@@ -2165,8 +2165,8 @@ function crtajKorakInstal() {
         `Dodirni ${uIkona('i-ios-dijeli')} <b>Podijeli</b> ${o.iPad ? 'gore desno' : 'na dnu ekrana'} — ili <b>⋯</b> pa <b>Podijeli</b>.`,
         `Pomjeri se niz listu do ${uIkona('i-plus-kv')} <b>Dodaj na početni ekran</b>.`,
         'Dodirni <b>Dodaj</b> u gornjem desnom uglu.',
-      ])}
-      ${zadnjiRed()}`;
+        KORAK_POKRENI,
+      ])}`;
     el.uvodDalje.textContent = 'Dodao sam';
     return;
   }
@@ -2186,16 +2186,17 @@ function crtajKorakInstal() {
       `Dodirni ikonicu sa tri tačke ${uIkona('i-meni')} u gornjem desnom uglu.`,
       'Odaberi <b>Instaliraj aplikaciju</b>.',
       'Dodirni <b>Instaliraj</b> za potvrdu.',
-    ])}
-    ${zadnjiRed()}`;
+      KORAK_POKRENI,
+    ])}`;
   el.uvodDalje.textContent = 'Dodao sam';
 }
 
-/* Uputa koja je prije bila cijeli peti ekran („Otvori aplikaciju“). Jedan red
-   na kraju liste radi isti posao, a uvod je kraći za jedan ekran. */
-const zadnjiRed = () => `
-  <p class="uvod__nota">Aplikaciju zatim pokreni s početnog ekrana —
-    podsjetnik se uključuje unutar nje.</p>`;
+/* Ovo je nekad bio cijeli peti ekran („Otvori aplikaciju“), pa tiha napomena
+   ispod liste. Napomena je bila pogrešan oblik: sivim tekstom je izgledala
+   kao fusnota, a to je zapravo korak bez kojeg podsjetnik ne proradi — i to
+   jedini koji se izvodi nakon što korisnik izađe iz preglednika. Zato ide u
+   listu, sa svojim brojem, ravnopravno s ostalima. */
+const KORAK_POKRENI = 'Pokreni aplikaciju s <b>početnog ekrana</b>.';
 
 /* --- korak: kraj uvoda na računaru --- */
 /* Na računaru se aplikacija ne instalira, pa uvod tu i završava. Podsjetnik

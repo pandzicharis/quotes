@@ -15,7 +15,7 @@
      Bez toga bi se kod mijenjao ispod ruke, na sredini korištenja.
    ============================================================ */
 
-const VERZIJA = 'v10';
+const VERZIJA = 'v11';
 const KESH = `poruka-dana-${VERZIJA}`;
 
 const LJUSKA = [
