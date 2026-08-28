@@ -69,9 +69,12 @@ const uvodWeb = () => okolina().desktop
   ? [UVOD_KORACI.pocetak, UVOD_KORACI.kraj]
   : [UVOD_KORACI.pocetak, UVOD_KORACI.instal];
 
+/* Nijedan podnaslov ne broji preostale korake („Ostao je još jedan dodir“):
+   otkad je uz dozvolu tu i izbor izgleda, takva rečenica laže, a lagala bi
+   ponovo pri svakoj sljedećoj izmjeni toka. Svaki korak govori samo o sebi. */
 const UVOD_PWA = [
   { id: 'notif', n: 'Dozvoli podsjetnik',
-    t: 'Ostao je još samo jedan dodir.' },
+    t: 'Da te poruka nađe svaki dan u isto vrijeme.' },
   { id: 'tema', n: 'Odaberi izgled',
     t: 'Noć, papir ili prema postavkama tvog telefona. Uvijek se može promijeniti u postavkama.' },
   { id: 'gotovo', n: 'Sve je spremno',
@@ -818,7 +821,7 @@ async function testNotifikacija() {
    Zapis se upisuje prije prikaza: da notifikacija padne, pozdrav se ne
    ponavlja na svako sljedeće otvaranje. */
 const POZDRAV = {
-  nas:   'Esselamu alejkum',
+  nas:   'Es-selamu alejkum',
   tekst: 'Dobro došli na Poruku dana — hafiz Ammar Bašić.',
 };
 
@@ -1754,12 +1757,26 @@ async function nacrtajPlatno() {
   // razdjelnik: linija — brend znak — linija
   y += W * 0.042 + znakP / 2;
   const poluL = znakP / 2 + W * 0.034;        // linije se drže dalje od znaka
-  c.strokeStyle = `${s.gold}45`;
+  const kraj = W * 0.215;
   c.lineWidth = Math.max(1.2, W * 0.0013);
-  c.beginPath();
-  c.moveTo(W / 2 - W * 0.215, y); c.lineTo(W / 2 - poluL, y);
-  c.moveTo(W / 2 + poluL, y);     c.lineTo(W / 2 + W * 0.215, y);
-  c.stroke();
+
+  /* Linije se gase prema oba kraja, isto kao `.razdjelnik i` na kartici:
+     pune u sredini, nevidljive tamo gdje prilaze znaku i tamo gdje staju u
+     prazno. Ravna linija je imala dva tvrda reza i bila prva stvar po kojoj
+     se vidjelo da slika nije crtana istom rukom kao kartica. */
+  for (const smjer of [-1, 1]) {
+    const od = W / 2 + smjer * kraj;
+    const do_ = W / 2 + smjer * poluL;
+    const g = c.createLinearGradient(od, y, do_, y);
+    g.addColorStop(0,   prozirno(s.gold));
+    g.addColorStop(.45, saAlfom(s.gold, .27));
+    g.addColorStop(.55, saAlfom(s.gold, .31));
+    g.addColorStop(1,   prozirno(s.gold));
+    c.strokeStyle = g;
+    c.beginPath();
+    c.moveTo(od, y); c.lineTo(do_, y);
+    c.stroke();
+  }
   if (znak) {
     c.globalAlpha = 0.95;
     c.drawImage(znak, W / 2 - znakP / 2, y - znakP / 2, znakP, znakP);
@@ -2285,12 +2302,15 @@ function crtajKorakNotif() {
 }
 
 /* --- korak: zadnji podsjetnik --- */
+/* Zadnji ekran je pozdrav, ne izvještaj o stanju sistema. Zato je otišla
+   zelena pločica „Podsjetnik radi“ — sa svojim okvirom i verzalom čitala se
+   kao status poruka usred mirnog, tipografskog uvoda. Ostaje jedna rečenica
+   koja kaže šta slijedi, u istom tonu kao ostatak. */
 function crtajKorakGotovo() {
   const uklj = notifStanjeSad() === 'granted';
   el.uvodSadrzaj.innerHTML = uklj
-    ? `${stanjeOk('Podsjetnik radi')}
-       <p class="uvod__nota">Jedna poruka dnevno, u isto vrijeme. Možeš je isključiti
-         u postavkama kad god poželiš.</p>`
+    ? `<p class="uvod__nota">Jedna poruka dnevno, u isto vrijeme.
+         Podsjetnik možeš isključiti u postavkama kad god poželiš.</p>`
     : `<p class="uvod__nota">Podsjetnik nije uključen, pa poruku otvaraj sam.
          Uključiti ga možeš bilo kada u postavkama.</p>`;
   el.uvodDalje.textContent = 'Uđi u aplikaciju';
@@ -2716,6 +2736,31 @@ function greska(e) {
   pokazi();
 }
 
+/* „Naruči knjigu“ i sve veze vode na autorov domen, a taj domen je poznat
+   čim se učitaju podaci — dakle davno prije nego ga korisnik dodirne. Bez
+   ovoga DNS, TCP i TLS prema njemu kreću tek na dodir, pa između dodira i
+   prve slike stoji prazan ekran koji se osjeti kao da aplikacija visi. S
+   `preconnect` je veza već otvorena i ostaje samo dohvat stranice.
+
+   Domen se čita iz podataka, ne upisuje ovdje: ako se autorov sajt promijeni,
+   `poruke.json` je jedino mjesto koje to zna. `dns-prefetch` je rezerva za
+   preglednike koji `preconnect` ne podržavaju. */
+function najaviAutorovDomen(a) {
+  const domeni = new Set();
+  for (const url of [a.sajt, a.knjige_url, a.biografija, ...(a.mreze || []).map(m => m.url)]) {
+    try { if (url) domeni.add(new URL(url, location.href).origin); } catch { /* neispravan url */ }
+  }
+  domeni.delete(location.origin);
+
+  for (const origin of domeni) {
+    for (const rel of ['preconnect', 'dns-prefetch']) {
+      const l = document.createElement('link');
+      l.rel = rel; l.href = origin;
+      document.head.appendChild(l);
+    }
+  }
+}
+
 /** Skida ekran učitavanja i otkriva aplikaciju — poziva se tek kad je jasno
     šta se pokazuje (kartica ili uvod), da se iza uvoda nikad ne vidi ni
     trenutak prazne kartice ispod. */
@@ -2771,6 +2816,7 @@ async function start() {
   $('#link-narudzba').href = a.knjige_url;
   $('#link-knjige').href = a.knjige_url;
   $('#link-biografija').href = a.biografija || a.sajt;
+  najaviAutorovDomen(a);
 
   crtajKnjige();
   crtajVeze();

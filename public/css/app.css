@@ -143,6 +143,14 @@ img { max-width: 100%; display: block; }
           mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.62) 38%, rgba(0,0,0,.22) 68%, transparent 94%);
 }
 @media (min-width: 760px) { .ambient__uzorak { background-size: 860px auto; } }
+
+/* Na telefonu ambijentalni uzorak nema gdje da se vidi: kartica pokrije skoro
+   cijeli ekran, pa od njega ostanu samo uske pruge uz rubove — a one se, uz
+   karticin vlastiti uzorak druge veličine i drugog pomaka, čitaju kao drugi
+   motiv koji se ne poklapa. Zato na telefonu uzorak živi samo na kartici i na
+   sačuvanim stavkama. Na širem ekranu ostaje: tamo ima praznog prostora oko
+   kartice i uzorak radi ono zbog čega i postoji. */
+@media (max-width: 759.98px) { .ambient__uzorak { display: none; } }
 .ambient__glow {
   position: absolute; left: 50%; top: -26vh; width: 140vw; height: 86vh;
   transform: translateX(-50%);
@@ -193,7 +201,9 @@ html:not(.ucitano) .app { visibility: hidden; }
   transition: color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
 .nazad svg { width: 14px; height: 14px; flex: none; }
-.nazad:hover { color: var(--gold); }
+@media (hover: hover) {
+  .nazad:hover { color: var(--gold); }
+}
 .nazad:active { transform: translateX(-2px); }
 .hdr__ime { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .hdr__title {
@@ -211,7 +221,9 @@ html:not(.ucitano) .app { visibility: hidden; }
   border-radius: 50%; color: var(--ink-soft); border: 1px solid transparent;
   transition: color var(--t-fast), background var(--t-fast), border-color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
-.icon-btn:hover { color: var(--gold); border-color: var(--line); background: var(--surface); }
+@media (hover: hover) {
+  .icon-btn:hover { color: var(--gold); border-color: var(--line); background: var(--surface); }
+}
 .icon-btn:active { transform: scale(.92); }
 .icon-btn svg { width: 18px; height: 18px; }
 
@@ -227,7 +239,9 @@ html:not(.ucitano) .app { visibility: hidden; }
 }
 .pilula svg { width: 14px; height: 14px; flex: none; }
 .pilula--zlatna svg { color: var(--gold); }
-.pilula:hover { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+@media (hover: hover) {
+  .pilula:hover { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+}
 .pilula:active { transform: scale(.96); }
 .pilula__kratko { display: none; }
 .pilula--ikona { padding: 7px; width: 34px; height: 32px; justify-content: center; }
@@ -478,7 +492,9 @@ html:not(.ucitano) .app { visibility: hidden; }
 }
 .navod--o { top: -.34em; left: 0; }
 .navod--z { bottom: -.62em; right: 0; }
-.karta:hover .navod { opacity: .3; }
+@media (hover: hover) {
+  .karta:hover .navod { opacity: .3; }
+}
 
 .karta__tekst {
   font-family: var(--serif);
@@ -509,7 +525,9 @@ html:not(.ucitano) .app { visibility: hidden; }
   animation: rise .55s .48s var(--ease) both;
   transition: opacity var(--t-fast);
 }
-.izvor:hover { opacity: .82; }
+@media (hover: hover) {
+  .izvor:hover { opacity: .82; }
+}
 .izvor:active { opacity: .66; }
 
 /* poziv na akciju: natpis pa strelica, na kraju reda */
@@ -524,8 +542,10 @@ html:not(.ucitano) .app { visibility: hidden; }
   text-transform: uppercase; font-weight: 700; white-space: nowrap;
   transition: transform var(--t-fast) var(--ease-back), border-color var(--t-fast);
 }
-.izvor:hover .izvor__cta { transform: translateX(2px);
-  border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+@media (hover: hover) {
+  .izvor:hover .izvor__cta { transform: translateX(2px);
+    border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+}
 .izvor__cta svg { width: 12px; height: 12px; flex: none; }
 .izvor__cta-kratko { display: none; }
 
@@ -535,7 +555,9 @@ html:not(.ucitano) .app { visibility: hidden; }
               inset 0 0 0 1px rgba(255,255,255,.06);
   transition: transform var(--t) var(--ease);
 }
-.izvor:hover .izvor__cover { transform: translateY(-2px) rotate(-1.2deg); }
+@media (hover: hover) {
+  .izvor:hover .izvor__cover { transform: translateY(-2px) rotate(-1.2deg); }
+}
 .izvor__tekst { flex: 1; min-width: 0; }
 .izvor__nad { display: block; font-size: 8px; letter-spacing: .26em; text-transform: uppercase;
   color: var(--ink-mute); font-weight: 700; margin-bottom: 5px; }
@@ -556,10 +578,15 @@ html:not(.ucitano) .app { visibility: hidden; }
   border-top: 1px solid var(--line-soft);
   animation: rise .55s .54s var(--ease) both;
 }
+/* Sačuvaj / Dijeli / Kopiraj su glavne radnje na kartici, a stajale su u
+   `--ink-mute` — istoj boji kojom se pišu sporedne oznake — pa su se jedva
+   nazirale, u obje teme. Sada nose `--ink-soft` (tekst, ne fusnota), ikonica
+   je deblja i za nijansu veća, a natpis ispod ostaje tiši da par ikona+riječ
+   i dalje čita kao jedno. */
 .akcija {
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; gap: 7px;
-  padding: 13px 4px 11px; color: var(--ink-mute);
+  padding: 13px 4px 11px; color: var(--ink-soft);
   transition: color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
 .akcija::after {
@@ -567,15 +594,26 @@ html:not(.ucitano) .app { visibility: hidden; }
   background: radial-gradient(70% 100% at 50% 120%, color-mix(in srgb, var(--gold) 22%, transparent), transparent 70%);
   transition: opacity var(--t) var(--ease-soft);
 }
-.akcija:hover::after { opacity: 1; }
+@media (hover: hover) {
+  .akcija:hover::after { opacity: 1; }
+}
 .akcija + .akcija::before {
   content: ''; position: absolute; left: 0; top: 26%; bottom: 26%; width: 1px; background: var(--line-soft); z-index: 1;
 }
-.akcija svg { width: 18px; height: 18px; transition: transform var(--t) var(--ease-back); position: relative; z-index: 1; }
+/* Debljinu linije NE diramo odavde: `<symbol>` nosi vlastiti `stroke-width`,
+   a njegova djeca nasljeđuju njega, ne vanjski `<svg>` — pravilo bi ovdje
+   tiho bilo bez efekta. Deblje se postavlja na samom simbolu u index.html. */
+.akcija svg { width: 19px; height: 19px; transition: transform var(--t) var(--ease-back); position: relative; z-index: 1; }
+/* Natpis prati boju dugmeta (hover, `aria-pressed`) — otud `opacity`, a ne
+   svoja boja: fiksna boja bi ostala siva i kad ikonica pozlati. */
 .akcija span { font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700;
-  position: relative; z-index: 1; }
-.akcija:hover { color: var(--gold); }
-.akcija:hover svg { transform: translateY(-2px); }
+  opacity: .72; position: relative; z-index: 1; }
+@media (hover: hover) {
+  .akcija:hover { color: var(--gold); }
+}
+@media (hover: hover) {
+  .akcija:hover svg { transform: translateY(-2px); }
+}
 .akcija:active { transform: scale(.93); }
 .akcija[aria-pressed="true"] { color: var(--gold); }
 .akcija[aria-pressed="true"] svg { transform: scale(1.1); }
@@ -597,9 +635,11 @@ html:not(.ucitano) .app { visibility: hidden; }
   transition: background var(--t-fast), border-color var(--t-fast),
               transform var(--t-fast) var(--ease-back);
 }
-.karta__danas:hover {
-  background: color-mix(in srgb, var(--gold) 15%, transparent);
-  border-color: color-mix(in srgb, var(--gold) 50%, transparent);
+@media (hover: hover) {
+  .karta__danas:hover {
+    background: color-mix(in srgb, var(--gold) 15%, transparent);
+    border-color: color-mix(in srgb, var(--gold) 50%, transparent);
+  }
 }
 .karta__danas:active { transform: scale(.96); }
 
@@ -668,9 +708,11 @@ html:not(.ucitano) .app { visibility: hidden; }
   box-shadow: 0 16px 32px -18px rgba(0,0,0,.7), 0 0 0 1px var(--line);
   transition: transform var(--t) var(--ease), box-shadow var(--t) var(--ease);
 }
-.knjiga:hover img {
-  transform: translateY(-5px) scale(1.02);
-  box-shadow: 0 22px 40px -18px rgba(0,0,0,.8), 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent);
+@media (hover: hover) {
+  .knjiga:hover img {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 22px 40px -18px rgba(0,0,0,.8), 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent);
+  }
 }
 .knjiga b { display: block; font-family: var(--serif); font-size: 12.5px; font-weight: 500;
   margin-top: 11px; line-height: 1.32; }
@@ -703,15 +745,19 @@ html:not(.ucitano) .app { visibility: hidden; }
   font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .veza__ovjera { width: 13px; height: 13px; flex: none; color: var(--gold); --kvaka: var(--na-zlatu); }
-.veza:hover {
-  color: var(--ink); transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--gold) 45%, transparent);
-  background: color-mix(in srgb, var(--gold) 12%, transparent);
+@media (hover: hover) {
+  .veza:hover {
+    color: var(--ink); transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--gold) 45%, transparent);
+    background: color-mix(in srgb, var(--gold) 12%, transparent);
+  }
 }
 .veza:active { transform: scale(.97); }
 .veza--bez { opacity: .5; cursor: default; }
-.veza--bez:hover { transform: none; color: var(--ink-soft);
-  border-color: color-mix(in srgb, var(--gold) 18%, transparent); }
+@media (hover: hover) {
+  .veza--bez:hover { transform: none; color: var(--ink-soft);
+    border-color: color-mix(in srgb, var(--gold) 18%, transparent); }
+}
 
 @media (max-width: 460px) {
   .prati { gap: 5px; }
@@ -763,7 +809,9 @@ html:not(.ucitano) .app { visibility: hidden; }
   transition: color var(--t-fast), border-color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
 .modal__x svg { width: 15px; height: 15px; }
-.modal__x:hover { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
+@media (hover: hover) {
+  .modal__x:hover { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
+}
 .modal__x:active { transform: scale(.9); }
 .modal__pod { padding: 13px var(--mpad) calc(15px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line-soft); }
@@ -799,7 +847,9 @@ html:not(.ucitano) .app { visibility: hidden; }
   transition: border-color var(--t-fast), background var(--t-fast);
 }
 .red:last-child { margin-bottom: 0; }
-.red:hover { border-color: color-mix(in srgb, var(--gold) 30%, transparent); }
+@media (hover: hover) {
+  .red:hover { border-color: color-mix(in srgb, var(--gold) 30%, transparent); }
+}
 .red--vrh { align-items: flex-start; }
 .red__portret { width: 48px; height: 72px; flex: none; object-fit: cover;
   border-radius: 5px; box-shadow: 0 0 0 1px var(--line); }
@@ -877,7 +927,26 @@ input.mini:focus { outline: none; border-color: var(--gold); }
   opacity: 0; transform: translateY(10px);
 }
 .stavka.in { animation: rise .5s var(--ease) forwards; }
-.stavka:hover { background: var(--surface); border-color: var(--line); }
+@media (hover: hover) {
+  .stavka:hover { background: var(--surface); border-color: var(--line); }
+}
+
+/* Sačuvane stavke dobiju isti uzorak kao kartica i iz istog razloga: na
+   telefonu ambijentalnog nema (vidi `.ambient__uzorak`), pa bi ekran zbirke
+   ostao gola pozadina. Slabije nego na kartici — stavka je niska i tekst ide
+   preko cijele širine, pa uzorak ovdje samo pridržava, ne ukrašava. */
+@media (max-width: 759.98px) {
+  .stavka { position: relative; isolation: isolate; overflow: hidden; }
+  .stavka::after {
+    content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    border-radius: inherit;
+    background: url("/assets/texture/texture.svg") repeat center / 620px auto;
+    opacity: calc(var(--uzorak-karta) * .62);
+    filter: var(--zlato-filter);
+    -webkit-mask-image: linear-gradient(105deg, #000 0%, rgba(0,0,0,.45) 52%, transparent 92%);
+            mask-image: linear-gradient(105deg, #000 0%, rgba(0,0,0,.45) 52%, transparent 92%);
+  }
+}
 .stavka__glavno {
   flex: 1; min-width: 0; display: flex; gap: 13px; align-items: flex-start;
   text-align: left; padding: 13px 6px 13px 12px;
@@ -901,7 +970,9 @@ input.mini:focus { outline: none; border-color: var(--gold); }
   transition: color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
 .stavka__ukloni svg { width: 16px; height: 16px; }
-.stavka__ukloni:hover { color: var(--ink-mute); }
+@media (hover: hover) {
+  .stavka__ukloni:hover { color: var(--ink-mute); }
+}
 .stavka__ukloni:active { transform: scale(.86); }
 
 .prazno { text-align: center; padding: 50px 20px; }
@@ -921,7 +992,9 @@ input.mini:focus { outline: none; border-color: var(--gold); }
   padding: 17px 0 0; margin-top: 17px; border-top: 1px solid var(--line-soft);
   transition: opacity var(--t-fast);
 }
-.mp__izvor:hover { opacity: .74; }
+@media (hover: hover) {
+  .mp__izvor:hover { opacity: .74; }
+}
 .mp__dugmad { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
 .mp__dugmad .btn { padding-inline: 16px; }
 .mp__dugmad #mp-fav[aria-pressed="true"] { color: var(--gold);
@@ -980,7 +1053,9 @@ input.mini:focus { outline: none; border-color: var(--gold); }
   text-transform: uppercase; line-height: 1.1; text-align: center; }
 .d-btn__ime small { display: block; font-size: 8px; font-weight: 600;
   letter-spacing: .08em; opacity: .6; margin-top: 3px; }
-.d-btn:hover { border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
+@media (hover: hover) {
+  .d-btn:hover { border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
+}
 .d-btn:active { transform: scale(.96); }
 .d-btn[aria-pressed="true"] {
   color: var(--gold); border-color: color-mix(in srgb, var(--gold) 52%, transparent);
@@ -1115,7 +1190,9 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
   font-size: 10px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700;
   color: var(--ink-mute); transition: color var(--t-fast);
 }
-.uvod__preskoci:hover { color: var(--gold); }
+@media (hover: hover) {
+  .uvod__preskoci:hover { color: var(--gold); }
+}
 
 /* red podsjetnika dok je zaključan do instalacije */
 .red[data-zakljucan] .prekidac { opacity: .4; }
@@ -1186,7 +1263,9 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
   display: grid; place-items: center; color: var(--ink-soft);
   transition: color var(--t-fast), background var(--t-fast);
 }
-.razvoj__btn:hover { color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+@media (hover: hover) {
+  .razvoj__btn:hover { color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+}
 .razvoj__btn:active { transform: scale(.92); }
 .razvoj__btn svg { width: 13px; height: 13px; }
 .razvoj__info {
@@ -1215,7 +1294,9 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
   font-size: 10px; color: var(--ink-soft); text-align: left; width: 100%;
   transition: background var(--t-fast), color var(--t-fast);
 }
-.razvoj__panel button:hover { background: color-mix(in srgb, var(--gold) 12%, transparent); color: var(--ink); }
+@media (hover: hover) {
+  .razvoj__panel button:hover { background: color-mix(in srgb, var(--gold) 12%, transparent); color: var(--ink); }
+}
 .razvoj__panel button[aria-pressed="true"] { color: var(--gold); font-weight: 700; }
 .razvoj__panel button i { font-size: 8.5px; color: var(--ink-mute); font-style: normal; }
 
