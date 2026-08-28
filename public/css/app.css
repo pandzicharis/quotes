@@ -61,6 +61,7 @@
   --na-zlatu:  #11221A;
   --grain:     .022;
   --uzorak-op: .048;
+  --uzorak-karta: .028;
   --zlato-filter: none;
   --nit-nula:  rgba(198,169,104,0);
   --nit-slabo: rgba(198,169,104,.11);
@@ -87,6 +88,10 @@
   --na-zlatu:  #FDFBF6;
   --grain:     .018;
   --uzorak-op: .046;
+  /* Viša nego na tamnoj temi: zlato na papiru je mekši kontrast nego svijetli
+     motiv na tamnoj podlozi, pa mu treba nešto više da se uopšte osjeti.
+     Složeno po izgledu, ne po računu — vidi `--uzorak-karta` iznad. */
+  --uzorak-karta: .046;
   --zlato-filter: saturate(1.2) brightness(.62);
   --nit-nula:  rgba(150,116,46,0);
   --nit-slabo: rgba(150,116,46,.12);
@@ -158,6 +163,8 @@ img { max-width: 100%; display: block; }
 }
 
 /* ---------- 4. HEADER ---------- */
+/* Sakrivena dok JS ne odluči šta se pokazuje — vidi #ucitavanje ispod. */
+html:not(.ucitano) .app { visibility: hidden; }
 .app { position: relative; z-index: 1; }
 
 .hdr {
@@ -340,6 +347,43 @@ img { max-width: 100%; display: block; }
     0 12px 28px -16px rgba(19,39,29,.16),
     0 0 0 1px color-mix(in srgb, var(--gold) 10%, transparent),
     inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+/* --- tekstura na samoj kartici (samo telefon) ---
+   Ambijentalni uzorak stoji iza aplikacije, ali na telefonu kartica pokrije
+   gotovo cijeli ekran, pa se od njega ne vidi ništa. Isti uzorak zato ide i
+   na karticu — ali samo tu gdje nedostaje. Na širem ekranu kartica ne pokriva
+   pozadinu, uzorak se vidi oko nje, i ovo bi bilo udvajanje istog motiva.
+
+   Motiv je namjerno krupan (tri i po puta veći od ambijentalnog): sitan je
+   djelovao nervozno i previše naglo pod tekstom.
+
+   Ide na `::after`, ne `::before` — `::before` već nosi zlatnu nit oko ruba.
+   `z-index: -1` u kartičinom stacking kontekstu (`isolation: isolate`) znači
+   iznad njene pozadine, ispod cijelog sadržaja; a pošto je `::after` zadnji
+   u redu, uzorak stoji i iznad `.karta__aura`, koja bi ga inače isprala. */
+@media (max-width: 759.98px) {
+  .karta::after {
+    content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    border-radius: inherit;
+    background: url("/assets/texture/texture.svg") repeat center / 780px auto;
+    opacity: var(--uzorak-karta);
+    filter: var(--zlato-filter);
+
+    /* Maska je slojevita namjerno: tri mrlje plus jedan pad prema dnu. Slojevi
+       se sabiraju (podrazumijevani `add`), pa se uzorak negdje nakupi a negdje
+       skoro nestane — diše preko kartice umjesto da leži ravno po njoj. */
+    -webkit-mask-image:
+      radial-gradient(115% 62% at 14% 2%,  #000 0%, rgba(0,0,0,.42) 38%, transparent 72%),
+      radial-gradient(85% 52% at 94% 26%,  rgba(0,0,0,.72) 0%, transparent 64%),
+      radial-gradient(70% 46% at 26% 58%,  rgba(0,0,0,.34) 0%, transparent 74%),
+      linear-gradient(177deg, #000 0%, rgba(0,0,0,.4) 48%, rgba(0,0,0,.1) 80%, transparent 98%);
+            mask-image:
+      radial-gradient(115% 62% at 14% 2%,  #000 0%, rgba(0,0,0,.42) 38%, transparent 72%),
+      radial-gradient(85% 52% at 94% 26%,  rgba(0,0,0,.72) 0%, transparent 64%),
+      radial-gradient(70% 46% at 26% 58%,  rgba(0,0,0,.34) 0%, transparent 74%),
+      linear-gradient(177deg, #000 0%, rgba(0,0,0,.4) 48%, rgba(0,0,0,.1) 80%, transparent 98%);
+  }
 }
 
 /* meki gradijentni oblaci unutar kartice — dišu, ali nikad ne smetaju tekstu */
@@ -968,6 +1012,35 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 @keyframes toastIn  { from { opacity: 0; transform: translateY(14px) scale(.95); } to { opacity: 1; transform: none; } }
 @keyframes toastOut { to { opacity: 0; transform: translateY(-6px) scale(.97); } }
 
+/* ---------- 14b. UČITAVANJE ---------- */
+/* Preko svega (i preko uvoda) dok se ne zna šta treba pokazati. Nestaje uz
+   kratak fade čim `html` dobije klasu `ucitano` — vidi `pokazi()` u JS-u. */
+.ucitavanje {
+  position: fixed; inset: 0; z-index: 400; display: grid; place-items: center;
+  background: var(--bg); transition: opacity .3s var(--ease-soft);
+}
+/* `visibility` se mijenja tek nakon fadea (0s .3s), pa krug prestane i da se
+   vrti kad zavjesa padne — skriven element se ne animira ni ne crta. */
+html.ucitano .ucitavanje {
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .3s var(--ease-soft), visibility 0s .3s;
+}
+.ucitavanje__krug {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--gold) 25%, transparent);
+  border-top-color: var(--gold);
+  animation: vrti .8s linear infinite;
+}
+/* Izuzet iz gašenja animacija dok `html` nema klasu `anim`: taj prekidač
+   čeka da JS krene, a krug se vrti prije toga — inače prvo što korisnik
+   vidi bude zamrznut luk. */
+html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !important; }
+@keyframes vrti { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ucitavanje__krug,
+  html:not(.anim) .ucitavanje__krug { animation: none !important; opacity: .55; }
+}
+
 /* ---------- 15. UVOD ---------- */
 .uvod { position: fixed; inset: 0; z-index: 300; background: var(--bg);
   display: none; place-items: center; padding: var(--pad); text-align: center;
@@ -1012,7 +1085,11 @@ input.mini:focus { outline: none; border-color: var(--gold); }
    ove margine njena `margin: 0 auto 26px` pobijedila po redoslijedu u
    datoteci — auto lijevo/desno bi odgurnuo tekst od broja prema sredini
    reda, a 26px ispod udvostručio razmak između koraka. */
-.koraci--uvod { margin-top: 12px; gap: 6px; }
+/* Maketa i koraci su dvije odvojene cjeline — slika pokazuje, tekst govori.
+   Zbijeni jedno uz drugo čitaju se kao jedan blok, pa koraci dobiju zraka
+   iznad sebe (razmak ide ovdje, ne na maketu: vodič u postavkama koristi
+   istu maketu, a tamo je ispod nje dugmad, ne lista). */
+.koraci--uvod { margin-top: 26px; gap: 6px; }
 .koraci--uvod .korak { gap: 9px; align-items: center; }
 .koraci--uvod .korak p { margin: 0; font-size: 12.5px; line-height: 1.4; text-align: left; }
 .koraci--uvod .korak__br { width: 20px; height: 20px; font-size: 9.5px; margin-top: 0; }

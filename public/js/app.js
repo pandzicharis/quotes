@@ -35,9 +35,13 @@ const FORMATI = [
   { id: 'kvadrat', naziv: 'Kvadrat', opis: '1:1',  w: 1080, h: 1080 },
 ];
 
+/* `uzorak` je jačina teksture na podlozi slike za dijeljenje. Na zelenoj je
+   niža: svijetao motiv na tamnoj podlozi ima veći kontrast pa iskače jače
+   nego zlato na papiru — ista brojka tu ne daje isti utisak. Vrijednosti su
+   složene po izgledu, ne po računu. */
 const STILOVI = [
-  { id: 'zelena', naziv: 'Zelena', bg: ['#204234', '#0D1C15'], ink: '#F6EFDF', gold: '#E3C489', navod: '#E9C77E', logo: 'w' },
-  { id: 'krem',   naziv: 'Krem',   bg: ['#F7F1E2', '#E6D9BC'], ink: '#162C21', gold: '#8E6C28', navod: '#A8813A', logo: 'b' },
+  { id: 'zelena', naziv: 'Zelena', bg: ['#204234', '#0D1C15'], ink: '#F6EFDF', gold: '#E3C489', navod: '#E9C77E', logo: 'w', uzorak: .038 },
+  { id: 'krem',   naziv: 'Krem',   bg: ['#F7F1E2', '#E6D9BC'], ink: '#162C21', gold: '#8E6C28', navod: '#A8813A', logo: 'b', uzorak: .09 },
 ];
 
 /* Uvod ima dva odvojena toka.
@@ -90,6 +94,7 @@ const LS = {
   uvod:     'pd.uvod',
   uvodPwa:  'pd.uvodPwa',
   dodano:   'pd.dodano',
+  pozdrav:  'pd.pozdrav',
 };
 
 /* ---------- 2. HELPERI ---------- */
@@ -803,6 +808,39 @@ async function testNotifikacija() {
   }
 }
 
+/* --- pozdrav pri prvom ulasku --- */
+/* Jednom po uređaju, čim aplikacija prvi put stvarno stoji pred korisnikom
+   (uvod je gotov ili ga nije ni bilo). Toast ide uvijek; notifikacija samo
+   ako je dozvola data — a pokazuje se dok je aplikacija otvorena, namjerno:
+   korisnik odmah vidi kako dnevna poruka izgleda na njegovom uređaju, umjesto
+   da čeka do sutra i pita se radi li podsjetnik uopšte.
+
+   Zapis se upisuje prije prikaza: da notifikacija padne, pozdrav se ne
+   ponavlja na svako sljedeće otvaranje. */
+const POZDRAV = {
+  nas:   'Esselamu alejkum',
+  tekst: 'Dobro došli na Poruku dana — hafiz Ammar Bašić.',
+};
+
+async function pozdrav() {
+  if (cita(LS.pozdrav, false)) return;
+  pisi(LS.pozdrav, true);
+
+  poruka(`${POZDRAV.nas} — dobro došli`, 'i-zvijezda8');
+
+  if (!notifPodrzan() || Notification.permission !== 'granted') return;
+  try {
+    const reg = await swSpreman();
+    await reg?.showNotification(POZDRAV.nas, {
+      body: POZDRAV.tekst,
+      icon: '/assets/icons/icon-192.png',
+      badge: '/assets/icons/icon-192.png',
+      tag: 'pozdrav',
+      data: { url: '/' },
+    });
+  } catch { /* toast je već pozdravio — notifikacija nije uslov */ }
+}
+
 /* --- instalacija --- */
 /* beforeinstallprompt zna doći par stotina milisekundi nakon učitavanja, pa
    klik na red kratko počeka na događaj prije nego padne na ručnu uputu. */
@@ -1130,7 +1168,7 @@ function vodicKoraci() {
   const iosKoraci = [
     {
       naslov: 'Dodirni Podijeli',
-      opis: `Ikonica ${uIkona('i-ios-dijeli')} <b>Podijeli</b> je na dnu ekrana, u sredini.`,
+      opis: `Ikonica ${uIkona('i-ios-dijeli')} <b>Podijeli</b> je na dnu ekrana, u sredini. Ako se traka skupila, dodirni <b>⋯</b> pa <b>Podijeli</b>.`,
       scena: makIphone({ cilj: 'dijeli', poziv: oblacic('Dodirni ovdje') }),
     },
     {
@@ -1443,6 +1481,148 @@ function dimenzionirajPregled(f) {
 
 /* --- ornamenti na platnu --- */
 
+/* Odnos stranica iz viewBoxa texture.svg — pločica ga mora poštovati, inače
+   se motiv razvuče i šavovi između pločica postanu vidljivi. */
+const UZORAK_ODNOS = 12649.62 / 11492.45;
+
+/**
+ * Maska za teksturu, složena u zasebnom platnu. Tri mrlje se sabiraju
+ * (`lighter`) pa se preko njih spusti opšti pad prema dnu: uzorak se negdje
+ * nakupi, negdje skoro nestane. Isti dah kao na kartici — nigdje oštrog ruba
+ * i nigdje ravnog polja.
+ */
+function uzorakMaska(W, H) {
+  const mk = document.createElement('canvas');
+  mk.width = W; mk.height = H;
+  const mc = mk.getContext('2d');
+  mc.globalCompositeOperation = 'lighter';
+
+  const domet = Math.max(W, H);
+  const mrlja = (cx, cy, r, jacina) => {
+    const g = mc.createRadialGradient(W * cx, H * cy, 0, W * cx, H * cy, domet * r);
+    g.addColorStop(0,   `rgba(255,255,255,${jacina})`);
+    g.addColorStop(.55, `rgba(255,255,255,${jacina * .4})`);
+    g.addColorStop(1,   'rgba(255,255,255,0)');
+    mc.fillStyle = g;
+    mc.fillRect(0, 0, W, H);
+  };
+
+  mrlja(.16, .05, .54, .8);
+  mrlja(.93, .24, .40, .5);
+  mrlja(.26, .58, .38, .26);
+
+  /* podnožje ostaje mirno — ispod citata nosi tekst, ne ornament */
+  const pad = mc.createLinearGradient(0, 0, 0, H);
+  pad.addColorStop(0,   'rgba(255,255,255,.5)');
+  pad.addColorStop(.5,  'rgba(255,255,255,.2)');
+  pad.addColorStop(.85, 'rgba(255,255,255,.04)');
+  pad.addColorStop(1,   'rgba(255,255,255,0)');
+  mc.fillStyle = pad;
+  mc.fillRect(0, 0, W, H);
+
+  return mk;
+}
+
+/**
+ * Ista tekstura koja stoji iza aplikacije i na kartici, položena preko cijele
+ * slike za dijeljenje — krupno, tiho i neravnomjerno, da se osjeti materijal
+ * a ne da se čita kao šara.
+ *
+ * Vraća `false` ako slika ne prođe — slika za dijeljenje se svejedno crta,
+ * samo bez teksture.
+ */
+async function uzorakNaPlatno(c, W, H, jacina) {
+  let img;
+  try { img = await ucitajSliku('/assets/texture/texture.svg'); } catch { return false; }
+
+  /* Pločica je šira od same slike, pa se motiv preko nje i ne ponovi cijeli —
+     vidi se jedan krupan isječak, isto kao na kartici u aplikaciji. Odnos je
+     preuzet odatle: `background-size: 780px` preko kartice široke ~339px je
+     2,3 širine, pa isto toliko ide i ovdje. Sitnija pločica je davala gust,
+     nervozan uzorak koji se uz karticu vidio kao drugi motiv. */
+  const ploca = Math.round(W * 2.3);
+  const plocaH = Math.round(ploca * UZORAK_ODNOS);
+
+  const pl = document.createElement('canvas');
+  pl.width = ploca; pl.height = plocaH;
+  pl.getContext('2d').drawImage(img, 0, 0, ploca, plocaH);
+
+  const sloj = document.createElement('canvas');
+  sloj.width = W; sloj.height = H;
+  const sc = sloj.getContext('2d');
+  const pat = sc.createPattern(pl, 'repeat');
+  if (!pat) return false;
+  sc.fillStyle = pat;
+  sc.fillRect(0, 0, W, H);
+
+  sc.globalCompositeOperation = 'destination-in';
+  sc.drawImage(uzorakMaska(W, H), 0, 0);
+
+  c.save();
+  c.globalAlpha = jacina;
+  c.drawImage(sloj, 0, 0);
+  c.restore();
+  return true;
+}
+
+/* --- boje i prelivi za platno --- */
+
+/** `#RRGGBB` + alfa (0–1) → `#RRGGBBAA`. */
+const saAlfom = (hex, a) => `${hex}${Math.round(a * 255).toString(16).padStart(2, '0')}`;
+
+/* Ista boja, alfa nula. Canvas `'transparent'` je PROZIRNA CRNA, pa preliv
+   koji na njoj završava usput posivi — zlatna mrlja dobije prljav rub. */
+const prozirno = hex => `${hex.slice(0, 7)}00`;
+
+/** Linearna mješavina dvije `#RRGGBB` boje. */
+function mijesaj(a, b, t) {
+  const raz = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const [r1, g1, b1] = raz(a), [r2, g2, b2] = raz(b);
+  const k = v => Math.round(v).toString(16).padStart(2, '0');
+  return `#${k(r1 + (r2 - r1) * t)}${k(g1 + (g2 - g1) * t)}${k(b1 + (b2 - b1) * t)}`;
+}
+
+/** Preliv zadan CSS uglom (0deg = prema gore, 90deg = udesno), kao u `.karta`. */
+function kosiPreliv(c, W, H, deg, stanice) {
+  const rad = deg * Math.PI / 180;
+  const dx = Math.sin(rad), dy = -Math.cos(rad);
+  const duz = Math.abs(W * dx) + Math.abs(H * dy);
+  const g = c.createLinearGradient(
+    W / 2 - dx * duz / 2, H / 2 - dy * duz / 2,
+    W / 2 + dx * duz / 2, H / 2 + dy * duz / 2);
+  for (const [p, boja] of stanice) g.addColorStop(p, boja);
+  return g;
+}
+
+/* CSS `radial-gradient` crta elipsu, canvas zna samo krug — pa se krug razvuče
+   po visini. Bez toga bi mrlje bile okrugle i uzorak sjaja ne bi odgovarao
+   kartici, koja je sve svoje zadala kao elipse. */
+function eliptSjaj(c, W, H, { x, y, rx, ry, boja, kraj = 1 }) {
+  const k = ry / rx;
+  c.save();
+  c.translate(x, y);
+  c.scale(1, k);
+  const g = c.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, boja);
+  g.addColorStop(kraj, prozirno(boja));
+  if (kraj < 1) g.addColorStop(1, prozirno(boja));
+  c.fillStyle = g;
+  c.fillRect(-W * 3, -H * 3 / k, W * 6, H * 6 / k);
+  c.restore();
+}
+
+/* Zlatne mrlje kartice, prepisane iz `.karta` i `.karta__aura`. Udjeli su
+   isti kao u CSS-u, samo se množe sa W/H. Raspored je namjerno asimetričan —
+   vrh, donji desni ugao, gornji lijevi, pa tiha sredina — i baš to čini da
+   podloga diše umjesto da leži ravno. */
+const MRLJE = [
+  { x: .50,  y: -.10, rx: 1.20, ry: .68, a: .17, kraj: .62 },   // karta: vrh
+  { x: 1.05, y: 1.00, rx:  .95, ry: .55, a: .12, kraj: .60 },   // karta: donji desni
+  { x: .16,  y:  .06, rx:  .58, ry: .42, a: .26, kraj: .70 },   // aura: gornji lijevi
+  { x: .88,  y:  .94, rx:  .54, ry: .40, a: .20, kraj: .72 },   // aura: donji desni
+  { x: .50,  y:  .50, rx:  .70, ry: .50, a: .08, kraj: .75 },   // aura: sredina
+];
+
 /** Arabeskni ugao sa zaobljenim prelazom. */
 function ugaoOrnament(c, x, y, sx, sy, u) {
   c.beginPath();
@@ -1478,25 +1658,38 @@ async function nacrtajPlatno() {
   const W = f.w, H = f.h;
   const odnos = H / W;
 
-  /* --- podloga --- */
-  const grad = c.createLinearGradient(0, 0, W * 0.35, H);
-  grad.addColorStop(0, s.bg[0]);
-  grad.addColorStop(1, s.bg[1]);
-  c.fillStyle = grad;
+  /* --- podloga: isti recept kao kartica u aplikaciji --- */
+  /* Ranije je ovdje bio jedan preliv i jedna mrlja u sredini, pa je slika
+     pored kartice djelovala ravno. Kartica ima kosi preliv i pet zlatnih
+     mrlja (vidi MRLJE) — sve je preuzeto odatle, da su to dvije slike iste
+     ruke. */
+  c.fillStyle = kosiPreliv(c, W, H, 165, [
+    [0,   mijesaj(s.bg[0], s.gold, .08)],
+    [.38, s.bg[0]],
+    [1,   s.bg[1]],
+  ]);
   c.fillRect(0, 0, W, H);
 
-  // topli sjaj pri vrhu i tiha sjena pri dnu daju dubinu
-  const sjaj = c.createRadialGradient(W / 2, H * 0.18, 0, W / 2, H * 0.18, W * 0.9);
-  sjaj.addColorStop(0, `${s.gold}26`);
-  sjaj.addColorStop(1, 'transparent');
-  c.fillStyle = sjaj;
-  c.fillRect(0, 0, W, H);
+  for (const m of MRLJE) {
+    eliptSjaj(c, W, H, {
+      x: m.x * W, y: m.y * H, rx: m.rx * W, ry: m.ry * H,
+      boja: saAlfom(s.gold, m.a), kraj: m.kraj,
+    });
+  }
 
+  // tiha sjena pri dnu — dubina, kao `--surface-2` na dnu kartice
   const dubina = c.createLinearGradient(0, H * 0.62, 0, H);
-  dubina.addColorStop(0, 'transparent');
+  dubina.addColorStop(0, prozirno(s.bg[1]));
   dubina.addColorStop(1, `${s.bg[1]}66`);
   c.fillStyle = dubina;
   c.fillRect(0, H * 0.62, W, H * 0.38);
+
+  // tanka svijetla nit po vrhu — `inset 0 1px 0 rgba(255,255,255,.05)`
+  c.fillStyle = 'rgba(255,255,255,.05)';
+  c.fillRect(0, 0, W, Math.max(1, W * 0.0026));
+
+  /* tekstura ide preko gradijenata, ispod okvira i sloga */
+  await uzorakNaPlatno(c, W, H, s.uzorak);
 
   /* --- dvostruki okvir i arabeskni uglovi --- */
   const m  = W * 0.062;
@@ -1966,7 +2159,10 @@ function crtajKorakInstal() {
     el.uvodSadrzaj.innerHTML = `
       ${uvodScena(makIphone({ sloj: iosSheetDijeli() }))}
       ${koraciHtml([
-        `Dodirni ${uIkona('i-ios-dijeli')} <b>Podijeli</b> ${o.iPad ? 'gore desno' : 'na dnu ekrana'}.`,
+        /* Od iOS-a 15 donja traka zna biti skupljena — tada Podijeli nije na
+           njoj nego pod <b>⋯</b> u adresnoj traci. Bez ove napomene korisnik
+           traži ikonicu koje na ekranu nema. */
+        `Dodirni ${uIkona('i-ios-dijeli')} <b>Podijeli</b> ${o.iPad ? 'gore desno' : 'na dnu ekrana'} — ili <b>⋯</b> pa <b>Podijeli</b>.`,
         `Pomjeri se niz listu do ${uIkona('i-plus-kv')} <b>Dodaj na početni ekran</b>.`,
         'Dodirni <b>Dodaj</b> u gornjem desnom uglu.',
       ])}
@@ -2149,6 +2345,8 @@ function zavrsiUvod() {
   el.uvod.setAttribute('aria-hidden', 'true');
   osvjeziNotif();
   osvjeziInstal();
+  // tek kad se uvod skloni — inače toast izađe iza njegovog punog ekrana
+  setTimeout(pozdrav, 600);
 }
 
 function pokreniUvod(tok) {
@@ -2514,6 +2712,14 @@ function greska(e) {
   $('.wrap').innerHTML = prazno('i-info', 'Podaci nisu učitani',
     `${esc(e.message)}. Provjeri da data/poruke.json postoji i da se stranica servira preko HTTP-a.`);
   console.error(e);
+  pokazi();
+}
+
+/** Skida ekran učitavanja i otkriva aplikaciju — poziva se tek kad je jasno
+    šta se pokazuje (kartica ili uvod), da se iza uvoda nikad ne vidi ni
+    trenutak prazne kartice ispod. */
+function pokazi() {
+  document.documentElement.classList.add('ucitano');
 }
 
 /**
@@ -2579,16 +2785,25 @@ async function start() {
   if (stanje.notif && Notification.permission === 'granted') pretplatiPush();
 
   // razvojna simulacija iz URL-a (?instal=ios-2) — samo na localhostu
-  if (RAZVOJ && simIzUrl) { primijeniSim(simIzUrl); return; }
+  if (RAZVOJ && simIzUrl) { primijeniSim(simIzUrl); pokazi(); return; }
 
   // U pregledniku vodimo do početnog ekrana, u aplikaciji do dozvole.
   // Dva odvojena zapisa, jer korisnik prolazi kroz oba — svaki jednom.
+  let uvodIde = true;
   if (prisilanUvod) pokreniUvod(prisilanUvod);
   else if (jeInstalirana()) {
     if (cita(LS.uvodPwa, null) !== UVOD_VERZIJA) pokreniUvod('pwa');
+    else uvodIde = false;
   } else if (cita(LS.uvod, null) !== UVOD_VERZIJA) {
     pokreniUvod('web');
+  } else {
+    uvodIde = false;
   }
+  pokazi();
+
+  // Kad uvoda ima, pozdrav ide iz zavrsiUvod(); ovdje samo za onog ko ga je
+  // već prošao pa se aplikaciji vraća prvi put nakon toga.
+  if (!uvodIde) setTimeout(pozdrav, 700);
 }
 
 start();
