@@ -50,3 +50,24 @@ export async function skiniPretplate(zapisi) {
   }
   return obrisano;
 }
+
+/* ---------- brojanje instalacija ---------- */
+/* Skup, a ne brojač: uređaj šalje nasumičnu oznaku koju sam napravi i čuva,
+   pa ponovno otvaranje aplikacije ne diže brojku više puta. SCARD onda daje
+   broj različitih uređaja, što je ono što se zaista želi znati. */
+
+export const PLATFORME = ['ios', 'android', 'ostalo'];
+
+const KLJUC_INSTAL = platforma => `pd:instal:${platforma}`;
+
+/** Vraća 1 ako je uređaj nov, 0 ako je već brojan. */
+export const zabiljeziInstalaciju = (platforma, uredjaj) =>
+  komanda('SADD', KLJUC_INSTAL(platforma), uredjaj);
+
+export const brojInstalacija = platforma => komanda('SCARD', KLJUC_INSTAL(platforma));
+
+/** Sve platforme odjednom → { ios: 12, android: 40, ostalo: 1 }. */
+export async function sveInstalacije() {
+  const brojevi = await Promise.all(PLATFORME.map(brojInstalacija));
+  return Object.fromEntries(PLATFORME.map((p, i) => [p, brojevi[i] || 0]));
+}

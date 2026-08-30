@@ -8,7 +8,10 @@
    17 Nadogradnja i reset · 18 Start
    ============================================================ */
 
-const VERZIJA = '1.4.0';
+/* Mora biti isto kao IZDANJE u sw.js — po toj oznaci se odlučuje hoće li se
+   korisniku ponuditi traka „nova verzija“. Podiže se samo kad izdanje zaista
+   nosi nešto novo, ne na svaku izmjenu koda. */
+const VERZIJA = '1.5.0';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
@@ -98,6 +101,9 @@ const LS = {
   uvodPwa:  'pd.uvodPwa',
   dodano:   'pd.dodano',
   pozdrav:  'pd.pozdrav',
+  nvOdbijeno: 'pd.nvOdbijeno',   // izdanje koje je korisnik odložio na „Kasnije“
+  uredjaj:    'pd.uredjaj',      // nasumična oznaka uređaja, samo za brojanje instalacija
+  instalJavljeno: 'pd.instalJavljeno',
 };
 
 /* ---------- 2. HELPERI ---------- */
@@ -2392,11 +2398,14 @@ addEventListener('appinstalled', () => {
 
 let swReg = null;
 let nadogradnjaKrenula = false;
+let nudjenoIzdanje = null;   // izdanje koje trenutno čeka; pamti se na „Kasnije“
 
-function pokaziNadogradnju() {
+/* `samoRed` znači: korisnik je ovo izdanje već odložio, pa ga ne presrećemo
+   trakom po drugi put — nadogradnja i dalje stoji u postavkama, dostupna. */
+function pokaziNadogradnju(samoRed = false) {
   if (nadogradnjaKrenula) return;
   if (el.rNadogradnja) el.rNadogradnja.hidden = false;
-  if (!el.nadogradnja) return;
+  if (samoRed || !el.nadogradnja) return;
   el.nadogradnja.hidden = false;
   // toast i razvojna traka se dižu iznad trake, da se ne poklope
   document.documentElement.dataset.nadogradnja = '1';
@@ -2412,6 +2421,7 @@ function instalirajNadogradnju() {
   if (!ceka) return location.reload();
 
   nadogradnjaKrenula = true;
+  pisi(LS.nvOdbijeno, null);
   el.nvInstaliraj.disabled = true;
   el.nadogradnjaOpis.textContent = 'Instaliram novu verziju…';
   ceka.postMessage({ tip: 'PRESKOCI_CEKANJE' });
@@ -2420,11 +2430,56 @@ function instalirajNadogradnju() {
   setTimeout(() => location.reload(), 3500);
 }
 
+/** Pita workera koje je izdanje i keš. Vraća null ako ne odgovori na vrijeme. */
+function pitajWorkera(sw, cekaj = 1200) {
+  return new Promise(daj => {
+    if (!sw) return daj(null);
+    const kanal = new MessageChannel();
+    const kraj = setTimeout(() => daj(null), cekaj);
+    kanal.port1.onmessage = e => { clearTimeout(kraj); daj(e.data || null); };
+    try { sw.postMessage({ tip: 'VERZIJA' }, [kanal.port2]); }
+    catch { clearTimeout(kraj); daj(null); }
+  });
+}
+
+/* Preglednik javlja „ima novi worker“ na svaku razliku u bajtovima sw.js —
+   dovoljno je da se promijeni komentar ili ime keša. Zato njegovu riječ ne
+   uzimamo kao gotovu stvar: pitamo i onog koji čeka i onog koji radi koje su
+   izdanje, pa traku nudimo samo kad se izdanja stvarno razlikuju. Sve ostalo
+   preuzmemo tiho — korisnik ni ne primijeti, jer se kod stranice ionako ne
+   mijenja dok se ne otvori iznova. */
+async function ponudiAkoJeNovoIzdanje(reg) {
+  if (nadogradnjaKrenula) return;
+  const ceka = reg.waiting;
+  const radi = navigator.serviceWorker.controller;
+  // bez kontrolera ovo je prva instalacija, a ne nadogradnja
+  if (!ceka || !radi) return;
+
+  const [novi, stari] = await Promise.all([pitajWorkera(ceka), pitajWorkera(radi)]);
+  const novoIzd  = novi?.izdanje || null;
+  const staroIzd = stari?.izdanje || null;
+
+  // stariji worker ne zna za „izdanje“ i vrati prazno — tada je nadogradnja
+  // prava po definiciji, jer prelazi upravo na ovu podjelu verzija
+  if (novoIzd && staroIzd && novoIzd === staroIzd) {
+    // pitanje workerima traje, a korisnik je u međuvremenu mogao sam
+    // pokrenuti nadogradnju iz postavki — tada se ne miješamo
+    if (nadogradnjaKrenula) return;
+    ceka.postMessage({ tip: 'PRESKOCI_CEKANJE' });
+    return;
+  }
+
+  nudjenoIzdanje = novoIzd;
+  pokaziNadogradnju(Boolean(novoIzd) && cita(LS.nvOdbijeno, null) === novoIzd);
+}
+
 function postaviServiceWorker() {
   if (!('serviceWorker' in navigator) || resetUToku) return;
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (nadogradnjaKrenula) location.reload();
+    if (nadogradnjaKrenula) return location.reload();
+    // tiha zamjena workera — samo osvježimo oznaku keša u postavkama
+    verzijaKesa().then(ispisiVerziju);
   });
 
   navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
@@ -2432,14 +2487,13 @@ function postaviServiceWorker() {
       swReg = reg;
 
       // novi worker je preuzet u nekom ranijem otvaranju i još čeka
-      if (reg.waiting && navigator.serviceWorker.controller) pokaziNadogradnju();
+      ponudiAkoJeNovoIzdanje(reg);
 
       reg.addEventListener('updatefound', () => {
         const novi = reg.installing;
         if (!novi) return;
         novi.addEventListener('statechange', () => {
-          // bez kontrolera ovo je prva instalacija, a ne nadogradnja
-          if (novi.state === 'installed' && navigator.serviceWorker.controller) pokaziNadogradnju();
+          if (novi.state === 'installed') ponudiAkoJeNovoIzdanje(reg);
         });
       });
 
@@ -2455,17 +2509,46 @@ function postaviServiceWorker() {
     .catch(() => { /* bez service workera aplikacija radi, samo bez offlinea */ });
 }
 
+/* ---------- 17b. BROJANJE INSTALACIJA ---------- */
+/* Jedini podatak koji odlazi sa uređaja je platforma i nasumična oznaka koju
+   uređaj sam napravi. Bez te oznake bi svako otvaranje diglo brojku, pa se
+   ne bi znalo koliko je ljudi, nego koliko je otvaranja. Ime, adresa, ništa
+   drugo ne ide — server drži samo skup oznaka i broji ih.
+
+   Javlja se tek kad aplikacija radi sa početnog ekrana: u pregledniku se ne
+   broji ništa, jer to nije instalacija. */
+
+function idUredjaja() {
+  let id = cita(LS.uredjaj, null);
+  if (!id) {
+    const bajti = crypto.getRandomValues(new Uint8Array(8));
+    id = [...bajti].map(b => b.toString(16).padStart(2, '0')).join('');
+    pisi(LS.uredjaj, id);
+  }
+  return id;
+}
+
+function javiInstalaciju() {
+  // razvoj i simulacija ne smiju ulaziti u brojku
+  if (RAZVOJ || simInstal || pwaSimulacija) return;
+  if (!jeInstalirana() || cita(LS.instalJavljeno, false)) return;
+
+  const o = okolina();
+  const platforma = o.iOS ? 'ios' : o.android ? 'android' : 'ostalo';
+
+  fetch('/api/instalacije', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ platforma, uredjaj: idUredjaja() }),
+  })
+    .then(r => { if (r.ok) pisi(LS.instalJavljeno, true); })
+    .catch(() => { /* nema veze — javićemo se pri sljedećem otvaranju */ });
+}
+
+/* ---------- 17c. VERZIJA NA EKRANU ---------- */
 /** Koja je verzija keša aktivna na ovom uređaju — ide pored verzije aplikacije. */
 function verzijaKesa() {
-  return new Promise(daj => {
-    const sw = navigator.serviceWorker?.controller;
-    if (!sw) return daj(null);
-    const kanal = new MessageChannel();
-    const kraj = setTimeout(() => daj(null), 900);
-    kanal.port1.onmessage = e => { clearTimeout(kraj); daj(e.data?.verzija || null); };
-    try { sw.postMessage({ tip: 'VERZIJA' }, [kanal.port2]); }
-    catch { clearTimeout(kraj); daj(null); }
-  });
+  return pitajWorkera(navigator.serviceWorker?.controller, 900).then(d => d?.kes || null);
 }
 
 function ispisiVerziju(kes) {
@@ -2495,6 +2578,9 @@ async function ocistiUredjaj() {
 
   try {
     const svi = new Set([...Object.keys(localStorage).filter(k => k.startsWith('pd.')), ...Object.values(LS)]);
+    // oznaka uređaja ostaje: brisanje i ponovna instalacija su isti čovjek,
+    // pa ne smiju ući u brojku dvaput
+    svi.delete(LS.uredjaj);
     svi.forEach(k => localStorage.removeItem(k));
   } catch { /* private mode */ }
 }
@@ -2670,6 +2756,7 @@ function slusaci() {
   el.rNadogradnja.addEventListener('click', () => { zatvoriSve(); instalirajNadogradnju(); });
   el.nvKasnije.addEventListener('click', () => {
     sakrijNadogradnju();
+    if (nudjenoIzdanje) pisi(LS.nvOdbijeno, nudjenoIzdanje);
     poruka('Nova verzija čeka u postavkama', 'i-preuzmi');
   });
 
@@ -2825,6 +2912,7 @@ async function start() {
   crtajSacuvano();
   osvjeziBrojSacuvanih();
   osvjeziInstal();
+  javiInstalaciju();
   osvjeziNotif();
 
   await ucitajPushConfig();

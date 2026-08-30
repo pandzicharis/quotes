@@ -15,8 +15,24 @@
      Bez toga bi se kod mijenjao ispod ruke, na sredini korištenja.
    ============================================================ */
 
-const VERZIJA = 'v12';
-const KESH = `poruka-dana-${VERZIJA}`;
+/* Dvije oznake, jer ne znače isto — i zato se traka „nova verzija“ ravna
+   samo po prvoj:
+
+     IZDANJE  pravo izdanje aplikacije. Podiže se SAMO kad korisnik dobija
+              nešto novo: nove poruke, novu mogućnost, popravku. Traka se
+              nudi isključivo kad se izdanje aktivnog i novog workera
+              razlikuju. Mora biti isto kao VERZIJA u js/app.js.
+
+     KESH_V   ime keša. Podiže se kad god treba isprazniti stari keš, pa i
+              zbog sitnice — nove ikonice, drugog rasporeda datoteka.
+
+   Preglednik javlja „ima novi worker“ na svaku razliku u bajtovima ove
+   datoteke, i kad se promijeni samo komentar. Ranije je svaka takva sitnica
+   izlazila korisniku kao „Instaliraj novu verziju“; sada se preuzme tiho,
+   a pita se samo kad se IZDANJE zaista promijeni. */
+const IZDANJE = '1.5.0';
+const KESH_V  = 'v13';
+const KESH = `poruka-dana-${KESH_V}`;
 
 const LJUSKA = [
   '/',
@@ -53,7 +69,7 @@ self.addEventListener('install', e => {
 self.addEventListener('message', e => {
   const tip = e.data?.tip;
   if (tip === 'PRESKOCI_CEKANJE') { self.skipWaiting(); return; }
-  if (tip === 'VERZIJA') { e.ports?.[0]?.postMessage({ verzija: VERZIJA }); }
+  if (tip === 'VERZIJA') { e.ports?.[0]?.postMessage({ izdanje: IZDANJE, kes: KESH_V }); }
 });
 
 self.addEventListener('activate', e => {

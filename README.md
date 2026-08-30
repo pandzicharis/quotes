@@ -144,6 +144,36 @@ Vraća je li VAPID postavljen, je li baza povezana i koliko je pretplata.
 `"spremno": true` znači da dnevno slanje radi; ako nije, polje `nedostaje`
 imenuje varijable koje treba dodati.
 
+### Koliko je ljudi instaliralo aplikaciju
+
+```bash
+curl "https://<domen>/api/instalacije?secret=<CRON_SECRET>"
+```
+
+Vraća obican tekst, spreman za zabilješku u pregledniku:
+
+```
+PORUKA DANA — instalacije
+osvježeno: 2026-08-30 05:40 UTC
+
+iPhone / iPad          2
+Android                1
+Računar / ostalo       0
+------------------------
+Ukupno                 3
+
+Pretplaćeno na notifikacije: 0
+```
+
+Aplikacija se javi na `POST /api/instalacije` prvi put kad radi sa početnog
+ekrana, i pošalje samo platformu i nasumičnu oznaku koju sama napravi. Oznake
+stoje u Redis skupovima `pd:instal:ios`, `pd:instal:android`,
+`pd:instal:ostalo`, pa je broj = `SCARD`, a isti uređaj se ne broji dvaput.
+Otvaranje u pregledniku se ne broji — instalacija je tek početni ekran.
+
+Brojka je donja granica, ne apsolutna istina: ko obriše podatke preglednika i
+instalira ponovo dobija novu oznaku. Za osjećaj rasta je sasvim dovoljna.
+
 Ručno pokretanje slanja:
 
 ```bash
