@@ -11,7 +11,7 @@
 /* Mora biti isto kao IZDANJE u sw.js — po toj oznaci se odlučuje hoće li se
    korisniku ponuditi traka „nova verzija“. Podiže se samo kad izdanje zaista
    nosi nešto novo, ne na svaku izmjenu koda. */
-const VERZIJA = '1.5.0';
+const VERZIJA = '1.5.1';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
@@ -764,8 +764,20 @@ async function prebaciNotif() {
     return poruka('Podsjetnik isključen', 'i-zvono');
   }
 
+  const pushOk = await pushSpreman();
+  if (!pushOk) {
+    osvjeziNotif();
+    return poruka(trebaInstalZaPush()
+      ? 'Prvo dodaj aplikaciju na početni ekran'
+      : 'Podsjetnik nije dostupan na ovom uređaju', trebaInstalZaPush() ? 'i-instal' : 'i-info');
+  }
+
   let dozvola = Notification.permission;
-  if (dozvola === 'default') dozvola = await Notification.requestPermission();
+  if (dozvola === 'default') {
+    // iOS traži dozvolu unutar istog dodira — ne smije ništa await-ati prije zahtjeva
+    const zahtjev = Notification.requestPermission();
+    dozvola = await zahtjev;
+  }
   if (dozvola !== 'granted') {
     osvjeziNotif();
     return poruka('Dozvola za notifikacije nije data', 'i-info');
@@ -2029,10 +2041,27 @@ const uvodKoraci = () => (uvodTok === 'pwa' ? UVOD_PWA : uvodWeb());
 
 const notifPodrzan = () => 'Notification' in window;
 const notifStanjeSad = () => (notifPodrzan() ? Notification.permission : 'nepodrzano');
-const pushPodrzan = () => 'PushManager' in window && 'serviceWorker' in navigator;
 
 /** Na iPhoneu push radi tek kad je aplikacija na početnom ekranu. */
 const trebaInstalZaPush = () => okolina().iOS && !jeInstalirana();
+
+/** iOS u standalone PWA-u nema PushManager na window — samo na registraciji,
+   i tek kad je worker aktivan. Sinhrona provjera zato laže na iPhoneu. */
+async function pushSpreman() {
+  if (!notifPodrzan() || !('serviceWorker' in navigator)) return false;
+  if (trebaInstalZaPush()) return false;
+  if ('PushManager' in window) return true;
+
+  try {
+    const reg = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+    ]);
+    return Boolean(reg?.pushManager);
+  } catch {
+    return false;
+  }
+}
 
 /** Preglednik i platforma — upute moraju biti tačne, ne približne. */
 function okolina() {
@@ -2265,14 +2294,47 @@ function vezikopiraj(sel = '#uvod-kopiraj') {
 }
 
 /* --- korak: notifikacije (samo u PWA toku) --- */
-function crtajKorakNotif() {
+let notifKorakGen = 0;
+
+async function crtajKorakNotif() {
+  const gen = ++notifKorakGen;
   const o = okolina();
 
-  if (!notifPodrzan() || !pushPodrzan()) {
+  if (trebaInstalZaPush()) {
+    el.uvodSadrzaj.innerHTML = `
+      ${stanjePazi('Otvori sa početnog ekrana')}
+      <p class="uvod__nota">Podsjetnik na iPhoneu radi samo kad je aplikacija dodana na
+        početni ekran i otvorena odatle — ne iz Safari taba.</p>
+      ${koraciHtml([
+        'Dodirni <b>Podijeli</b> pa <b>Dodaj na početni ekran</b>.',
+        'Otvori aplikaciju ikonicom sa početnog ekrana.',
+        'Vrati se na ovaj korak i dozvoli podsjetnik.',
+      ])}`;
+    el.uvodDalje.textContent = 'Nastavi bez podsjetnika';
+    return;
+  }
+
+  if (!notifPodrzan()) {
+    el.uvodSadrzaj.innerHTML = `${stanjePazi('Uređaj ne podržava podsjetnike')}
+      <p class="uvod__nota">Aplikacija radi normalno, samo bez dnevne notifikacije.</p>`;
+    el.uvodDalje.textContent = 'Nastavi';
+    return;
+  }
+
+  el.uvodSadrzaj.innerHTML = '<p class="uvod__nota">Provjeravam podsjetnik…</p>';
+  el.uvodDalje.disabled = true;
+
+  const pushOk = await pushSpreman();
+  if (gen !== notifKorakGen) return;
+
+  el.uvodDalje.disabled = false;
+
+  if (!pushOk) {
     el.uvodSadrzaj.innerHTML = o.iOS
-      ? `${stanjePazi('Potreban je noviji iOS')}
-         <p class="uvod__nota">Podsjetnici na iPhoneu rade od <b>iOS-a 16.4</b>.
-           Ažuriraj sistem pa ih uključi u postavkama aplikacije.</p>`
+      ? `${stanjePazi('Podsjetnik nije dostupan')}
+         <p class="uvod__nota">Na iPhoneu notifikacije rade od <b>iOS-a 16.4</b>, samo u
+           aplikaciji sa početnog ekrana. Ako si već odatle, provjeri verziju iOS-a ili u
+           postavkama odaberi <b>Obriši verziju sa ovog uređaja</b> pa ponovo instaliraj.</p>`
       : `${stanjePazi('Uređaj ne podržava podsjetnike')}
          <p class="uvod__nota">Aplikacija radi normalno, samo bez dnevne notifikacije.</p>`;
     el.uvodDalje.textContent = 'Nastavi';
@@ -2323,10 +2385,11 @@ function crtajKorakGotovo() {
 }
 
 async function uvodTraziNotif() {
+  const zahtjev = Notification.requestPermission();
   el.uvodDalje.disabled = true;
   el.uvodDalje.textContent = 'Čekam dozvolu…';
   try {
-    const dozvola = await Notification.requestPermission();
+    const dozvola = await zahtjev;
     if (dozvola === 'granted') {
       stanje.notif = true;
       pisi(LS.notif, true);
@@ -2348,9 +2411,12 @@ function naprijed() {
 async function uvodDalje() {
   const k = uvodKoraci()[uvodIdx];
 
-  if (k.id === 'notif' && notifPodrzan() && pushPodrzan() && notifStanjeSad() === 'default') {
-    await uvodTraziNotif();
-    return;                                            // ostajemo na koraku
+  if (k.id === 'notif' && notifStanjeSad() === 'default') {
+    const pushOk = await pushSpreman();
+    if (notifPodrzan() && pushOk) {
+      await uvodTraziNotif();
+      return;                                          // ostajemo na koraku
+    }
   }
 
   if (k.id === 'instal' && !jeInstalirana()) {
@@ -2832,6 +2898,25 @@ function greska(e) {
    Domen se čita iz podataka, ne upisuje ovdje: ako se autorov sajt promijeni,
    `poruke.json` je jedino mjesto koje to zna. `dns-prefetch` je rezerva za
    preglednike koji `preconnect` ne podržavaju. */
+function postaviKanonskiUrl(url) {
+  if (!url) return;
+  let link = document.querySelector('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'canonical';
+    document.head.appendChild(link);
+  }
+  link.href = url;
+
+  let og = document.querySelector('meta[property="og:url"]');
+  if (!og) {
+    og = document.createElement('meta');
+    og.setAttribute('property', 'og:url');
+    document.head.appendChild(og);
+  }
+  og.content = url;
+}
+
 function najaviAutorovDomen(a) {
   const domeni = new Set();
   for (const url of [a.sajt, a.knjige_url, a.biografija, ...(a.mreze || []).map(m => m.url)]) {
@@ -2904,6 +2989,7 @@ async function start() {
   $('#link-knjige').href = a.knjige_url;
   $('#link-biografija').href = a.biografija || a.sajt;
   najaviAutorovDomen(a);
+  postaviKanonskiUrl(a.app_url);
 
   crtajKnjige();
   crtajVeze();
@@ -2942,8 +3028,4 @@ async function start() {
 }
 
 start();
-
-/* --- service worker: potreban je za push i offline; mrežа-prvo strategija
-       u sw.js znači da se izmjene i u razvoju vide odmah. Registracija i
-       ponuda nadogradnje su u odjeljku 17. --- */
-addEventListener('load', postaviServiceWorker);
+postaviServiceWorker();
