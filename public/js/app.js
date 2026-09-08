@@ -11,7 +11,7 @@
 /* Mora biti isto kao IZDANJE u sw.js — po toj oznaci se odlučuje hoće li se
    korisniku ponuditi traka „nova verzija“. Podiže se samo kad izdanje zaista
    nosi nešto novo, ne na svaku izmjenu koda. */
-const VERZIJA = '1.5.1';
+const VERZIJA = '1.5.2';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
@@ -764,14 +764,6 @@ async function prebaciNotif() {
     return poruka('Podsjetnik isključen', 'i-zvono');
   }
 
-  const pushOk = await pushSpreman();
-  if (!pushOk) {
-    osvjeziNotif();
-    return poruka(trebaInstalZaPush()
-      ? 'Prvo dodaj aplikaciju na početni ekran'
-      : 'Podsjetnik nije dostupan na ovom uređaju', trebaInstalZaPush() ? 'i-instal' : 'i-info');
-  }
-
   let dozvola = Notification.permission;
   if (dozvola === 'default') {
     // iOS traži dozvolu unutar istog dodira — ne smije ništa await-ati prije zahtjeva
@@ -781,6 +773,14 @@ async function prebaciNotif() {
   if (dozvola !== 'granted') {
     osvjeziNotif();
     return poruka('Dozvola za notifikacije nije data', 'i-info');
+  }
+
+  const pushOk = await pushSpreman();
+  if (!pushOk) {
+    osvjeziNotif();
+    return poruka(trebaInstalZaPush()
+      ? 'Prvo dodaj aplikaciju na početni ekran'
+      : 'Podsjetnik nije dostupan na ovom uređaju', trebaInstalZaPush() ? 'i-instal' : 'i-info');
   }
 
   stanje.notif = true;
@@ -863,15 +863,14 @@ async function pozdrav() {
 }
 
 /* --- instalacija --- */
-/* beforeinstallprompt zna doći par stotina milisekundi nakon učitavanja, pa
-   klik na red kratko počeka na događaj prije nego padne na ručnu uputu. */
-
+/* Sistemski dijalog mora krenuti direktno iz dodira korisnika. */
 let instalPrompt = null;
-let cekaci = [];
+let instalUToku = false;
+let instalPotvrdjena = false;
 
 const jeInstalirana = () => {
   if (simInstal) return !!simInstal.instalirano;
-  return pwaSimulacija ||
+  return instalPotvrdjena || pwaSimulacija ||
     matchMedia('(display-mode: standalone)').matches ||
     matchMedia('(display-mode: fullscreen)').matches ||
     matchMedia('(display-mode: minimal-ui)').matches ||
@@ -885,8 +884,6 @@ const instalMoguc = () => (simInstal ? simInstal.podrzano !== false : 'serviceWo
 addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   instalPrompt = e;
-  cekaci.forEach(f => f(e));
-  cekaci = [];
   try {
     osvjeziInstal();
     // ako uvod već stoji na koraku instalacije, sada mu možemo ponuditi dugme
@@ -896,22 +893,10 @@ addEventListener('beforeinstallprompt', e => {
 
 addEventListener('appinstalled', () => {
   instalPrompt = null;
-  cekaci = [];
+  instalPotvrdjena = true;
   try { osvjeziInstal(); } catch { /* tiho */ }
   poruka('Aplikacija je instalirana', 'i-instal');
 });
-
-function cekajPrompt(ms = 1400) {
-  if (instalPrompt) return Promise.resolve(instalPrompt);
-  return new Promise(res => {
-    const slusac = e => { clearTimeout(t); res(e); };
-    const t = setTimeout(() => {
-      cekaci = cekaci.filter(f => f !== slusac);
-      res(null);
-    }, ms);
-    cekaci.push(slusac);
-  });
-}
 
 /* Jedini ulaz u instalaciju. Red se sakriva kad je aplikacija instalirana,
    kad preglednik instalaciju ne podržava, i na računaru — dugme koje ništa
@@ -934,10 +919,12 @@ async function instaliraj() {
     return otvoriUputu(simInstal.korak || 0);
   }
 
-  el.instalOpis.textContent = 'Pripremam instalaciju…';
-  const p = instalPrompt || await cekajPrompt();
+  if (instalUToku) return;
+  const p = instalPrompt;
 
   if (p) {
+    instalUToku = true;
+    instalPrompt = null; // događaj se smije koristiti samo jednom
     try {
       await p.prompt();                                  // preglednikov vlastiti dijalog
       const { outcome } = await p.userChoice;
@@ -946,7 +933,10 @@ async function instaliraj() {
       if (outcome === 'accepted') poruka('Instalacija pokrenuta', 'i-instal');
       return;
     } catch {
-      instalPrompt = null;                               // potrošen ili odbijen
+      poruka('Instalacija nije pokrenuta. Pokušaj iz menija preglednika.', 'i-info');
+    } finally {
+      instalUToku = false;
+      osvjeziInstal();
     }
   }
 
@@ -2045,8 +2035,7 @@ const notifStanjeSad = () => (notifPodrzan() ? Notification.permission : 'nepodr
 /** Na iPhoneu push radi tek kad je aplikacija na početnom ekranu. */
 const trebaInstalZaPush = () => okolina().iOS && !jeInstalirana();
 
-/** iOS u standalone PWA-u nema PushManager na window — samo na registraciji,
-   i tek kad je worker aktivan. Sinhrona provjera zato laže na iPhoneu. */
+/** Provjeri i registraciju ako preglednik ne izlaže globalni PushManager. */
 async function pushSpreman() {
   if (!notifPodrzan() || !('serviceWorker' in navigator)) return false;
   if (trebaInstalZaPush()) return false;
@@ -2295,9 +2284,11 @@ function vezikopiraj(sel = '#uvod-kopiraj') {
 
 /* --- korak: notifikacije (samo u PWA toku) --- */
 let notifKorakGen = 0;
+let notifKorakSpreman = false;
 
 async function crtajKorakNotif() {
   const gen = ++notifKorakGen;
+  notifKorakSpreman = false;
   const o = okolina();
 
   if (trebaInstalZaPush()) {
@@ -2325,7 +2316,8 @@ async function crtajKorakNotif() {
   el.uvodDalje.disabled = true;
 
   const pushOk = await pushSpreman();
-  if (gen !== notifKorakGen) return;
+  if (gen !== notifKorakGen || !el.uvod.classList.contains('on') || uvodKoraci()[uvodIdx]?.id !== 'notif') return;
+  notifKorakSpreman = pushOk;
 
   el.uvodDalje.disabled = false;
 
@@ -2385,11 +2377,10 @@ function crtajKorakGotovo() {
 }
 
 async function uvodTraziNotif() {
-  const zahtjev = Notification.requestPermission();
   el.uvodDalje.disabled = true;
   el.uvodDalje.textContent = 'Čekam dozvolu…';
   try {
-    const dozvola = await zahtjev;
+    const dozvola = await Notification.requestPermission();
     if (dozvola === 'granted') {
       stanje.notif = true;
       pisi(LS.notif, true);
@@ -2412,8 +2403,7 @@ async function uvodDalje() {
   const k = uvodKoraci()[uvodIdx];
 
   if (k.id === 'notif' && notifStanjeSad() === 'default') {
-    const pushOk = await pushSpreman();
-    if (notifPodrzan() && pushOk) {
+    if (notifPodrzan() && notifKorakSpreman) {
       await uvodTraziNotif();
       return;                                          // ostajemo na koraku
     }
@@ -2432,6 +2422,7 @@ async function uvodDalje() {
 }
 
 function zavrsiUvod() {
+  notifKorakGen++;
   pisi(uvodTok === 'pwa' ? LS.uvodPwa : LS.uvod, UVOD_VERZIJA);
   if (uvodTok === 'pwa') pisi(LS.dodano, true);
   el.uvod.classList.remove('on');
