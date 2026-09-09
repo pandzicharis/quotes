@@ -327,6 +327,7 @@ preglednik instalaciju ne podržava (`display-mode: standalone`,
 | --- | --- |
 | Android Chrome | `beforeinstallprompt` → **preglednikov vlastiti dijalog**. Nikad se ne traži da korisnik sam otvara meni kad dijalog postoji. |
 | Android bez dijaloga | Vodič: ⋮ → Instaliraj aplikaciju → potvrda. |
+| Android, Samsung Internet | Dijalog postoji, ali Play Protect odbija ono što taj preglednik instalira — prvi korak vodi u Chrome (uz dugme za kopiranje adrese), pa ista tri koraka. Vidi ispod. |
 | iPhone / iPad (Safari) | iOS ne dopušta programsko dodavanje na ekran — **vodič u tri koraka** sa maketom: Podijeli → Dodaj na početni ekran → Dodaj. |
 | iPhone, ali Chrome/Firefox | Isti WebKit, ali „Dodaj na početni ekran“ ima samo Safari — prvi korak vodi u Safari (uz dugme za kopiranje adrese), pa ista tri koraka. |
 | Preglednik u Instagramu/FB-u | Jedan korak: otvori u pravom pregledniku (instalacije odatle nema). |
@@ -357,6 +358,32 @@ bez koračanja: korisnik odlazi iz preglednika da to izvede, a čim otvori
 listu dijeljenja stranica je pokrivena i „Dalje“ nema ko stisnuti. Vodič
 korak-po-korak ostaje za dugmetom u postavkama.
 
+### Samsung Internet i Play Protect
+
+Instalirana aplikacija na Androidu nije prečica: preglednik naruči pravi APK
+(WebAPK) sa svog servera i njega instalira. `targetSdkVersion` tog omota bira
+**preglednik, ne stranica** — a Play Protect odbija sve što je više od dvije
+verzije ispod uređaja:
+
+> **Unsafe app blocked** · This app was built for an older version of Android
+> and doesn't include the latest privacy protections.
+
+Googleov server omot drži svježim, pa instalacija iz Chromea prođe bez ijedne
+riječi. Samsungov zaostaje — prijava je otvorena od aprila 2026. i još stoji
+(<https://github.com/SamsungInternet/support/issues/123>) — pa ista naša
+adresa iz Samsung Interneta stane na tom dijalogu. Manifest, ikone i service
+worker tu ništa ne mijenjaju; omot pravi preglednik.
+
+Zato `okolina().samsung` skreće instalaciju u Chrome: dijalog tog preglednika
+se ne zove (`instaliraj()`), vodič dobija prvi korak sa kopiranjem adrese, a
+korak uvoda kaže isto. Koraci za instalaciju ostaju ispod tog prvog — ko nema
+Chrome, ili mu uređaj još ne javlja ništa (dijalog zavisi od toga koliko je
+omot zaostao za verzijom Androida), neka proba odavde. Isti izlaz nosi i uvod:
+**Ovdje mogu dodati na ekran** vrati korak na obične upute.
+
+Ako Samsung jednog dana podigne `targetSdkVersion`, briše se jedan `if` u
+`vodicKoraci()`, jedan u `crtajKorakInstal()` i jedan u `instaliraj()`.
+
 ---
 
 ## Razvojne alatke
@@ -372,8 +399,8 @@ Vide se **samo na `localhost`**; na objavljenoj verziji ih nema:
   pa se cijeli vodič (i iPhone i iPad i Android) provjeri sa računara, bez
   telefona. Isto radi i `?instal=<stanje>`:
 
-  `android`, `android-bez`, `ios-1`, `ios-2`, `ios-3`, `ipad`, `ios-chrome`,
-  `uapp`, `racunar`, `instalirano`
+  `android`, `android-bez`, `samsung`, `ios-1`, `ios-2`, `ios-3`, `ipad`,
+  `ios-chrome`, `uapp`, `racunar`, `instalirano`
 
   Simulacija **ne dira pravi API preglednika** — `beforeinstallprompt` se ne
   glumi; za stanja sa dijalogom se samo kaže da bi ga preglednik otvorio.
@@ -392,3 +419,9 @@ pravom telefonu: `?uvod=web`, `?uvod=pwa`, `?pwa=1`, `?reset`.
 - **Dijeljenje slike** koristi `navigator.share` s fajlom; gdje toga nema,
   slika se preuzme. Formati: 9:16, 4:5, 1:1. Stilovi: Zelena i Krem.
 - **Teme**: noćna i dnevna, uz prekidač za automatsko praćenje sistema.
+- **Stariji Android.** Sav JavaScript staje u ono što zna Chrome 100 i noviji,
+  pa se lomi samo CSS: `dvh` traži Chrome 108, `color-mix` 111, a Android 5 i 6
+  stoje na Chromeu 106. Zato svako `dvh` ima `vh` ispred sebe (bez toga se
+  odbaci cijela deklaracija i modal naraste preko ekrana), a `.hdr` ima punu
+  podlogu pod `@supports not (color-mix)` — ostale color-mix podloge su tonovi
+  nad već punom pozadinom, pa se tamo izgubi samo nijansa.

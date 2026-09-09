@@ -109,6 +109,10 @@ body {
   background: var(--bg);
   color: var(--ink);
   line-height: 1.6;
+  /* `dvh` zna Chrome 108 i noviji; stariji cijelu deklaraciju odbace, pa
+     ispred svake stoji `vh` kao pod — bez toga modal naraste preko ekrana i
+     dugmad odu ispod ivice. Isti par ponavlja se svuda gdje ide `dvh`. */
+  min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
   overscroll-behavior-y: none;
@@ -340,6 +344,7 @@ html:not(.ucitano) .app { visibility: hidden; }
     inset 0 1px 0 rgba(255,255,255,.05);
   display: flex; flex-direction: column;
   /* raste s dužinom poruke — visina je samo donji prag, nikad strop */
+  min-height: min(56vh, 520px);
   min-height: min(56dvh, 520px);
   touch-action: pan-y;
   overflow: hidden;
@@ -776,7 +781,9 @@ html:not(.ucitano) .app { visibility: hidden; }
 .modal {
   position: absolute; left: 50%; top: 50%;
   translate: -50% -50%;                       /* centriranje odvojeno od transform-a */
-  width: min(94vw, 440px); max-height: min(88dvh, 780px);
+  width: min(94vw, 440px);
+  max-height: min(88vh, 780px);
+  max-height: min(88dvh, 780px);
   display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto;
   background: var(--bg-2); border: 1px solid var(--line);
   border-radius: var(--r-xl); overflow: hidden;
@@ -821,7 +828,9 @@ html:not(.ucitano) .app { visibility: hidden; }
   .modal {
     left: 0; right: 0; top: auto; bottom: 0;
     translate: none;
-    width: 100%; max-width: none; max-height: 92dvh;
+    width: 100%; max-width: none;
+    max-height: 92vh;
+    max-height: 92dvh;
     border-radius: var(--r-xl) var(--r-xl) 0 0;
     border-left: 0; border-right: 0; border-bottom: 0;
     animation: drawerIn .4s var(--ease) both;
@@ -1653,6 +1662,15 @@ html:not(.anim) *::after { animation: none !important; }
 html:not(.anim) .karta__tekst .w { opacity: 1; filter: none; transform: none; }
 html:not(.anim) .karta__uglovi span { opacity: .3; }
 html:not(.anim) .stavka { opacity: 1; transform: none; }
+
+/* ---------- 19b. STARIJI ANDROID ---------- */
+/* `color-mix` zna Chrome 111 i noviji, a Android 5 i 6 stoje na 106. Sve
+   ostale color-mix podloge su tonovi nad već punom pozadinom, pa se tamo
+   samo izgubi nijansa; traka je jedina koja bez podloge propusti tekst
+   stranice kroz sebe, jer joj je zamućenje ovdje takođe bez efekta. */
+@supports not (background: color-mix(in srgb, red, transparent)) {
+  .hdr { background: var(--bg); }
+}
 
 /* ---------- 20. POMOĆNO ---------- */
 [hidden] { display: none !important; }

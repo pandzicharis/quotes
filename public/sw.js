@@ -30,8 +30,8 @@
    datoteke, i kad se promijeni samo komentar. Ranije je svaka takva sitnica
    izlazila korisniku kao „Instaliraj novu verziju“; sada se preuzme tiho,
    a pita se samo kad se IZDANJE zaista promijeni. */
-const IZDANJE = '1.5.2';
-const KESH_V  = 'v15';
+const IZDANJE = '1.5.3';
+const KESH_V  = 'v16';
 const KESH = `poruka-dana-${KESH_V}`;
 
 const LJUSKA = [

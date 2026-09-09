@@ -11,7 +11,7 @@
 /* Mora biti isto kao IZDANJE u sw.js — po toj oznaci se odlučuje hoće li se
    korisniku ponuditi traka „nova verzija“. Podiže se samo kad izdanje zaista
    nosi nešto novo, ne na svaku izmjenu koda. */
-const VERZIJA = '1.5.2';
+const VERZIJA = '1.5.3';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
@@ -922,6 +922,11 @@ async function instaliraj() {
   if (instalUToku) return;
   const p = instalPrompt;
 
+  /* Samsung Internet dijalog uredno otvori, ali omot koji nakon njega dođe
+     Play Protect odbije (vidi 11b). Zato vodič prvo vodi u Chrome — osim kad
+     je korisnik sam rekao da ide odavde, tada mu se dijalog ne otima. */
+  if (p && okolina().samsung && !okolinaOverride) return otvoriUputu();
+
   if (p) {
     instalUToku = true;
     instalPrompt = null; // događaj se smije koristiti samo jednom
@@ -1097,7 +1102,7 @@ function makAndroid({ cilj = '', poziv = '', sloj = '' } = {}) {
         <i class="mak__oko"></i>
         ${status()}
         <div class="and-traka">
-          <span class="and-polje">${ikona('i-lupa')}<span>${esc(location.host)}</span></span>
+          <span class="and-polje${cilj === 'polje' ? ' cilj cilj--tekst' : ''}">${ikona('i-lupa')}<span>${esc(location.host)}</span>${cilj === 'polje' ? poziv : ''}</span>
           <span class="and-tabovi">3</span>
           <span class="and-meni-ik${cilj === 'meni' ? ' cilj' : ''}">
             ${ikona('i-meni')}${cilj === 'meni' ? poziv : ''}
@@ -1206,7 +1211,7 @@ function vodicKoraci() {
 
   if (o.iOS) return iosKoraci;
 
-  return [
+  const androidKoraci = [
     {
       naslov: 'Dodirni meni',
       opis: `Ikonica sa tri tačke ${uIkona('i-meni')} je u gornjem desnom uglu, pored adrese.`,
@@ -1223,6 +1228,28 @@ function vodicKoraci() {
       scena: makAndroid({ sloj: andDijalog() }),
     },
   ];
+
+  /* Android, ali Samsung Internet. Instalirana aplikacija na Androidu nije
+     prečica: preglednik naruči pravi APK (WebAPK) sa svog servera i njega
+     instalira. `targetSdkVersion` tog omota bira preglednik, ne stranica — a
+     Play Protect odbija sve što je više od dvije verzije ispod uređaja, uz
+     poruku „napravljena za stariju verziju Androida“. Googleov server omot
+     drži svježim; Samsungov zaostaje, pa ista naša adresa u Chromeu prođe bez
+     ijedne riječi, a iz Samsung Interneta stane na tom dijalogu. Iz koda se
+     to ne može popraviti — može se samo instalacija odvesti tamo gdje radi.
+     Koraci za instalaciju ostaju ispod: ko nema Chrome, ili mu uređaj još ne
+     javlja ništa (dijalog zavisi od toga koliko je omot zaostao za verzijom
+     Androida), neka proba odavde. */
+  if (o.samsung && !okolinaOverride) return [{
+    naslov: 'Otvori u Chromeu',
+    opis: `Samsung Internet aplikaciju pakuje po svom, pa je Android odbije uz poruku
+           da je <b>napravljena za stariju verziju Androida</b>. Kopiraj adresu i
+           zalijepi je u <b>Chrome</b> — odatle instalacija prođe.`,
+    scena: makAndroid({ cilj: 'polje', poziv: oblacic('Ova adresa', 'gore') }),
+    dodatno: dugmeKopiraj(),
+  }, ...androidKoraci];
+
+  return androidKoraci;
 }
 
 let vodicIdx = 0;
@@ -1270,6 +1297,7 @@ function vodicPomjeri(korak) {
 const SIM_STANJA = [
   { id: 'android',     ime: 'Android · native prompt', nap: 'dijalog preglednika', s: { o: { android: true }, prompt: true } },
   { id: 'android-bez', ime: 'Android · bez prompta',   nap: 'vodič ⋮ → Instaliraj', s: { o: { android: true } } },
+  { id: 'samsung',     ime: 'Samsung Internet',        nap: 'prvo u Chrome',        s: { o: { android: true, samsung: true } } },
   { id: 'ios-1',       ime: 'iPhone · korak 1',        nap: 'Podijeli',             s: { o: { iOS: true }, korak: 0 } },
   { id: 'ios-2',       ime: 'iPhone · korak 2',        nap: 'lista dijeljenja',     s: { o: { iOS: true }, korak: 1 } },
   { id: 'ios-3',       ime: 'iPhone · korak 3',        nap: 'potvrda + ekran',      s: { o: { iOS: true }, korak: 2 } },
@@ -2063,13 +2091,16 @@ function okolina() {
   const uApp = /FBAN|FBAV|FB_IAB|Instagram|LinkedInApp|Line\/|Twitter|WhatsApp|Snapchat|TikTok|Viber|MicroMessenger|GSA\//i.test(ua);
   // na iPhoneu „Dodaj na početni ekran“ ima samo Safari
   const iosDrugi = iOS && /CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser/.test(ua);
+  // Samsung Internet ima svoj dijalog, ali ono što on instalira Play Protect
+  // odbije — instalacija se seli u Chrome (zašto, piše u 11b)
+  const samsung = android && /SamsungBrowser/i.test(ua);
   if (simInstal?.o) return { ...OKOLINA_NULE, ...simInstal.o };
-  return { iOS, android, uApp, iosDrugi,
+  return { iOS, android, uApp, iosDrugi, samsung,
            iPad: /iPad/.test(ua) || iPadOS, desktop: !iOS && !android };
 }
 
 const OKOLINA_NULE = { iOS: false, android: false, uApp: false, iosDrugi: false,
-                       iPad: false, desktop: false };
+                       samsung: false, iPad: false, desktop: false };
 
 const stanjeOk   = t => `<span class="uvod__stanje uvod__stanje--ok">${ikona('i-kvaka')} ${t}</span>`;
 const stanjePazi = t => `<span class="uvod__stanje uvod__stanje--pazi">${ikona('i-pazi')} ${t}</span>`;
@@ -2134,7 +2165,7 @@ function crtajIzborTeme() {
 /* --- korak: instalacija (samo u WEB toku, samo telefon) --- */
 /* Ovo je korak koji ne pušta dalje. Gdje preglednik nudi svoj dijalog
    (Android Chrome) zovemo ga direktno; gdje ga nema (iPhone) stoji maketa
-   sa označenim mjestom i kratka lista, pa korisnik sam potvrdi.
+   sa označenim mjestom i kratka lista za instalaciju iz preglednika.
 
    Maketa pokazuje onaj trenutak u kojem se ljudi izgube — otvorenu listu sa
    označenim redom — a ne prvi dodir, koji je i bez slike očit.
@@ -2147,17 +2178,16 @@ function crtajIzborTeme() {
    Ovo je i zadnji ekran uvoda u pregledniku: dozvola za podsjetnik se traži
    kad se aplikacija prvi put otvori sa početnog ekrana (tok `pwa`). */
 
-const dodanoRucno = () => cita(LS.dodano, false) === true;
-
 /** Maketa unutar koraka uvoda — ukras, uputa je u tekstu ispod. */
 const uvodScena = html => `<div class="uvod__scena" aria-hidden="true">${html}</div>`;
 
 function crtajKorakInstal() {
   const o = okolina();
+  el.uvodDalje.hidden = true;
 
   /* Već dodano — nema šta pokazati. Ide `naprijed()`, ne `uvodIdx++`: instal je
      sad zadnji korak, pa ručno uvećavanje izađe iz liste i `crtajUvod` pukne. */
-  if (jeInstalirana() || dodanoRucno()) { naprijed(); return; }
+  if (jeInstalirana()) { naprijed(); return; }
 
   /* preglednik ugrađen u Instagram/Facebook — odatle se ne može instalirati */
   if (o.uApp && !okolinaOverride) {
@@ -2195,6 +2225,26 @@ function crtajKorakInstal() {
     return;
   }
 
+  /* Android, ali Samsung Internet — omot koji taj preglednik napravi Play
+     Protect odbije, pa instalacija ide preko Chromea (vidi vodič gore). */
+  if (o.samsung && !okolinaOverride) {
+    el.uvodSadrzaj.innerHTML = `
+      ${stanjePazi('U Samsung Internetu ovo ne prolazi')}
+      <p class="uvod__nota">Android odbije instalaciju uz poruku da je aplikacija
+        „napravljena za stariju verziju Androida“. To je omot koji taj preglednik
+        napravi, ne sama aplikacija — u Chromeu prođe.</p>
+      ${koraciHtml([
+        'Kopiraj adresu dugmetom ispod.',
+        'Otvori <b>Chrome</b> i zalijepi je u traku.',
+        'Nastavi po uputi koja te tamo dočeka.',
+      ])}
+      ${dugmeKopirajAdresu()}`;
+    vezikopiraj();
+    el.uvodDalje.hidden = true;
+    izlazAkoPogresnaDetekcija();
+    return;
+  }
+
   /* iPhone / iPad, Safari — nema API-ja, ide maketa pa tačne upute */
   if (o.iOS) {
     el.uvodSadrzaj.innerHTML = `
@@ -2208,7 +2258,6 @@ function crtajKorakInstal() {
         'Dodirni <b>Dodaj</b> u gornjem desnom uglu.',
         KORAK_POKRENI,
       ])}`;
-    el.uvodDalje.textContent = 'Dodao sam';
     return;
   }
 
@@ -2216,7 +2265,8 @@ function crtajKorakInstal() {
   if (instalPrompt) {
     el.uvodSadrzaj.innerHTML = `
       <p class="uvod__nota">Dodirni dugme ispod i potvrdi u prozoru koji se otvori.</p>`;
-    el.uvodDalje.textContent = 'Dodaj na početni ekran';
+    el.uvodDalje.hidden = false;
+    el.uvodDalje.textContent = 'Instaliraj aplikaciju';
     return;
   }
 
@@ -2229,7 +2279,6 @@ function crtajKorakInstal() {
       'Dodirni <b>Instaliraj</b> za potvrdu.',
       KORAK_POKRENI,
     ])}`;
-  el.uvodDalje.textContent = 'Dodao sam';
 }
 
 /* Ovo je nekad bio cijeli peti ekran („Otvori aplikaciju“), pa tiha napomena
@@ -2259,7 +2308,9 @@ function izlazAkoPogresnaDetekcija() {
   el.uvodPreskoci.hidden = false;
   el.uvodPreskoci.textContent = 'Ovdje mogu dodati na ekran';
   el.uvodPreskoci.onclick = () => {
+    el.uvodPreskoci.hidden = true;
     el.uvodPreskoci.onclick = null;
+    el.uvodPreskoci.textContent = 'Preskoči za sada';
     okolinaOverride = true;
     crtajKorakInstal();
   };
@@ -2415,7 +2466,7 @@ async function uvodDalje() {
       crtajKorakInstal();
       return;
     }
-    pisi(LS.dodano, true);                             // korisnik potvrdio da je dodao
+    return; // bez sistemskog dijaloga ostajemo na uputi za instalaciju
   }
 
   naprijed();
@@ -2863,7 +2914,10 @@ function slusaci() {
 
   // uvod
   el.uvodDalje.addEventListener('click', uvodDalje);
-  el.uvodPreskoci.addEventListener('click', naprijed);
+  /* Dugme mijenja značenje po koraku: gdje korak ima svoj `onclick` (izlaz iz
+     pogrešne detekcije) taj posao ide sam i uvod ostaje gdje je; inače je to
+     „Preskoči za sada“ i vodi naprijed. */
+  el.uvodPreskoci.addEventListener('click', () => { if (!el.uvodPreskoci.onclick) naprijed(); });
 
   // ponovni ulazak: provjeri je li se datum promijenio
   document.addEventListener('visibilitychange', () => {
