@@ -39,10 +39,12 @@ api/                        Vercel serverless funkcije
   test.js                   test notifikacija na jedan uređaj
   status.js                 dijagnostika konfiguracije
   _lib/auth.js              provjera CRON_SECRET tajne
-  _lib/kv.js                Upstash Redis preko REST-a
+  _lib/baza.js              Supabase (Postgres) preko PostgREST-a
   _lib/push.js              VAPID, izbor poruke, slanje
 
+sql/shema.sql               tabele + RLS, zalijepi u Supabase SQL Editor
 scripts/vapid.js            generiše VAPID ključeve
+scripts/prebaci.js          jednokratna seoba starih pretplata iz Redisa
 vercel.json                 cache zaglavlja
 ```
 
@@ -82,12 +84,36 @@ Vercel sam prepozna `public/` kao statični root i `api/` kao funkcije.
 Nema build koraka.
 
 ### 2. Baza pretplata
-Vercel → **Storage** → **Redis** (Upstash) → poveži s projektom.
+Supabase → **SQL Editor** → zalijepi [`sql/shema.sql`](sql/shema.sql) → Run.
+Pravi dvije tabele, `pretplate` i `instalacije`, i zaključava ih RLS-om.
 
-Integracija sama postavi varijable, ali **pod dva različita imena** zavisno od
-toga kako je dodana: `KV_REST_API_URL` / `_TOKEN` (stari Vercel KV) ili
-`UPSTASH_REDIS_REST_URL` / `_TOKEN` (Marketplace). Kod prihvata oba, a
-`/api/status` u polju `bazaVarijable` kaže koje je zaista našao.
+Onda Supabase → **Project Settings → API keys**, pa u Vercel → Settings →
+Environment Variables:
+
+```
+SUPABASE_URL          https://<projekat>.supabase.co
+SUPABASE_SECRET_KEY   sb_secret_…   (ili stari service_role JWT)
+```
+
+**Tajni ključ, ne publishable.** Tabele su pod RLS-om bez ijedne politike, pa
+publishable/anon ključu Postgres ne da ni jedan red — i tako mora ostati: u
+`pretplate` stoje kriptografski ključevi tuđih uređaja. Ako se na server ipak
+postavi javni ključ, `/api/status` to prepozna i kaže imenom.
+
+Kod prihvata i imena `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`,
+a `/api/status` u polju `bazaVarijable` kaže koje je zaista našao.
+
+Staro stanje iz Upstash Redisa (ako ga još ima) prelazi jednom komandom —
+popuni `KV_REST_API_*` u `.env` i pokreni:
+
+```bash
+npm run prebaci            # probni hod, samo broji
+npm run prebaci -- --upisi # stvarni upis
+```
+
+Seoba nije uslov: aplikacija pri svakom otvaranju ponovo prijavi pretplatu
+(`app.js`, na kraju `pokreni()`), pa se tabela sama popuni čim korisnici uđu.
+Prelazak je tu zbog onih koji aplikaciju neće otvoriti skoro.
 
 ### 3. VAPID ključevi
 
@@ -167,8 +193,8 @@ Pretplaćeno na notifikacije: 0
 
 Aplikacija se javi na `POST /api/instalacije` prvi put kad radi sa početnog
 ekrana, i pošalje samo platformu i nasumičnu oznaku koju sama napravi. Oznake
-stoje u Redis skupovima `pd:instal:ios`, `pd:instal:android`,
-`pd:instal:ostalo`, pa je broj = `SCARD`, a isti uređaj se ne broji dvaput.
+stoje u tabeli `instalacije`, gdje je primarni ključ par (platforma, uređaj),
+pa isti uređaj ne može ući dvaput — broj redova je broj uređaja.
 Otvaranje u pregledniku se ne broji — instalacija je tek početni ekran.
 
 Brojka je donja granica, ne apsolutna istina: ko obriše podatke preglednika i
@@ -213,10 +239,11 @@ realističnoj distribuciji latencija:
 | 7.000     | ~20 s | 12×             |
 | 25.000    | ~55 s | 4,5×            |
 
-Vrijeme, dakle, nije prva granica. Prva granica je `SMEMBERS`: cijeli set se
-čita u jednom odgovoru, a zapis je ~380 B, pa je na 25.000 pretplata odgovor
-~9,5 MB — na samoj ivici Upstashovog limita veličine. Preko toga `svePretplate()`
-treba prebaciti na `SSCAN` s paginacijom; sve ostalo ostaje isto.
+Vrijeme je, dakle, prva granica — a bila je druga dok su pretplate stajale u
+Redis skupu: `SMEMBERS` je cijeli set vraćao u jednom odgovoru, pa je na
+25.000 pretplata to bilo ~9,5 MB, na ivici Upstashovog limita veličine. U
+Postgresu te granice nema: `svePretplate()` čita stranicama po 1000 redova
+(`Range` zaglavlje), koliko god ih bilo.
 
 Tri stvari koje čuvaju dostavu:
 

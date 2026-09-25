@@ -6,7 +6,8 @@
   "description": "Poruka dana · Ammar Bašić — statična PWA sa dnevnim push notifikacijama",
   "scripts": {
     "dev": "python3 -m http.server 8123 --directory public",
-    "vapid": "node scripts/vapid.js"
+    "vapid": "node scripts/vapid.js",
+    "prebaci": "node scripts/prebaci.js"
   },
   "dependencies": {
     "web-push": "^3.6.7"

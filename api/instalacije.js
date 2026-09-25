@@ -8,7 +8,7 @@
    dovoljno spasiti tu adresu u zabilješke preglednika i otvoriti je kad zatreba.
    Prihvata i `x-cron-secret` i `Authorization: Bearer`, vidi _lib/auth.js. */
 
-import { kvSpreman, zabiljeziInstalaciju, sveInstalacije, brojPretplata, PLATFORME } from './_lib/kv.js';
+import { bazaSpremna, zabiljeziInstalaciju, sveInstalacije, brojPretplata, PLATFORME } from './_lib/baza.js';
 import { citajTijelo } from './_lib/push.js';
 import { ovlascen, odbij } from './_lib/auth.js';
 
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
 /* ---------- POST: aplikacija javlja instalaciju ---------- */
 async function zabiljezi(req, res) {
-  if (!kvSpreman()) return res.status(503).json({ greska: 'Baza nije konfigurisana' });
+  if (!bazaSpremna()) return res.status(503).json({ greska: 'Baza nije konfigurisana' });
 
   const t = citajTijelo(req);
   const platforma = PLATFORME.includes(t?.platforma) ? t.platforma : null;
@@ -49,7 +49,7 @@ async function zabiljezi(req, res) {
 /* ---------- GET: tekstualni izvještaj ---------- */
 async function izvjestaj(req, res) {
   if (!ovlascen(req)) return odbij(res);
-  if (!kvSpreman()) return res.status(503).json({ greska: 'Baza nije konfigurisana' });
+  if (!bazaSpremna()) return res.status(503).json({ greska: 'Baza nije konfigurisana' });
 
   try {
     const [brojevi, pretplata] = await Promise.all([sveInstalacije(), brojPretplata()]);

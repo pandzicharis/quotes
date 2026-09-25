@@ -1,4 +1,7 @@
-/* Upstash Redis preko REST API-ja — bez dodatnih zavisnosti.
+/* Upstash Redis preko REST API-ja — OSTAJE SAMO ZA SEOBU (scripts/prebaci.js).
+   Aplikacija više ne čita odavde: pretplate su u Supabaseu (api/_lib/baza.js).
+   Kad seoba prođe i brojevi se poklope, ovaj fajl i prebaci.js mogu se obrisati.
+
    Vercelova Storage → Redis integracija imenuje varijable na dva nacina,
    zavisno od toga je li dodana kroz Marketplace (UPSTASH_REDIS_REST_*) ili
    kao stari Vercel KV (KV_REST_API_*). Prihvatamo oba. */
