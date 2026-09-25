@@ -181,7 +181,15 @@ html:not(.ucitano) .app { visibility: hidden; }
 
 .hdr {
   position: sticky; top: 0; z-index: 40;
-  padding: calc(10px + env(safe-area-inset-top)) var(--pad) 10px;
+  /* iOS 26 crta tamni sloj iza trake statusa, preko sadržaja koji stoji pod
+     njom — status bar je `black-translucent`, pa aplikacija ide sve do vrha.
+     Logo i pilule su sjedile tačno uz donju ivicu sigurne zone i hvatale kraj
+     tog sloja, pa im je boja gasnula. Sadržaj zato ide niže, a traka svojom
+     pozadinom i dalje puni sve iznad njega — boja gore ostaje ista.
+     Gdje sigurne zone nema (preglednik, desktop) nema ni sloja: `min()` tu
+     vraća nulu, pa header ostaje tačno kakav je i bio. */
+  padding: calc(10px + env(safe-area-inset-top) + min(env(safe-area-inset-top), 12px))
+           var(--pad) 10px;
   background: color-mix(in srgb, var(--bg) 52%, transparent);
   backdrop-filter: saturate(185%) blur(34px);
   -webkit-backdrop-filter: saturate(185%) blur(34px);
