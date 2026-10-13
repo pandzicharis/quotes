@@ -176,7 +176,6 @@
 
   <header class="hdr">
     <div class="hdr__inner">
-      <button class="nazad" id="btn-nazad" hidden><svg><use href="#i-nazad"/></svg><span>Poruke</span></button>
       <img class="hdr__mark" id="hdr-mark" data-znak src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="" width="32" height="32">
       <div class="hdr__ime">
         <span class="hdr__title" id="hdr-title">Ammar Bašić</span>
@@ -215,6 +214,7 @@
 
         <article class="karta" id="karta">
           <div class="karta__aura" aria-hidden="true"></div>
+          <div class="korica" id="k-korica" aria-hidden="true"></div>
           <div class="karta__uglovi" aria-hidden="true">
             <span><svg><use href="#i-ugao"/></svg></span>
             <span><svg><use href="#i-ugao"/></svg></span>
@@ -282,16 +282,6 @@
           </div>
         </section>
 
-      </section>
-
-      <!-- ---------- SAČUVANO ---------- -->
-      <section class="view" id="v-sacuvano">
-        <div class="pretraga">
-          <svg><use href="#i-lupa"/></svg>
-          <input type="search" id="pretraga-sac" placeholder="Pretraži sačuvane poruke…" autocomplete="off" enterkeyhint="search">
-          <button class="icon-btn pretraga__x hide" id="pretraga-x" aria-label="Očisti"><svg><use href="#i-x"/></svg></button>
-        </div>
-        <div id="lista-sacuvano"></div>
       </section>
 
     </div>
@@ -398,8 +388,30 @@
 </div>
 
 <!-- ===== DETALJ PORUKE ===== -->
+<!-- ===== SAČUVANO (drawer) ===== -->
+<div class="sloj" id="m-sacuvano"><div class="sloj__zav" data-zatvori></div>
+  <div class="modal modal--sacuvano" role="dialog" aria-modal="true" aria-label="Sačuvane poruke">
+    <i class="modal__rucka" aria-hidden="true"></i>
+    <div class="modal__nas">
+      <span class="modal__ikona"><svg><use href="#i-zvijezda-f"/></svg></span>
+      <h3>Sačuvane poruke</h3>
+      <span class="modal__broj" id="sac-broj" hidden></span>
+      <button class="icon-btn" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
+    </div>
+    <div class="modal__telo">
+      <div class="pretraga">
+        <svg><use href="#i-lupa"/></svg>
+        <input type="search" id="pretraga-sac" placeholder="Pretraži sačuvane poruke…" autocomplete="off" enterkeyhint="search">
+        <button class="icon-btn pretraga__x hide" id="pretraga-x" aria-label="Očisti"><svg><use href="#i-x"/></svg></button>
+      </div>
+      <div id="lista-sacuvano"></div>
+    </div>
+  </div>
+</div>
+
 <div class="sloj" id="m-poruka"><div class="sloj__zav" data-zatvori></div>
   <div class="modal modal--poruka" role="dialog" aria-modal="true" aria-label="Poruka">
+    <i class="korica korica--detalj" id="mp-korica" aria-hidden="true" hidden></i>
     <i class="modal__rucka" aria-hidden="true"></i>
     <button class="modal__x" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
     <div class="modal__telo" id="mp-sadrzaj"></div>

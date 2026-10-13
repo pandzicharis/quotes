@@ -26,6 +26,9 @@ public/                     ← statični root (Vercel outputDirectory)
   index.html                markup + SVG sprite
   css/app.css               dizajn sistem (tokeni, komponente, teme)
   js/app.js                 sva logika, bez zavisnosti
+  js/kako.js + css/kako.css „Pogledaj kako“ — animacija instalacije (učitava se na zahtjev)
+  grafike/                  /grafike — grafike za mreže (zelena i bijela), za preuzimanje
+  _promo/                   izvor tih grafika (ne objavljuje se, vidi .vercelignore)
   data/poruke.json          SADRŽAJ — poruke, knjige, autor
   manifest.webmanifest      PWA manifest
   sw.js                     service worker: offline + push
@@ -45,6 +48,7 @@ api/                        Vercel serverless funkcije
 sql/shema.sql               tabele + RLS, zalijepi u Supabase SQL Editor
 scripts/vapid.js            generiše VAPID ključeve
 scripts/prebaci.js          jednokratna seoba starih pretplata iz Redisa
+scripts/promo.sh            izvoz grafika u public/grafike/ (objava 4:5, story 9:16, zelena i bijela)
 vercel.json                 cache zaglavlja
 ```
 
@@ -275,10 +279,14 @@ podigne `UVOD_VERZIJA` u `public/js/app.js` (`VERZIJA` je odvojena i ne dira
 uvod). Samo dva ekrana:
 
 1. **Dobrodošlica**
-2. **Na telefonu:** *Dodaj na početni ekran* — maketa telefona sa označenim
-   mjestom i tri kratka koraka. Gdje preglednik nudi `beforeinstallprompt`
-   (Android Chrome) dugme odmah otvara njegov dijalog; gdje ga nema, korisnik
-   potvrdi sa „Dodao sam“.
+2. **Na telefonu:** *Jedna poruka, svaki dan* — isti tekst i ponašanje kao u
+   Stihu dana: zlatna crta, tri koraka (sistemski natpisi na engleskom: *Add
+   to Home Screen*, *Add*, *Install*) i **Pogledaj kako** — animacija cijele
+   instalacije na iPhoneu ili Androidu (`js/kako.js`), u krug, s korakom koji
+   se upravo odigrava ispod telefona. Gdje preglednik nudi
+   `beforeinstallprompt` (Android Chrome) umjesto koraka stoji jedno dugme
+   *Dodaj na početni ekran*. Kad je dodano, ekran kaže *Poruka je na tvom
+   ekranu* i šalje na ikonu — u aplikaciju u pregledniku se ne ulazi.
    **Na računaru:** *Sve je spremno* — instalacije nema (vidi ispod), pa nema
    ni koraka za nju; podsjetnik ostaje dostupan u postavkama.
 
@@ -316,6 +324,18 @@ početni ekran**. U Safari tabu prekidač neće raditi — zato je u postavkama
 Čuvaju se u `localStorage`, po uređaju. Nema računa ni servera — svaki
 korisnik ima svoju zbirku i ona ne izlazi s uređaja.
 
+Otvaraju se u draweru odozdo (pilula *Sačuvano* u zaglavlju, s brojem), kao i
+dijeljenje. Svaki drawer se spušta prstom za ručku ili zaglavlje. Iza svake
+poruke — na kartici, u listi i u detalju — tiho stoji korica knjige iz koje
+je (`.korica`, jačina u `--korica-op`).
+
+## Značka na ikonici
+
+Svaka push poruka koja stigne dok aplikacija nije otvorena podigne broj na
+ikonici za jedan (`setAppBadge`, brojač u kešu `poruka-dana-znacka`). Kad se
+aplikacija otvori, broj se briše. Radi u instaliranoj aplikaciji (iOS 16.4+,
+Chrome na Androidu i računaru).
+
 ---
 
 ## Nadogradnja i brisanje sa uređaja
@@ -327,7 +347,7 @@ spremna“** na dnu ekrana (i red u postavkama, ako traku odgodi). Dodir na
 stranica se osvježi. Provjera se traži pri svakom vraćanju u aplikaciju i
 svakih 30 minuta, jer instalirana aplikacija zna ostati otvorena danima.
 
-**Pri objavi nove verzije podigni dvije stvari:** `VERZIJA` u `public/sw.js`
+**Pri objavi nove verzije podigni dvije stvari:** `IZDANJE` u `public/sw.js`
 (mijenja ime keša i pokreće nadogradnju) i `VERZIJA` u `public/js/app.js`
 (ispisuje se u postavkama). Aktivna verzija keša piše pored nje, npr.
 `Verzija 1.3.0 · keš v6` — po tome se vidi šta uređaj stvarno ima.

@@ -1,0 +1,362 @@
+/* ============================================================
+   „Pogledaj kako“ — animacija instalacije (js/kako.js)
+   ------------------------------------------------------------
+   Sve unutar telefona je u `em`: 1em = 1 piksel ekrana telefona.
+   Tekst nosi svoju veličinu sam (`.kd-t`), pa se u njega ne gnijezdi
+   ništa što se mjeri u `em`.
+
+   Faze nose klase na `.kd`: `p-<faza>` za svaku koja je počela i
+   `na-<faza>` za tekuću. Slojevi se pale i gase CSS prijelazima —
+   JS samo pomjera fazu.
+   ============================================================ */
+
+/* ---------- prozor ---------- */
+.kako {
+  position: fixed; inset: 0; z-index: 400;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  overflow-y: auto; padding: max(1.5rem, env(safe-area-inset-top)) 2rem max(1.5rem, env(safe-area-inset-bottom));
+  background: rgba(3, 9, 6, .82);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  opacity: 0; transition: opacity .25s ease;
+  font-family: var(--sans);
+}
+.kako.on { opacity: 1; }
+.kako__blok {
+  width: 100%; max-width: 19rem; display: flex; flex-direction: column; align-items: center;
+  translate: 0 22px; scale: .97; transition: translate .45s var(--ease), scale .45s var(--ease);
+}
+.kako.on .kako__blok { translate: 0 0; scale: 1; }
+
+.kako__napredak { display: flex; gap: 6px; width: 100%; margin-top: 28px; }
+.kako__napredak i {
+  flex: 1; height: 2px; border-radius: 999px; background: rgba(255, 255, 255, .12);
+  transition: background .3s ease;
+}
+.kako__napredak i.bilo { background: rgba(198, 169, 104, .35); }
+.kako__napredak i.on { background: #C6A968; }
+
+.kako__korak {
+  min-height: 2.6em; width: 100%; margin: 16px 0 0;
+  text-align: center; font-size: 13px; line-height: 1.5; color: rgba(242, 236, 224, .62);
+}
+.kako__korak b { color: #F2ECE0; font-weight: 600; }
+.kako__korak.ulaz { animation: kakoTekst .26s ease both; }
+@keyframes kakoTekst { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.kako .glif { width: 1.15em; height: 1.15em; margin: 0 .12em; vertical-align: -.2em; color: rgba(255, 255, 255, .9); }
+
+.kako__zatvori {
+  margin-top: 20px; padding: 12px 28px; border-radius: 999px;
+  border: 1px solid rgba(198, 169, 104, .28); background: none;
+  color: rgba(242, 236, 224, .72); font: 600 10.5px/1 var(--sans);
+  letter-spacing: .22em; text-transform: uppercase; cursor: pointer;
+  transition: background .18s ease, color .18s ease;
+}
+.kako__zatvori:active { background: rgba(198, 169, 104, .12); }
+@media (hover: hover) { .kako__zatvori:hover { color: #E9C77E; } }
+
+/* ---------- okvir telefona ---------- */
+.kt { position: relative; flex: none; }
+.kt__dugme {
+  position: absolute; width: 4em; border-radius: 2.5em;
+  background: linear-gradient(90deg, #4A4743, #8F8A83, #3A3835);
+}
+.kt__dugme--and { border-radius: 1.5em; background: linear-gradient(90deg, #A6ABB2, #D6D9DD, #8E939A); }
+.kt__rub {
+  position: absolute; inset: 0;
+  box-shadow: 0 0 0 .6em rgba(0, 0, 0, .55), 0 3em 6em rgba(0, 0, 0, .45), 0 30em 80em rgba(0, 0, 0, .55);
+}
+.kt--ios .kt__rub { background: linear-gradient(145deg, #8E8A84 0%, #3A3835 18%, #77736C 45%, #2B2A28 70%, #9A958D 100%); }
+.kt--and .kt__rub { background: linear-gradient(180deg, #C9CDD2 0%, #9EA3AA 30%, #D7DADF 55%, #8C9198 100%); }
+.kt__okvir { width: 100%; height: 100%; background: #050505; box-shadow: inset 0 0 0 1em rgba(255, 255, 255, .06); }
+.kt__ekran {
+  position: relative; overflow: hidden; background: #000;
+  isolation: isolate; transform: translateZ(0);
+}
+.kt-status {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 35; pointer-events: none;
+  display: flex; align-items: center; justify-content: space-between; color: #fff;
+}
+.kt-status--ios { height: 54em; padding: 0 30em 0 52em; font-family: -apple-system, "SF Pro Text", "Helvetica Neue", var(--sans), sans-serif; }
+.kt-status--and { height: 40em; padding: 0 22em; font-family: "Google Sans", Roboto, var(--sans), sans-serif; }
+.kt-status__ik { display: flex; align-items: center; gap: 6em; }
+.kt-status--and .kt-status__ik { gap: 5em; }
+.kt__otok {
+  position: absolute; top: 11em; left: 50%; translate: -50% 0; z-index: 30;
+  width: 124em; height: 36em; border-radius: 20em; background: #000;
+}
+.kt__otok i {
+  position: absolute; right: 26em; top: 12em; width: 12em; height: 12em; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #2a3550 0%, #0b0e17 55%, #000 100%);
+}
+.kt__rupica {
+  position: absolute; top: 13em; left: 50%; translate: -50% 0; z-index: 30;
+  width: 13em; height: 13em; border-radius: 50%; box-shadow: 0 0 0 1.5em #000;
+  background: radial-gradient(circle at 38% 38%, #24304a 0%, #07090f 60%, #000 100%);
+}
+/* tihi odsjaj stakla */
+.kt__staklo {
+  position: absolute; inset: 0; z-index: 45; pointer-events: none;
+  background: linear-gradient(115deg, rgba(255, 255, 255, .07) 0%, rgba(255, 255, 255, 0) 32%);
+}
+
+/* ---------- naša stranica u malom ---------- */
+.ks {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  color: #F2ECE0;
+  background:
+    radial-gradient(90% 45% at 50% 0%, rgba(198, 169, 104, .16) 0%, transparent 70%),
+    radial-gradient(70% 40% at 100% 100%, rgba(122, 198, 150, .07) 0%, transparent 70%),
+    #0B1711;
+}
+.ks__znak { width: 64em; height: 64em; display: block; flex: none; }
+.ks__sredina { flex: 1; width: 304em; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ks__crta {
+  display: block; width: 56em; height: 1em; margin: 24em 0;
+  background: linear-gradient(to right, transparent, rgba(198, 169, 104, .5), transparent);
+}
+.ks__koraci { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16em; }
+.ks__koraci li { display: flex; align-items: center; gap: 14em; }
+.ks__br {
+  flex: none; width: 26em; height: 26em; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 1em solid rgba(198, 169, 104, .25); color: rgba(198, 169, 104, .85);
+}
+.ks .glif { width: 1.15em; height: 1.15em; margin: 0 .12em; vertical-align: -.2em; color: rgba(255, 255, 255, .9); }
+.ks b { color: rgba(255, 255, 255, .9); font-weight: 500; }
+
+/* ---------- zajedničko ---------- */
+.kd-drzac { position: absolute; inset: 0; z-index: 20; }
+.kd { position: absolute; inset: 0; animation: kdUlaz .4s ease both; }
+.kd--van { animation: kdVan .4s ease both; }
+@keyframes kdUlaz { from { opacity: 0; } }
+@keyframes kdVan { to { opacity: 0; } }
+.kd--ios { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", var(--sans), sans-serif; color: #fff; }
+.kd--and { font-family: "Google Sans", Roboto, var(--sans), sans-serif; color: #E3E3E3; }
+.kd-t { line-height: 1.25; }
+.kd-sym { flex: none; display: block; }
+.kd-app { display: block; }
+.kd-sys { display: flex; align-items: center; justify-content: center; flex: none; }
+.kd-cilj { position: relative; display: flex; align-items: center; }
+
+/* Dodir — iPhone: siva prozirna tačka s rubom; Android: manji bijeli krug */
+.kd-dodir {
+  position: absolute; left: 50%; top: 50%; z-index: 60; pointer-events: none;
+  border-radius: 50%; opacity: 0; scale: .5;
+  box-shadow: 0 1em 8em rgba(0, 0, 0, .3);
+}
+.kd-dodir--ios {
+  width: 44em; height: 44em; margin: -22em 0 0 -22em;
+  background: rgba(205, 205, 210, .45); border: 1.5em solid rgba(255, 255, 255, .65);
+}
+.kd-dodir--and { width: 38em; height: 38em; margin: -19em 0 0 -19em; background: rgba(255, 255, 255, .34); }
+.na-dodirMeni   [data-u="dodirMeni"],
+.na-dodirDodaj  [data-u="dodirDodaj"],
+.na-dodirPotvrdi [data-u="dodirPotvrdi"] { animation: kdDodir .4s ease-out forwards; }
+@keyframes kdDodir {
+  0%   { opacity: 0; scale: .5; }
+  60%  { opacity: 1; scale: 1; }
+  100% { opacity: .92; scale: .86; }
+}
+
+/* ---------- iOS: Safari ---------- */
+.kd-safari {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 25; padding-bottom: 30em;
+  background: rgba(30, 30, 32, .88);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8); backdrop-filter: blur(30px) saturate(1.8);
+  box-shadow: 0 -.5em 0 rgba(84, 84, 88, .65);
+}
+.kd-safari__polje {
+  display: flex; align-items: center; gap: 10em;
+  margin: 8em 10em 0; height: 48em; padding: 0 14em; border-radius: 14em;
+  background: #3A3A3C; box-shadow: 0 2em 8em rgba(0, 0, 0, .25);
+}
+.kd-safari__adr { flex: 1; min-width: 0; display: flex; justify-content: center; overflow: hidden; white-space: nowrap; }
+.kd-safari__alati { display: flex; align-items: center; justify-content: space-between; padding: 0 24em; height: 50em; }
+
+/* ---------- iOS: listovi (dijeljenje, potvrda) ---------- */
+.kd-list { position: absolute; inset: 0; z-index: 30; visibility: hidden; transition: visibility 0s .5s; }
+.kd-list__zav { position: absolute; inset: 0; background: rgba(0, 0, 0, .42); opacity: 0; transition: opacity .35s ease; }
+.kd-list__ploca {
+  position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden;
+  border-radius: 12em 12em 0 0; background: #1C1C1E;
+  translate: 0 100%;
+  transition: translate .5s cubic-bezier(.32, .72, 0, 1), top .5s cubic-bezier(.32, .72, 0, 1);
+}
+.kd-list--dijeli .kd-list__ploca { top: calc(var(--visina) * .46em); }
+.kd.p-skrol .kd-list--dijeli .kd-list__ploca,
+.kd-list--potvrda .kd-list__ploca { top: calc((var(--vrh) + 10) * 1em); }
+
+.kd.p-meni:not(.p-dijalog) .kd-list--dijeli,
+.kd.p-dijalog:not(.p-pocetni) .kd-list--potvrda { visibility: visible; transition-delay: 0s; }
+.kd.p-meni:not(.p-dijalog) .kd-list--dijeli .kd-list__zav,
+.kd.p-dijalog:not(.p-pocetni) .kd-list--potvrda .kd-list__zav { opacity: 1; }
+.kd.p-meni:not(.p-dijalog) .kd-list--dijeli .kd-list__ploca,
+.kd.p-dijalog:not(.p-pocetni) .kd-list--potvrda .kd-list__ploca { translate: 0 0; }
+
+.kd-ios-zag { display: flex; align-items: center; gap: 12em; padding: 18em 16em 14em; border-bottom: .5em solid rgba(84, 84, 88, .65); }
+.kd-ios-zag__ime { flex: 1; min-width: 0; }
+.kd-ios-zag__x {
+  flex: none; align-self: flex-start; width: 30em; height: 30em; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; background: rgba(118, 118, 128, .24);
+}
+.kd-niz { display: flex; gap: 20em; padding: 16em 18em 12em; }
+.kd-niz--crta { border-bottom: .5em solid rgba(84, 84, 88, .65); margin-bottom: 16em; }
+.kd-plocica { display: flex; flex-direction: column; align-items: center; width: 66em; }
+.kd-krug { width: 62em; height: 62em; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.kd-grupe { padding: 0 16em; display: flex; flex-direction: column; gap: 18em; }
+.kd-grupa { border-radius: 12em; background: #2C2C2E; overflow: hidden; }
+.kd-red {
+  position: relative; display: flex; align-items: center; justify-content: space-between;
+  height: 50em; padding: 0 16em; transition: background .15s ease;
+}
+.kd-red + .kd-red::before {
+  content: ''; position: absolute; top: 0; left: 16em; right: 0; height: .5em; background: rgba(84, 84, 88, .65);
+}
+.kd.p-dodirDodaj .kd-red--cilj { background: #3A3A3C; }
+
+/* prst koji skrola listu nagore */
+.kd-dodir--skrol { top: 330em; }
+.kd.na-skrol .kd-dodir--skrol { animation: kdSkrol .55s cubic-bezier(.3, 0, .2, 1) forwards; }
+@keyframes kdSkrol {
+  0%   { opacity: 0; scale: .8; translate: 0 0; }
+  15%  { opacity: 1; scale: 1; translate: 0 0; }
+  100% { opacity: .9; scale: .9; translate: 0 -220em; }
+}
+
+.kd-potvrda__vrh { position: relative; display: flex; align-items: center; justify-content: space-between; height: 56em; padding: 6em 16em 0; }
+.kd-potvrda__nas { position: absolute; left: 50%; translate: -50% 0; white-space: nowrap; }
+.kd-potvrda__polje {
+  display: flex; align-items: center; gap: 14em;
+  margin: 22em 16em 0; padding: 12em 0 12em 16em; border-radius: 12em; background: #2C2C2E;
+}
+.kd-potvrda__tekst { flex: 1; min-width: 0; padding-right: 14em; }
+.kd-potvrda__ime { display: flex; align-items: center; gap: 1em; padding-bottom: 11em; border-bottom: .5em solid rgba(84, 84, 88, .65); }
+.kd-potvrda__brisi {
+  display: flex; align-items: center; justify-content: center;
+  width: 17em; height: 17em; border-radius: 50%; background: rgba(235, 235, 245, .3);
+}
+.kd-kursor { width: 2em; height: 22em; border-radius: 1em; background: #0A84FF; animation: kdKursor 1s steps(1) infinite; }
+@keyframes kdKursor { 50% { opacity: 0; } }
+
+.kd-tastatura {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 8em 3em 0;
+  background: rgba(43, 43, 45, .97);
+  translate: 0 100%; transition: translate .45s cubic-bezier(.32, .72, 0, 1) .15s;
+}
+.kd.p-dijalog .kd-tastatura { translate: 0 0; }
+.kd-tastatura__redovi { display: flex; flex-direction: column; gap: 11em; }
+.kd-tastatura__red { display: flex; justify-content: center; gap: 6em; }
+.kd-tipka {
+  height: 43em; border-radius: 5.5em; background: #6B6B6E; box-shadow: 0 1em 0 rgba(0, 0, 0, .45);
+  display: flex; align-items: center; justify-content: center;
+}
+.kd-tastatura__dno { display: flex; align-items: flex-start; justify-content: space-between; height: 78em; padding: 14em 22em 0; }
+
+/* ---------- Android: Chrome ---------- */
+.kd-chrome {
+  position: absolute; left: 0; right: 0; z-index: 25; height: 60em;
+  display: flex; align-items: center; gap: 10em; padding: 0 6em 0 12em;
+  background: #1F1F1F;
+}
+.kd-chrome__polje {
+  flex: 1; min-width: 0; height: 44em; border-radius: 22em; background: #303134;
+  display: flex; align-items: center; gap: 10em; padding: 0 14em;
+}
+.kd-chrome__tabovi {
+  flex: none; width: 22em; height: 22em; border-radius: 5em; border: 2em solid #E3E3E3;
+  display: flex; align-items: center; justify-content: center;
+}
+.kd-chrome__meni { padding: 6em; flex: none; }
+
+.kd-meni-drzac {
+  position: absolute; right: 6em; z-index: 30; transform-origin: top right;
+  opacity: 0; scale: .9; visibility: hidden;
+  transition: opacity .2s cubic-bezier(.2, 0, 0, 1), scale .2s cubic-bezier(.2, 0, 0, 1), visibility 0s .2s;
+}
+.kd.p-meni:not(.p-dijalog) .kd-meni-drzac { opacity: 1; scale: 1; visibility: visible; transition-delay: 0s; }
+.kd-meni {
+  width: 250em; border-radius: 16em; background: #2B2C30; padding: 4em 0 8em;
+  box-shadow: 0 6em 20em rgba(0, 0, 0, .5);
+}
+.kd-meni__vrh { display: flex; justify-content: space-around; padding: 10em 6em 12em; }
+.kd-meni__red { position: relative; display: flex; align-items: center; gap: 18em; height: 46em; padding: 0 18em; }
+.kd.p-dodirDodaj .kd-meni__red.kd-red--cilj { background: rgba(227, 227, 227, .12); }
+.kd-meni__red .kd-dodir { margin-top: -19em; }
+
+.kd-and-dijalog {
+  position: absolute; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, .55); opacity: 0; visibility: hidden;
+  transition: opacity .25s ease, visibility 0s .25s;
+}
+.kd.p-dijalog:not(.p-pocetni) .kd-and-dijalog { opacity: 1; visibility: visible; transition-delay: 0s; }
+.kd-and-dijalog__karta {
+  width: 312em; border-radius: 28em; background: #2B2C30; padding: 24em 24em 20em;
+  scale: .9; transition: scale .35s cubic-bezier(.34, 1.3, .64, 1);
+}
+.kd.p-dijalog .kd-and-dijalog__karta { scale: 1; }
+.kd-and-dijalog__app { display: flex; align-items: center; gap: 16em; margin: 18em 0 26em; }
+.kd-and-dijalog__dugmad { display: flex; justify-content: flex-end; gap: 8em; }
+.kd-and-dijalog__dugme { padding: 10em 12em; }
+
+/* ---------- početni ekran ---------- */
+.kd-pocetni {
+  position: absolute; inset: 0; z-index: 40; overflow: hidden;
+  opacity: 0; scale: 1.06; visibility: hidden;
+  transition: opacity .5s cubic-bezier(.22, 1, .36, 1), scale .5s cubic-bezier(.22, 1, .36, 1), visibility 0s .5s;
+}
+.kd.p-pocetni .kd-pocetni { opacity: 1; scale: 1; visibility: visible; transition-delay: 0s; }
+/* tapete: neutralne, tamne — da ikonica Poruke dana bude jedino zlato na ekranu */
+.kd-pocetni--ios {
+  background:
+    radial-gradient(90% 55% at 15% 0%, #2E4A5E 0%, rgba(46, 74, 94, 0) 70%),
+    radial-gradient(80% 50% at 100% 100%, #4A3A5E 0%, rgba(74, 58, 94, 0) 70%),
+    linear-gradient(180deg, #142030 0%, #0A0F1C 55%, #06070D 100%);
+}
+.kd-pocetni--and {
+  background:
+    radial-gradient(90% 50% at 85% 10%, #1D4A52 0%, rgba(29, 74, 82, 0) 70%),
+    radial-gradient(80% 45% at 0% 95%, #2A3A5E 0%, rgba(42, 58, 94, 0) 70%),
+    linear-gradient(180deg, #0F1A22 0%, #0A0F15 60%, #06080B 100%);
+}
+.kd-pocetni__mjesto { position: absolute; display: flex; flex-direction: column; align-items: center; }
+.kd-pocetni__ik { display: block; scale: 0; opacity: 0; }
+.kd-pocetni__ime { margin-top: 5em; white-space: nowrap; color: #fff; opacity: 0; }
+.kd.p-pocetni .kd-pocetni__ik { animation: kdPop .7s .45s ease-out forwards; }
+.kd.p-pocetni .kd-pocetni__ime { animation: kdPojava .4s .9s ease forwards; }
+@keyframes kdPop {
+  0%   { scale: 0; opacity: 0; }
+  55%  { scale: 1.12; opacity: 1; }
+  80%  { scale: .97; opacity: 1; }
+  100% { scale: 1; opacity: 1; }
+}
+@keyframes kdPojava { to { opacity: 1; } }
+
+.kd-pocetni__trazi {
+  position: absolute; left: 50%; bottom: 122em; translate: -50% 0;
+  display: flex; align-items: center; gap: 5em; height: 30em; padding: 0 12em; border-radius: 15em;
+  background: rgba(255, 255, 255, .16);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6);
+}
+.kd-pocetni__dock {
+  position: absolute; left: 12em; right: 12em; bottom: 12em; height: 96em; border-radius: 42em;
+  background: rgba(255, 255, 255, .14);
+  -webkit-backdrop-filter: blur(30px) saturate(1.7); backdrop-filter: blur(30px) saturate(1.7);
+}
+.kd-pocetni__tacke { position: absolute; left: 50%; bottom: 128em; translate: -50% 0; display: flex; gap: 8em; }
+.kd-pocetni__tacke i { width: 6em; height: 6em; border-radius: 50%; background: #fff; }
+.kd-pocetni__gest {
+  position: absolute; left: 50%; bottom: 9em; translate: -50% 0;
+  width: 110em; height: 4em; border-radius: 2em; background: rgba(255, 255, 255, .85);
+}
+
+/* Animacija JESTE uputa — i uz smanjen pokret se vrti, samo bez lebdenja.
+   app.css gasi sve animacije u tom režimu; ovdje se vraćaju one bez kojih
+   se ne vidi šta se dodiruje. */
+@media (prefers-reduced-motion: reduce) {
+  .na-dodirMeni   [data-u="dodirMeni"],
+  .na-dodirDodaj  [data-u="dodirDodaj"],
+  .na-dodirPotvrdi [data-u="dodirPotvrdi"] { animation: none !important; opacity: .92; scale: .86; }
+  .kd.p-pocetni .kd-pocetni__ik,
+  .kd.p-pocetni .kd-pocetni__ime { animation: none !important; scale: 1; opacity: 1; }
+}

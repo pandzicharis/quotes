@@ -30,9 +30,13 @@
    datoteke, i kad se promijeni samo komentar. Ranije je svaka takva sitnica
    izlazila korisniku kao „Instaliraj novu verziju“; sada se preuzme tiho,
    a pita se samo kad se IZDANJE zaista promijeni. */
-const IZDANJE = '1.5.3';
-const KESH_V  = 'v16';
+const IZDANJE = '1.6.0';
+const KESH_V  = 'v17';
 const KESH = `poruka-dana-${KESH_V}`;
+/* Broj nepročitanih poruka na ikonici. Živi u svom kešu jer worker nema
+   localStorage, a mora preživjeti i zamjenu workera (vidi activate). */
+const ZNACKA = 'poruka-dana-znacka';
+const ZNACKA_URL = '/__znacka';
 
 const LJUSKA = [
   '/',
@@ -75,7 +79,7 @@ self.addEventListener('message', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(k => Promise.all(k.filter(n => n !== KESH).map(n => caches.delete(n))))
+      .then(k => Promise.all(k.filter(n => n !== KESH && n !== ZNACKA).map(n => caches.delete(n))))
       .then(() => self.clients.claim())
   );
 });
@@ -89,8 +93,8 @@ self.addEventListener('fetch', e => {
 
   const url = new URL(request.url);
 
-  // API nikad ne keširamo
-  if (url.origin === location.origin && url.pathname.startsWith('/api/')) return;
+  // API nikad ne keširamo; ni grafike za mreže — velike su i nisu dio aplikacije
+  if (url.origin === location.origin && /^\/(api|grafike)(\/|$)/.test(url.pathname)) return;
 
   const vanjski = url.origin !== location.origin;
   if (vanjski && !jeFont(url)) return;
@@ -146,8 +150,21 @@ self.addEventListener('push', e => {
     data: { url: d.url || '/' },
     actions: [{ action: 'open', title: 'Pročitaj poruku' }],
   };
-  e.waitUntil(self.registration.showNotification(naslov, opcije));
+  e.waitUntil(Promise.all([self.registration.showNotification(naslov, opcije), povecajZnacku()]));
 });
+
+/* Svaka poruka koja stigne dok aplikacija nije otvorena podigne broj na
+   ikonici za jedan. Aplikacija ga briše čim se otvori (js/app.js, 9b). */
+async function povecajZnacku() {
+  if (!('setAppBadge' in self.navigator)) return;
+  try {
+    const c = await caches.open(ZNACKA);
+    const r = await c.match(ZNACKA_URL);
+    const n = (r ? parseInt(await r.text(), 10) || 0 : 0) + 1;
+    await c.put(ZNACKA_URL, new Response(String(n)));
+    await self.navigator.setAppBadge(n);
+  } catch { /* značka je ukras — bez nje notifikacija i dalje stiže */ }
+}
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();

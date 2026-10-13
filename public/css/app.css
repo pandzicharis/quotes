@@ -67,11 +67,13 @@
   --nit-slabo: rgba(198,169,104,.11);
   --nit-jako:  rgba(233,199,126,.95);
   --navod:     #E9C77E;
+  --korica-op: .17;
   color-scheme: dark;
 }
 
 /* --- SVIJETLA: „papir“ --- */
 :root[data-tema="svijetla"] {
+  --korica-op: .14;
   --bg:        #F5F1E7;
   --bg-2:      #FBF8F1;
   --surface:   #FDFBF6;
@@ -411,6 +413,34 @@ html:not(.ucitano) .app { visibility: hidden; }
       radial-gradient(70% 46% at 26% 58%,  rgba(0,0,0,.34) 0%, transparent 74%),
       linear-gradient(177deg, #000 0%, rgba(0,0,0,.4) 48%, rgba(0,0,0,.1) 80%, transparent 98%);
   }
+}
+
+/* --- korica knjige u pozadini ---
+   Knjiga iz koje je poruka, jedva prisutna: nagnuta, odsječena rubom i
+   utopljena prema tekstu. Daje svakoj knjizi njen ton, a ne čita se kao
+   slika — naslov i prava korica su ionako dolje, u izvoru. */
+.korica {
+  position: absolute; z-index: -1; pointer-events: none;
+  aspect-ratio: 2 / 3; border-radius: 6px;
+  background: center / cover no-repeat;
+  opacity: var(--korica-op);
+  /* luminosity: korica uzme boju kartice, ostane samo njen crtež i svjetlo;
+     blago zamućena, da se natpis na korici ne čita kroz poruku */
+  mix-blend-mode: luminosity;
+  filter: blur(1.8px);
+  rotate: 9deg;
+  -webkit-mask-image: radial-gradient(90% 75% at 72% 24%, #000 0%, rgba(0,0,0,.55) 45%, transparent 78%);
+          mask-image: radial-gradient(90% 75% at 72% 24%, #000 0%, rgba(0,0,0,.55) 45%, transparent 78%);
+  transition: opacity .6s var(--ease-soft);
+}
+.karta > .korica { top: 4%; right: -15%; width: min(64%, 330px); }
+.korica--detalj { top: -3%; right: -13%; width: min(60%, 260px); }
+.korica--stavka {
+  top: 50%; right: 18px; height: 168%; translate: 0 -50%; rotate: 11deg;
+  opacity: calc(var(--korica-op) * 1.5);
+  filter: blur(1.2px);
+  -webkit-mask-image: linear-gradient(to left, transparent 0%, #000 22%, rgba(0,0,0,.6) 55%, transparent 100%);
+          mask-image: linear-gradient(to left, transparent 0%, #000 22%, rgba(0,0,0,.6) 55%, transparent 100%);
 }
 
 /* meki gradijentni oblaci unutar kartice — dišu, ali nikad ne smetaju tekstu */
@@ -800,6 +830,23 @@ html:not(.ucitano) .app { visibility: hidden; }
 }
 @keyframes modalIn { from { opacity: 0; scale: .96; } to { opacity: 1; scale: 1; } }
 .modal__rucka { display: none; }
+/* zlatna nit uz gornji rub — isti potpis na svakom modalu i draweru */
+.modal::after {
+  content: ''; position: absolute; top: 0; left: 14%; right: 14%; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--gold) 55%, transparent), transparent);
+}
+.modal { isolation: isolate; }
+.sloj.izlazi .sloj__zav { animation: fadeVan .26s var(--ease-soft) both; }
+@keyframes fadeVan { from { opacity: 1; } to { opacity: 0; } }
+@media (min-width: 600px) {
+  .sloj.izlazi .modal { animation: modalVan .22s var(--ease-soft) both; }
+}
+@keyframes modalVan { to { opacity: 0; scale: .97; } }
+.modal__broj {
+  flex: none; font-size: 8.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--gold); padding: 5px 9px 4px; border-radius: 999px;
+  border: 1px solid var(--line); background: color-mix(in srgb, var(--gold) 7%, transparent);
+}
 .modal__nas {
   display: flex; align-items: center; gap: 12px;
   padding: 15px var(--mpad) 13px; border-bottom: 1px solid var(--line-soft);
@@ -844,11 +891,17 @@ html:not(.ucitano) .app { visibility: hidden; }
     animation: drawerIn .4s var(--ease) both;
   }
   @keyframes drawerIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  /* ručka je cijela traka iznad zaglavlja — za nju se drawer povlači */
   .modal__rucka {
-    display: block; width: 34px; height: 4px; border-radius: 999px;
-    background: var(--line); margin: 9px auto 0;
+    display: block; position: relative; height: 18px; margin: 0;
+    touch-action: none; cursor: grab;
   }
-  .modal__nas { padding-top: 12px; }
+  .modal__rucka::before {
+    content: ''; position: absolute; left: 50%; top: 9px; translate: -50% 0;
+    width: 34px; height: 4px; border-radius: 999px; background: var(--line);
+  }
+  .modal__nas { padding-top: 6px; touch-action: none; }
+  .modal--poruka .modal__telo { padding-top: 16px; }
 }
 
 /* ---------- 11. REDOVI ---------- */
@@ -924,7 +977,14 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 .segment button.on { background: var(--gold); color: var(--na-zlatu); }
 
 /* ---------- 12. SAČUVANO ---------- */
-.pretraga { position: relative; margin: clamp(14px, 4vw, 22px) 0 12px; }
+/* Drawer stalne visine — pretraga ga ne smije skupljati i razvlačiti. */
+.modal--sacuvano { height: min(80dvh, 700px); }
+@media (max-width: 599px) {
+  .modal--sacuvano { height: 86vh; height: 86dvh; }
+}
+.modal--sacuvano .modal__telo { padding-top: 14px; }
+#lista-sacuvano { display: grid; gap: 8px; }
+.pretraga { position: relative; margin: 0 0 14px; }
 .pretraga input {
   width: 100%; padding: 12px 16px 12px 40px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--surface); color: var(--ink);
@@ -939,7 +999,9 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 
 .stavka {
   display: flex; align-items: stretch; gap: 4px;
-  border-radius: var(--r-md); border: 1px solid transparent;
+  position: relative; isolation: isolate; overflow: hidden;
+  border-radius: var(--r-md); border: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
   transition: background var(--t-fast), border-color var(--t-fast);
   opacity: 0; transform: translateY(10px);
 }
@@ -953,7 +1015,6 @@ input.mini:focus { outline: none; border-color: var(--gold); }
    ostao gola pozadina. Slabije nego na kartici — stavka je niska i tekst ide
    preko cijele širine, pa uzorak ovdje samo pridržava, ne ukrašava. */
 @media (max-width: 759.98px) {
-  .stavka { position: relative; isolation: isolate; overflow: hidden; }
   .stavka::after {
     content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
     border-radius: inherit;
@@ -1618,8 +1679,50 @@ html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-
 .pocetni b { grid-column: 1 / -1; text-align: center; font-size: 8px; font-weight: 600;
   color: rgba(255,255,255,.85); }
 
-/* Maketa u koraku uvoda je malo manja — tamo dijeli prostor sa listom koraka. */
-.uvod__scena { display: grid; place-items: center; --mak-w: 214px; margin-bottom: 4px; }
+/* „Pogledaj kako“ — otvara animaciju instalacije (js/kako.js) */
+.uvod__kako {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin: 22px auto 0; padding: 10px 20px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--ink-soft);
+  font-size: 10.5px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+}
+.uvod__kako svg { width: 9px; height: 10px; fill: var(--gold); }
+.uvod__kako:active { background: color-mix(in srgb, var(--gold) 10%, transparent); }
+@media (hover: hover) {
+  .uvod__kako:hover { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+}
+
+/* --- korak instalacije: isti raspored kao u Stihu dana ---
+   Rečenica, zlatna crta, tri koraka i „Pogledaj kako“. Brojevi su u
+   zlatnom obrubu, tekst tih, natpisi sa ekrana istaknuti. */
+.uvod__blok--instal h1 { font-size: clamp(20px, 5.4vw, 23px); line-height: 1.35; margin: 26px 0 0;
+  color: color-mix(in srgb, var(--ink) 88%, transparent); }
+.uvod__crta { display: block; width: 56px; height: 1px; margin: 24px auto;
+  background: linear-gradient(to right, transparent, color-mix(in srgb, var(--gold) 55%, transparent), transparent); }
+.uvod__blok--instal .koraci--uvod { margin: 0 auto; gap: 16px; max-width: 300px; }
+.uvod__blok--instal .korak { gap: 14px; align-items: center; }
+.uvod__blok--instal .korak p { font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.uvod__blok--instal .korak b { font-weight: 500; color: var(--ink); }
+.uvod__blok--instal .korak__br {
+  width: 26px; height: 26px; margin: 0; font-size: 10px; font-weight: 600;
+  background: none; border: 1px solid color-mix(in srgb, var(--gold) 25%, transparent);
+  color: color-mix(in srgb, var(--gold) 85%, transparent);
+}
+.uvod__blok--instal .btn--puni { margin-top: 0; }
+.glif { display: inline-block; width: 1.15em; height: 1.15em; margin: 0 .12em; vertical-align: -.2em;
+  color: var(--ink); }
+
+/* dodano iz taba — kvačica, pa uputa da se otvori s početnog ekrana */
+.uvod__kvaka {
+  display: grid; place-items: center; width: 48px; height: 48px; margin: 22px auto 24px;
+  border-radius: 50%; border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent);
+  animation: kvakaIn .5s var(--ease-back) both;
+}
+.uvod__kvaka svg { width: 20px; height: 20px; fill: none; stroke: var(--gold); stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round; }
+@keyframes kvakaIn { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+.uvod__blok--gotovo p { margin-top: 14px; font-size: 13px; }
 
 /* ---------- 19. RESPONZIVNO ---------- */
 @media (min-width: 760px) {

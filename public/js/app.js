@@ -11,7 +11,7 @@
 /* Mora biti isto kao IZDANJE u sw.js — po toj oznaci se odlučuje hoće li se
    korisniku ponuditi traka „nova verzija“. Podiže se samo kad izdanje zaista
    nosi nešto novo, ne na svaku izmjenu koda. */
-const VERZIJA = '1.5.3';
+const VERZIJA = '1.6.0';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
@@ -57,8 +57,7 @@ const STILOVI = [
 const UVOD_KORACI = {
   pocetak: { id: 'pocetak', n: 'Poruka dana',
     t: 'Svaki dan po jedna poruka iz knjiga hafiza Ammara Bašića.' },
-  instal: { id: 'instal', n: 'Dodaj na početni ekran',
-    t: 'Bez ovoga podsjetnik ne može raditi.' },
+  instal: { id: 'instal', n: 'Jedna poruka, svaki dan', t: '' },
   kraj: { id: 'kraj', n: 'Sve je spremno',
     t: 'Nova poruka te čeka svaki dan.' },
 };
@@ -218,7 +217,6 @@ function normalizujSacuvano(sirovo) {
 const stanje = {
   podaci:   null,
   datum:    danasnji(),
-  stranica: 'danas',
   sacuvano: normalizujSacuvano(cita(LS.sacuvano, [])),
   autoTema: cita(LS.autoTema, false),
   tema:     cita(LS.tema, 'tamna'),
@@ -277,6 +275,7 @@ function prikaziDan(animiraj = true) {
   el.izvor.href = k?.url || stanje.podaci.autor.knjige_url;
   if (k) { el.cover.src = `/assets/books/${k.slika}`; el.cover.alt = k.naslov; el.cover.hidden = false; }
   else el.cover.hidden = true;
+  postaviKoricu(el.korica, k);
 
   // povratak na danas se nudi samo kad se gleda stariji dan
   el.karta.dataset.stari = jeDanas ? '0' : '1';
@@ -521,6 +520,17 @@ function osvjeziBrojSacuvanih() {
   el.brojSac.hidden = n === 0;
   el.brojSac.textContent = n > 99 ? '99+' : String(n);
   el.btnSacuvano.title = n ? `Sačuvane poruke — ${brojTekst(n)}` : 'Sačuvane poruke';
+  el.sacBroj.hidden = n === 0;
+  el.sacBroj.textContent = brojTekst(n);
+}
+
+/* Korica knjige iz koje je poruka — tiho, u pozadini. Ne nosi informaciju
+   (naslov piše ispod poruke), samo da svaka knjiga ima svoj ton. */
+const koricaUrl = k => (k ? `url('/assets/books/${encodeURI(k.slika)}')` : 'none');
+function postaviKoricu(cilj, k) {
+  if (!cilj) return;
+  cilj.style.backgroundImage = koricaUrl(k);
+  cilj.hidden = !k;
 }
 
 function crtajSacuvano() {
@@ -547,6 +557,7 @@ function crtajSacuvano() {
 
   el.listaSac.innerHTML = lista.map((x, i) => `
     <div class="stavka" style="animation-delay:${i * 38}ms">
+      ${x.k ? `<i class="korica korica--stavka" style="background-image:${koricaUrl(x.k)}" aria-hidden="true"></i>` : ''}
       <button class="stavka__glavno" data-dan="${kljuc(x.d)}">
         <span class="stavka__dat"><b>${x.d.getDate()}</b><span>${MJESECI_KRATKO[x.d.getMonth()]}</span></span>
         <span class="stavka__telo">
@@ -579,20 +590,23 @@ function ukloniSacuvano(d) {
   poruka('Uklonjeno iz zbirke', 'i-x');
 }
 
-/* --- stranice --- */
-function naStranicu(ime) {
-  stanje.stranica = ime;
-  $$('.view').forEach(v => v.classList.toggle('is-active', v.id === `v-${ime}`));
+/* ---------- 9b. ZNAČKA NA IKONICI ---------- */
+/* Service worker na svaku poruku podigne broj na ikonici aplikacije
+   (sw.js, povecajZnacku). Kad se aplikacija otvori, poruke su viđene —
+   broj se briše i na ikonici i u brojaču koji worker drži. */
+function ocistiZnacku() {
+  if (document.visibilityState !== 'visible') return;
+  navigator.clearAppBadge?.().catch(() => {});
+  if ('caches' in window) caches.delete('poruka-dana-znacka').catch(() => {});
+}
 
-  const jeSac = ime === 'sacuvano';
-  el.hdrNazad.hidden = !jeSac;
-  el.hdrMark.hidden = jeSac;
-  el.btnSacuvano.hidden = jeSac;
-  el.hdrIme.hidden = jeSac;                 // na sačuvanim je dovoljan sam „‹ Poruke“
-  el.hdrTitle.textContent = 'Ammar Bašić';
-  el.hdrSub.textContent = 'Poruka dana';
-  if (jeSac) crtajSacuvano();
-  scrollTo({ top: 0 });
+/* --- sačuvano: drawer odozdo, kao dijeljenje --- */
+function otvoriSacuvano() {
+  zatvoriSve();
+  el.pretragaSac.value = '';
+  crtajSacuvano();
+  otvori(el.mSacuvano);
+  el.listaSac.closest('.modal__telo').scrollTop = 0;
 }
 
 /* ---------- 10. TEMA ---------- */
@@ -935,7 +949,7 @@ async function instaliraj() {
       const { outcome } = await p.userChoice;
       instalPrompt = null;
       osvjeziInstal();
-      if (outcome === 'accepted') poruka('Instalacija pokrenuta', 'i-instal');
+      if (outcome === 'accepted') { instalPrihvacena = true; poruka('Instalacija pokrenuta', 'i-instal'); }
       return;
     } catch {
       poruka('Instalacija nije pokrenuta. Pokušaj iz menija preglednika.', 'i-info');
@@ -1955,15 +1969,74 @@ async function kopirajSliku() {
 }
 
 /* ---------- 14. MODALI ---------- */
+/* Na telefonu je svaki modal drawer odozdo (vidi CSS 10): izlazi istim putem
+   kojim je ušao, a spušta se i prstom, za zaglavlje. Na širem ekranu ostaje
+   prozor u sredini, pa tamo povlačenja nema. */
+const jeDrawer = () => matchMedia('(max-width: 599px)').matches;
+
 function otvori(sloj) {
+  // ponovno otvaranje usred izlaska: prekini izlazak
+  clearTimeout(sloj._izlaz);
+  sloj.classList.remove('izlazi');
+  const m = $('.modal', sloj);
+  if (m) { m.style.transition = ''; m.style.translate = ''; }
   sloj.classList.add('on');
   document.body.style.overflow = 'hidden';
 }
 
+function zatvori(sloj) {
+  if (!sloj || !sloj.classList.contains('on') || sloj.classList.contains('izlazi')) return;
+  const m = $('.modal', sloj);
+  sloj.classList.add('izlazi');
+  if (m && jeDrawer()) {
+    m.style.transition = 'translate .26s cubic-bezier(.4, 0, 1, 1)';
+    m.style.translate = '0 105%';
+  }
+  sloj._izlaz = setTimeout(() => {
+    sloj.classList.remove('on', 'izlazi');
+    if (m) { m.style.transition = ''; m.style.translate = ''; }
+    if (!$('.sloj.on')) document.body.style.overflow = '';
+  }, 260);
+  if (!$('.sloj.on:not(.izlazi)')) resetPocetno();
+}
+
 function zatvoriSve() {
-  $$('.sloj.on').forEach(s => s.classList.remove('on'));
-  document.body.style.overflow = '';
+  $$('.sloj.on').forEach(zatvori);
   resetPocetno();                     // potvrda brisanja se ne nosi u sljedeće otvaranje
+}
+
+/** Gornji otvoreni sloj — Escape i „nazad“ zatvaraju samo njega. */
+const gornjiSloj = () => $$('.sloj.on:not(.izlazi)').at(-1);
+
+/* Povlačenje drawera: hvata se ručka ili zaglavlje, nikad tijelo — tijelo
+   skrola. Pušta se dalje od 90 px ili brzim potezom nadolje. */
+function postaviPovlacenje(sloj) {
+  const m = $('.modal', sloj);
+  if (!m) return;
+  let y0 = 0, t0 = 0, dy = 0, vuce = false;
+
+  m.addEventListener('pointerdown', e => {
+    if (!jeDrawer() || e.button > 0) return;
+    if (e.target.closest('button, a, input') || !e.target.closest('.modal__rucka, .modal__nas')) return;
+    vuce = true; y0 = e.clientY; t0 = performance.now(); dy = 0;
+    m.style.transition = 'none';
+    m.setPointerCapture?.(e.pointerId);
+  });
+  m.addEventListener('pointermove', e => {
+    if (!vuce) return;
+    dy = Math.max(0, e.clientY - y0);
+    m.style.translate = `0 ${dy}px`;
+  });
+  const pusti = () => {
+    if (!vuce) return;
+    vuce = false;
+    const brzina = dy / Math.max(performance.now() - t0, 1);
+    if (dy > 90 || (dy > 24 && brzina > .6)) return zatvori(sloj);
+    m.style.transition = 'translate .32s var(--ease)';
+    m.style.translate = '';
+  };
+  m.addEventListener('pointerup', pusti);
+  m.addEventListener('pointercancel', pusti);
 }
 
 async function otvoriDijeljenje() {
@@ -2000,6 +2073,7 @@ function otvoriPoruku(d) {
       <span class="izvor__str">${ikona('i-strelica')}</span>
     </a>`;
 
+  postaviKoricu(el.mpKorica, k);
   primijeniZnakove();
   stanje.detalj = d;
   osvjeziDetaljFav();
@@ -2112,8 +2186,12 @@ const koraciHtml = koraci => `<ol class="koraci koraci--uvod">${koraci.map((k, i
 function crtajUvod() {
   const koraci = uvodKoraci();
   const k = koraci[uvodIdx];
+  $('#uvod-kvaka')?.remove();
+  el.uvodNas.parentElement.classList.toggle('uvod__blok--instal', k.id === 'instal');
+  el.uvodNas.parentElement.classList.remove('uvod__blok--gotovo');
   el.uvodNas.textContent = k.n;
   el.uvodTekst.textContent = k.t;
+  el.uvodTekst.hidden = !k.t;
 
   const blok = el.uvodNas.parentElement;
   blok.classList.remove('uvod__blok');
@@ -2163,14 +2241,16 @@ function crtajIzborTeme() {
 }
 
 /* --- korak: instalacija (samo u WEB toku, samo telefon) --- */
-/* Ovo je korak koji ne pušta dalje. Gdje preglednik nudi svoj dijalog
-   (Android Chrome) zovemo ga direktno; gdje ga nema (iPhone) stoji maketa
-   sa označenim mjestom i kratka lista za instalaciju iz preglednika.
+/* Ovo je korak koji ne pušta dalje. Tekst i ponašanje su isti kao u Stihu
+   dana: jedna rečenica, tri koraka i „Pogledaj kako“ (animacija cijele
+   instalacije, js/kako.js). Gdje preglednik nudi svoj dijalog (Android
+   Chrome) umjesto koraka stoji jedno dugme; kad je dodano, ekran kaže da je
+   poruka na početnom ekranu i da se aplikacija otvara odatle.
 
-   Maketa pokazuje onaj trenutak u kojem se ljudi izgube — otvorenu listu sa
-   označenim redom — a ne prvi dodir, koji je i bez slike očit.
+   Koraci navode sistemske natpise na engleskom — tako ih većina telefona
+   ovdje i ispisuje, a ista riječ stoji i u animaciji.
 
-   Sve stoji na jednom ekranu, bez koračanja kroz maketu: korisnik odlazi iz
+   Sve stoji na jednom ekranu, bez koračanja: korisnik odlazi iz
    preglednika da ovo izvede, a čim otvori listu dijeljenja naša stranica je
    pokrivena i „Dalje“ nema ko stisnuti. Cijelu uputu zato mora vidjeti
    prije nego krene. Vodič korak-po-korak ostaje u postavkama.
@@ -2178,17 +2258,39 @@ function crtajIzborTeme() {
    Ovo je i zadnji ekran uvoda u pregledniku: dozvola za podsjetnik se traži
    kad se aplikacija prvi put otvori sa početnog ekrana (tok `pwa`). */
 
-/** Maketa unutar koraka uvoda — ukras, uputa je u tekstu ispod. */
-const uvodScena = html => `<div class="uvod__scena" aria-hidden="true">${html}</div>`;
+/** Glif u rečenici — onakav kakav korisnik traži na ekranu. */
+const glif = id => `<svg class="glif" aria-hidden="true"><use href="#${id}"/></svg>`;
+
+/* Isti tekst stoji na uvodu, u umanjenom uvodu unutar animacije i ispod
+   nje, uz korak koji se upravo odigrava. */
+const KORACI_IOS = [
+  `Dodirni ${glif('i-ios-dijeli')} na dnu Safarija`,
+  'Skrolaj i odaberi <b>Add to Home Screen</b>',
+  'Potvrdi sa <b>Add</b>, pa otvori ikonu',
+];
+const KORACI_IPAD = [
+  `Dodirni ${glif('i-ios-dijeli')} gore desno u Safariju`,
+  KORACI_IOS[1], KORACI_IOS[2],
+];
+const KORACI_AND = [
+  `Dodirni ${glif('i-meni')} gore desno u Chromeu`,
+  'Odaberi <b>Add to Home screen</b>',
+  'Potvrdi sa <b>Install</b>, pa otvori ikonu',
+];
+
+/** Rečenica, zlatna crta i koraci — ono što stoji iznad „Pogledaj kako“. */
+const instalKoraci = koraci => `<span class="uvod__crta" aria-hidden="true"></span>${koraciHtml(koraci)}`;
+
+let instalPrihvacena = false;   // Chromeov dijalog potvrđen, `appinstalled` još nije stigao
 
 function crtajKorakInstal() {
   const o = okolina();
   el.uvodDalje.hidden = true;
+  el.uvodDalje.disabled = false;
 
-  /* Već dodano — nema šta pokazati. Ide `naprijed()`, ne `uvodIdx++`: instal je
-     sad zadnji korak, pa ručno uvećavanje izađe iz liste i `crtajUvod` pukne. */
-  if (jeInstalirana()) { naprijed(); return; }
-
+  /* Dodano iz ovog taba — kao u Stihu dana, uvod ne pušta u aplikaciju u
+     pregledniku: ona sad živi na početnom ekranu i otvara se odatle. */
+  if (jeInstalirana() || instalPrihvacena) { crtajInstalGotovo(); return; }
   /* preglednik ugrađen u Instagram/Facebook — odatle se ne može instalirati */
   if (o.uApp && !okolinaOverride) {
     el.uvodSadrzaj.innerHTML = `
@@ -2245,48 +2347,68 @@ function crtajKorakInstal() {
     return;
   }
 
-  /* iPhone / iPad, Safari — nema API-ja, ide maketa pa tačne upute */
+  /* iPhone / iPad, Safari — nema API-ja: koraci i animacija */
   if (o.iOS) {
     el.uvodSadrzaj.innerHTML = `
-      ${uvodScena(makIphone({ sloj: iosSheetDijeli() }))}
-      ${koraciHtml([
-        /* Od iOS-a 15 donja traka zna biti skupljena — tada Podijeli nije na
-           njoj nego pod <b>⋯</b> u adresnoj traci. Bez ove napomene korisnik
-           traži ikonicu koje na ekranu nema. */
-        `Dodirni ${uIkona('i-ios-dijeli')} <b>Podijeli</b> ${o.iPad ? 'gore desno' : 'na dnu ekrana'} — ili <b>⋯</b> pa <b>Podijeli</b>.`,
-        `Pomjeri se niz listu do ${uIkona('i-plus-kv')} <b>Dodaj na početni ekran</b>.`,
-        'Dodirni <b>Dodaj</b> u gornjem desnom uglu.',
-        KORAK_POKRENI,
-      ])}`;
+      ${instalKoraci(o.iPad ? KORACI_IPAD : KORACI_IOS)}
+      ${o.iPad ? '' : dugmeKako()}`;
+    if (!o.iPad) veziKako('ios');
     return;
   }
 
-  /* Android — preglednik najčešće ima svoj dijalog, jedan dodir i gotovo */
+  /* Android — Chrome nudi vlastiti dijalog: jedan dodir umjesto tri koraka */
   if (instalPrompt) {
-    el.uvodSadrzaj.innerHTML = `
-      <p class="uvod__nota">Dodirni dugme ispod i potvrdi u prozoru koji se otvori.</p>`;
+    el.uvodSadrzaj.innerHTML = '<span class="uvod__crta" aria-hidden="true"></span>';
     el.uvodDalje.hidden = false;
-    el.uvodDalje.textContent = 'Instaliraj aplikaciju';
+    el.uvodDalje.textContent = 'Dodaj na početni ekran';
     return;
   }
 
-  /* Android bez dijaloga — ide kroz meni preglednika */
+  /* Android bez dijaloga — kroz meni preglednika */
   el.uvodSadrzaj.innerHTML = `
-    ${uvodScena(makAndroid({ sloj: andMeni() }))}
-    ${koraciHtml([
-      `Dodirni ikonicu sa tri tačke ${uIkona('i-meni')} u gornjem desnom uglu.`,
-      'Odaberi <b>Instaliraj aplikaciju</b>.',
-      'Dodirni <b>Instaliraj</b> za potvrdu.',
-      KORAK_POKRENI,
-    ])}`;
+    ${instalKoraci(KORACI_AND)}
+    ${dugmeKako()}`;
+  veziKako('and');
 }
 
-/* Ovo je nekad bio cijeli peti ekran („Otvori aplikaciju“), pa tiha napomena
-   ispod liste. Napomena je bila pogrešan oblik: sivim tekstom je izgledala
-   kao fusnota, a to je zapravo korak bez kojeg podsjetnik ne proradi — i to
-   jedini koji se izvodi nakon što korisnik izađe iz preglednika. Zato ide u
-   listu, sa svojim brojem, ravnopravno s ostalima. */
-const KORAK_POKRENI = 'Pokreni aplikaciju s <b>početnog ekrana</b>.';
+/** Instalirano, ali smo još u tabu — aplikacija se sad otvara s ikone. */
+function crtajInstalGotovo() {
+  el.uvodNas.insertAdjacentHTML('beforebegin', `
+    <span class="uvod__kvaka" id="uvod-kvaka" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg></span>`);
+  el.uvodNas.textContent = 'Poruka je na tvom ekranu';
+  el.uvodTekst.hidden = false;
+  el.uvodTekst.textContent = 'Zatvori browser i otvori aplikaciju s početnog ekrana.';
+  el.uvodSadrzaj.innerHTML = '';
+  el.uvodNas.parentElement.classList.add('uvod__blok--gotovo');
+}
+
+/* „Pogledaj kako“ — cijela instalacija odigrana na telefonu (js/kako.js).
+   Tiše od zlatnog dugmeta, jer nije radnja nego pomoć. Kod se preuzme u
+   tišini kad se korak smiri, pa se na dodir otvara odmah; instalirana
+   aplikacija ga nikad ne preuzme. */
+const ucitajKako = () => import('./kako.js');
+
+const dugmeKako = () => `
+  <button class="uvod__kako" id="uvod-kako" type="button">
+    <svg viewBox="0 0 9 10" aria-hidden="true"><path d="M0 .8v8.4a.6.6 0 0 0 .9.5l7.6-4.2a.6.6 0 0 0 0-1L.9.3A.6.6 0 0 0 0 .8z"/></svg>
+    Pogledaj kako
+  </button>`;
+
+function veziKako(platforma) {
+  const b = $('#uvod-kako');
+  if (!b) return;
+  const t = setTimeout(ucitajKako, 1500);
+  b.addEventListener('pointerenter', ucitajKako, { once: true });
+  b.addEventListener('click', async () => {
+    clearTimeout(t);
+    try {
+      const { pokaziKako } = await ucitajKako();
+      pokaziKako(platforma, { povratak: b, koraci: platforma === 'ios' ? KORACI_IOS : KORACI_AND });
+    } catch { poruka('Animacija se nije učitala — provjeri vezu', 'i-info'); }
+  });
+}
+
 
 /* --- korak: kraj uvoda na računaru --- */
 /* Na računaru se aplikacija ne instalira, pa uvod tu i završava. Podsjetnik
@@ -2462,6 +2584,8 @@ async function uvodDalje() {
 
   if (k.id === 'instal' && !jeInstalirana()) {
     if (instalPrompt) {                                // preglednik ima svoj dijalog
+      el.uvodDalje.disabled = true;
+      el.uvodDalje.textContent = 'Trenutak…';
       await instaliraj();
       crtajKorakInstal();
       return;
@@ -2765,14 +2889,15 @@ function vezi() {
     dan: $('#d-dan'), danTekst: $('#d-dan-tekst'), datum: $('#d-datum'), hidzri: $('#d-hidzri'),
     tekst: $('#k-tekst'), knjiga: $('#k-knjiga'), tema: $('#k-tema'),
     citat: $('#citat'),
-    cover: $('#k-cover'), izvor: $('#k-izvor'), karta: $('#karta'),
+    cover: $('#k-cover'), korica: $('#k-korica'), izvor: $('#k-izvor'), karta: $('#karta'),
     danDanas: $('#dan-danas'),
     fav: $('#a-fav'), favTekst: $('#a-fav-tekst'),
-    hdrNazad: $('#btn-nazad'), hdrMark: $('#hdr-mark'),
+    hdrMark: $('#hdr-mark'),
     hdrTitle: $('#hdr-title'), hdrSub: $('#hdr-sub'), hdrIme: $('.hdr__ime'),
     btnSacuvano: $('#btn-sacuvano'), brojSac: $('#broj-sac'),
     listaSac: $('#lista-sacuvano'), veze: $('#veze'),
-    pretragaSac: $('#pretraga-sac'), pretragaX: $('#pretraga-x'),
+    pretragaSac: $('#pretraga-sac'), pretragaX: $('#pretraga-x'), sacBroj: $('#sac-broj'),
+    mSacuvano: $('#m-sacuvano'), mpKorica: $('#mp-korica'),
     pAuto: $('#p-auto'), rTema: $('#r-tema'),
     rNotif: $('#r-notif'), pNotif: $('#p-notif'), notifStanje: $('#r-notif-stanje'),
     notifNapomena: $('#notif-napomena'), rTestNotif: $('#r-test-notif'),
@@ -2809,8 +2934,7 @@ function slusaci() {
 
   addEventListener('keydown', e => {
     if (e.key === 'Escape') {
-      if ($('.sloj.on')) return zatvoriSve();
-      if (stanje.stranica !== 'danas') return naStranicu('danas');
+      if (gornjiSloj()) zatvori(gornjiSloj());
       return;
     }
     // u vodiču strelice mijenjaju korak, ne dan
@@ -2820,7 +2944,6 @@ function slusaci() {
       return;
     }
     if ($('.sloj.on') || el.uvod.classList.contains('on')) return;
-    if (stanje.stranica !== 'danas') return;
     if (e.target.matches('input, textarea, select')) return;
     if (e.key === 'ArrowLeft')  pomjeriDan(-1);
     if (e.key === 'ArrowRight') pomjeriDan(1);
@@ -2832,8 +2955,7 @@ function slusaci() {
   $('#a-kopiraj').addEventListener('click', kopirajTekst);
 
   // stranice
-  el.hdrNazad.addEventListener('click', () => naStranicu('danas'));
-  el.btnSacuvano.addEventListener('click', () => { zatvoriSve(); naStranicu('sacuvano'); });
+  el.btnSacuvano.addEventListener('click', otvoriSacuvano);
 
   // postavke
   $('#btn-postavke').addEventListener('click', () => otvori(el.mPostavke));
@@ -2910,7 +3032,8 @@ function slusaci() {
   });
 
   // modali
-  $$('[data-zatvori]').forEach(b => b.addEventListener('click', zatvoriSve));
+  $$('[data-zatvori]').forEach(b => b.addEventListener('click', () => zatvori(b.closest('.sloj'))));
+  $$('.sloj').forEach(postaviPovlacenje);
 
   // uvod
   el.uvodDalje.addEventListener('click', uvodDalje);
@@ -2920,6 +3043,7 @@ function slusaci() {
   el.uvodPreskoci.addEventListener('click', () => { if (!el.uvodPreskoci.onclick) naprijed(); });
 
   // ponovni ulazak: provjeri je li se datum promijenio
+  document.addEventListener('visibilitychange', ocistiZnacku);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && stanje.podaci) {
       if (istiDan(stanje.datum, danasnji())) prikaziDan(false);
@@ -3010,6 +3134,7 @@ async function start() {
   cekajVidljivost();
   primijeniTemu();
   slusaci();
+  ocistiZnacku();
   ispisiVerziju(null);
   verzijaKesa().then(ispisiVerziju);
 
