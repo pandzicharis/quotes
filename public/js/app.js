@@ -2406,9 +2406,30 @@ function crtajInstalGotovo() {
       <svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg></span>`);
   el.uvodNas.textContent = 'Poruka je na tvom ekranu';
   el.uvodTekst.hidden = false;
-  el.uvodTekst.textContent = 'Zatvori browser i otvori aplikaciju s početnog ekrana.';
-  el.uvodSadrzaj.innerHTML = '';
+  const android = okolina().android;
+  el.uvodTekst.textContent = android
+    ? 'Otvori je odmah, a ubuduće s početnog ekrana.'
+    : 'Zatvori browser i otvori aplikaciju s početnog ekrana.';
+  el.uvodSadrzaj.innerHTML = android
+    ? '<button class="btn btn--zlatno btn--puni" id="uvod-otvori" type="button">Otvori aplikaciju</button>'
+    : '';
+  $('#uvod-otvori')?.addEventListener('click', otvoriAplikaciju);
   el.uvodNas.parentElement.classList.add('uvod__blok--gotovo');
+}
+
+/* Chrome `intent://` adresu iz opsega instalirane aplikacije predaje njoj
+   (WebAPK), pa se otvori aplikacija umjesto taba. Ako je nema, Chrome ide na
+   `browser_fallback_url` — ista stranica s `#otvori`, bez ponovnog učitavanja.
+   Kad se za dvije sekunde ništa ne desi, kažemo gdje je aplikacija. */
+function otvoriAplikaciju() {
+  const ovdje = location.href.split('#')[0];
+  const t = setTimeout(() => {
+    if (location.hash === '#otvori') history.replaceState(null, '', ovdje);
+    poruka('Otvori aplikaciju s početnog ekrana', 'i-instal');
+  }, 2000);
+  document.addEventListener('visibilitychange', () => clearTimeout(t), { once: true });
+  location.href = `intent://${location.host}/#Intent;scheme=https;`
+    + `S.browser_fallback_url=${encodeURIComponent(`${ovdje}#otvori`)};end`;
 }
 
 /* „Pogledaj kako“ — cijela instalacija odigrana na telefonu (js/kako.js).
