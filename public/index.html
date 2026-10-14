@@ -15,6 +15,16 @@
 <meta property="og:image" content="/assets/icons/icon-1024.png">
 <meta property="og:type" content="website">
 <link rel="manifest" href="/manifest.webmanifest">
+<script>
+  /* Samsung Internet ne smije vidjeti manifest. Aplikaciju pakuje u svoj
+     zastarjeli omot, koji Play Protect blokira („napravljena za stariju
+     verziju Androida“), a launcher uz to doda i drugu ikonicu. Bez manifesta
+     taj preglednik ne nudi instalaciju, pa ona ide samo kroz Chrome (vidi 11b
+     u js/app.js). Već instaliranoj aplikaciji manifest ostaje. */
+  if (/SamsungBrowser/i.test(navigator.userAgent) && !matchMedia('(display-mode: standalone)').matches) {
+    document.querySelector('link[rel=manifest]').remove();
+  }
+</script>
 <link rel="icon" href="/assets/icons/icon-192.png">
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
