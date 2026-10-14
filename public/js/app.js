@@ -955,7 +955,17 @@ async function instaliraj() {
       const { outcome } = await p.userChoice;
       instalPrompt = null;
       osvjeziInstal();
-      if (outcome === 'accepted') { instalPrihvacena = true; poruka('Instalacija pokrenuta', 'i-instal'); }
+      if (outcome === 'accepted') {
+        instalPrihvacena = true;
+        poruka('Instalacija pokrenuta', 'i-instal');
+        /* Ako `appinstalled` ne stigne ni za minutu (Play Protect odbio,
+           korisnik odustao), korak se vraća na uputu da može ponovo. */
+        setTimeout(() => {
+          if (!instalPrihvacena || jeInstalirana()) return;
+          instalPrihvacena = false;
+          if (el.uvod?.classList.contains('on') && uvodKoraci()[uvodIdx]?.id === 'instal') crtajKorakInstal();
+        }, 60_000);
+      }
       return;
     } catch {
       poruka('Instalacija nije pokrenuta. Pokušaj iz menija preglednika.', 'i-info');
@@ -2296,7 +2306,17 @@ function crtajKorakInstal() {
 
   /* Dodano iz ovog taba — kao u Stihu dana, uvod ne pušta u aplikaciju u
      pregledniku: ona sad živi na početnom ekranu i otvara se odatle. */
-  if (jeInstalirana() || instalPrihvacena) { crtajInstalGotovo(); return; }
+  if (jeInstalirana()) { crtajInstalGotovo(); return; }
+
+  /* Dijalog potvrđen, ali Chrome još pravi aplikaciju — kvaka tek kad
+     stigne `appinstalled`, ne na samu potvrdu. */
+  if (instalPrihvacena) {
+    el.uvodSadrzaj.innerHTML = '<span class="uvod__crta" aria-hidden="true"></span>';
+    el.uvodDalje.hidden = false;
+    el.uvodDalje.disabled = true;
+    el.uvodDalje.textContent = 'Instalira se…';
+    return;
+  }
   /* preglednik ugrađen u Instagram/Facebook — odatle se ne može instalirati */
   if (o.uApp && !okolinaOverride) {
     el.uvodSadrzaj.innerHTML = `
@@ -2379,6 +2399,8 @@ function crtajKorakInstal() {
 
 /** Instalirano, ali smo još u tabu — aplikacija se sad otvara s ikone. */
 function crtajInstalGotovo() {
+  // korak se osvježava više puta (dijalog, `appinstalled`…) — kvaka samo jedna
+  $('#uvod-kvaka')?.remove();
   el.uvodNas.insertAdjacentHTML('beforebegin', `
     <span class="uvod__kvaka" id="uvod-kvaka" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg></span>`);
