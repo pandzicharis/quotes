@@ -593,11 +593,17 @@ function ukloniSacuvano(d) {
 /* ---------- 9b. ZNAČKA NA IKONICI ---------- */
 /* Service worker na svaku poruku podigne broj na ikonici aplikacije
    (sw.js, povecajZnacku). Kad se aplikacija otvori, poruke su viđene —
-   broj se briše i na ikonici i u brojaču koji worker drži. */
+   broj se briše i na ikonici i u brojaču koji worker drži.
+   Android nema setAppBadge — tačku na ikonici crta sam sistem dok god
+   notifikacija stoji u traci, pa se i ona zatvara. */
 function ocistiZnacku() {
   if (document.visibilityState !== 'visible') return;
   navigator.clearAppBadge?.().catch(() => {});
   if ('caches' in window) caches.delete('poruka-dana-znacka').catch(() => {});
+  navigator.serviceWorker?.getRegistration()
+    .then(r => r?.getNotifications())
+    .then(n => n?.forEach(x => x.close()))
+    .catch(() => {});
 }
 
 /* --- sačuvano: drawer odozdo, kao dijeljenje --- */

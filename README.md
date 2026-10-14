@@ -333,8 +333,10 @@ je (`.korica`, jačina u `--korica-op`).
 
 Svaka push poruka koja stigne dok aplikacija nije otvorena podigne broj na
 ikonici za jedan (`setAppBadge`, brojač u kešu `poruka-dana-znacka`). Kad se
-aplikacija otvori, broj se briše. Radi u instaliranoj aplikaciji (iOS 16.4+,
-Chrome na Androidu i računaru).
+aplikacija otvori, broj se briše. Radi u instaliranoj aplikaciji na iOS-u
+16.4+ i Chromeu na računaru. Android `setAppBadge` nema — tačku na ikonici
+sistem crta sam dok notifikacija stoji u traci, pa aplikacija pri otvaranju
+zatvara i notifikacije (`ocistiZnacku`).
 
 ---
 

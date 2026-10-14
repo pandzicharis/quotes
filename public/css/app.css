@@ -67,13 +67,13 @@
   --nit-slabo: rgba(198,169,104,.11);
   --nit-jako:  rgba(233,199,126,.95);
   --navod:     #E9C77E;
-  --korica-op: .17;
+  --korica-op: .26;
   color-scheme: dark;
 }
 
 /* --- SVIJETLA: „papir“ --- */
 :root[data-tema="svijetla"] {
-  --korica-op: .14;
+  --korica-op: .22;
   --bg:        #F5F1E7;
   --bg-2:      #FBF8F1;
   --surface:   #FDFBF6;
