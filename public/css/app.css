@@ -51,7 +51,7 @@
   --surface-2: #162C21;
   --ink:       #F2ECE0;
   --ink-soft:  #A5B3A8;
-  --ink-mute:  #6B7D71;
+  --ink-mute:  #738577;
   --gold:      #C6A968;
   --line:      rgba(198,169,104,.16);
   --line-soft: rgba(242,236,224,.07);
@@ -80,7 +80,7 @@
   --surface-2: #F8F4EA;
   --ink:       #13271D;
   --ink-soft:  #4C5F52;
-  --ink-mute:  #8A9A8D;
+  --ink-mute:  #5F7064;
   --gold:      #96742E;
   --line:      rgba(19,39,29,.13);
   --line-soft: rgba(19,39,29,.07);
@@ -427,14 +427,14 @@ html:not(.ucitano) .app { visibility: hidden; }
   /* luminosity: korica uzme boju kartice, ostane samo njen crtež i svjetlo;
      blago zamućena, da se natpis na korici ne čita kroz poruku */
   mix-blend-mode: luminosity;
-  filter: blur(1.8px);
+  filter: blur(1.3px);
   rotate: 9deg;
-  -webkit-mask-image: radial-gradient(90% 75% at 72% 24%, #000 0%, rgba(0,0,0,.55) 45%, transparent 78%);
-          mask-image: radial-gradient(90% 75% at 72% 24%, #000 0%, rgba(0,0,0,.55) 45%, transparent 78%);
+  -webkit-mask-image: radial-gradient(95% 80% at 70% 26%, #000 0%, rgba(0,0,0,.75) 48%, transparent 88%);
+          mask-image: radial-gradient(95% 80% at 70% 26%, #000 0%, rgba(0,0,0,.75) 48%, transparent 88%);
   transition: opacity .6s var(--ease-soft);
 }
-.karta > .korica { top: 4%; right: -15%; width: min(64%, 330px); }
-.korica--detalj { top: -3%; right: -13%; width: min(60%, 260px); }
+.karta > .korica { top: 4%; right: -12%; width: min(64%, 330px); opacity: calc(var(--korica-op) * 1.3); }
+.korica--detalj { top: -3%; right: -11%; width: min(60%, 260px); }
 .korica--stavka {
   top: 50%; right: 18px; height: 168%; translate: 0 -50%; rotate: 11deg;
   opacity: calc(var(--korica-op) * 1.5);
@@ -524,6 +524,10 @@ html:not(.ucitano) .app { visibility: hidden; }
   position: relative; width: 100%; max-width: 40ch; margin-inline: auto;
   padding-inline: clamp(18px, 5vw, 30px);
   font-size: clamp(19px, 4.9vw, 24px);
+  /* duge riječi na uskom ekranu se prelome umjesto da ostave rupu u redu;
+     limit drži kratke riječi cijelim */
+  -webkit-hyphens: auto; hyphens: auto;
+  hyphenate-limit-chars: 8 4 4;
 }
 .navod {
   position: absolute; z-index: 0;

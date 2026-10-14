@@ -68,7 +68,7 @@ export function napraviSadrzaj(podaci, poruka) {
     title: 'Nova poruka dana',
     body: kratkaPoruka(poruka.tekst),
     icon: '/assets/icons/icon-192.png',
-    badge: '/assets/icons/icon-192.png',
+    badge: '/assets/icons/badge-96.png',
     tag: 'poruka-dana',
     url: '/',
   };

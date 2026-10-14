@@ -143,7 +143,7 @@ self.addEventListener('push', e => {
   const opcije = {
     body: d.body || 'Otvori aplikaciju i pročitaj današnju poruku.',
     icon:  d.icon  || '/assets/icons/icon-192.png',
-    badge: d.badge || '/assets/icons/icon-192.png',
+    badge: d.badge || '/assets/icons/badge-96.png',
     tag: d.tag || 'poruka-dana',
     renotify: true,
     requireInteraction: false,
