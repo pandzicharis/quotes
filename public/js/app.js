@@ -879,6 +879,14 @@ async function pozdrav() {
       tag: 'pozdrav',
       data: { url: '/' },
     });
+    /* Pozdrav je tu da se vidi, ne da ostane: dok stoji u traci, Android drži
+       značku na ikonici (9b). Sklanja se čim je viđen — nakon nekoliko sekundi
+       ili čim korisnik izađe iz aplikacije, šta prije dođe. */
+    if (!reg) return;
+    const skloni = () => reg.getNotifications({ tag: 'pozdrav' })
+      .then(n => n.forEach(x => x.close())).catch(() => {});
+    setTimeout(skloni, 8000);
+    document.addEventListener('visibilitychange', skloni, { once: true });
   } catch { /* toast je već pozdravio — notifikacija nije uslov */ }
 }
 
