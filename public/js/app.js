@@ -11,7 +11,7 @@
 /* Mora biti isto kao IZDANJE u sw.js — po toj oznaci se odlučuje hoće li se
    korisniku ponuditi traka „nova verzija“. Podiže se samo kad izdanje zaista
    nosi nešto novo, ne na svaku izmjenu koda. */
-const VERZIJA = '1.6.0';
+const VERZIJA = '1.6.1';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
@@ -41,10 +41,12 @@ const FORMATI = [
 /* `uzorak` je jačina teksture na podlozi slike za dijeljenje. Na zelenoj je
    niža: svijetao motiv na tamnoj podlozi ima veći kontrast pa iskače jače
    nego zlato na papiru — ista brojka tu ne daje isti utisak. Vrijednosti su
-   složene po izgledu, ne po računu. */
+   složene po izgledu, ne po računu.
+   `korica` je jačina korice knjige u pozadini — ista kao na kartici u
+   tamnoj odnosno svijetloj temi (`--korica-op` × 1,3 iz `.karta > .korica`). */
 const STILOVI = [
-  { id: 'zelena', naziv: 'Zelena', bg: ['#204234', '#0D1C15'], ink: '#F6EFDF', gold: '#E3C489', navod: '#E9C77E', logo: 'w', uzorak: .038 },
-  { id: 'krem',   naziv: 'Krem',   bg: ['#F7F1E2', '#E6D9BC'], ink: '#162C21', gold: '#8E6C28', navod: '#A8813A', logo: 'b', uzorak: .09 },
+  { id: 'zelena', naziv: 'Zelena', bg: ['#204234', '#0D1C15'], ink: '#F6EFDF', gold: '#E3C489', navod: '#E9C77E', logo: 'w', uzorak: .038, korica: .338 },
+  { id: 'krem',   naziv: 'Krem',   bg: ['#F7F1E2', '#E6D9BC'], ink: '#162C21', gold: '#8E6C28', navod: '#A8813A', logo: 'b', uzorak: .09,  korica: .286 },
 ];
 
 /* Uvod ima dva odvojena toka.
@@ -1700,6 +1702,52 @@ const MRLJE = [
   { x: .50,  y:  .50, rx:  .70, ry: .50, a: .08, kraj: .75 },   // aura: sredina
 ];
 
+/**
+ * Korica knjige u pozadini, prepisana iz `.korica` i `.karta > .korica`:
+ * 64% širine, 2:3, gore desno (top 4%, right -12%), nagnuta 9°, zamućena,
+ * utopljena maskom i položena kao `luminosity` — uzme boju podloge, ostane
+ * samo njen crtež i svjetlo. Pikseli iz CSS-a (blur, zaobljenje) važe za
+ * karticu široku ~339px, pa se skaliraju na širinu slike.
+ */
+function koricaNaPlatno(c, W, H, img, jacina) {
+  const mj = W / 339;
+  const cw = Math.round(W * 0.64), ch = Math.round(cw * 1.5);
+
+  const kp = document.createElement('canvas');
+  kp.width = cw; kp.height = ch;
+  const kc = kp.getContext('2d');
+
+  // background: center / cover, uz border-radius 6px
+  kc.save();
+  if (kc.roundRect) { kc.beginPath(); kc.roundRect(0, 0, cw, ch, 6 * mj); kc.clip(); }
+  const sk = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
+  const iw = img.naturalWidth * sk, ih = img.naturalHeight * sk;
+  kc.filter = `blur(${1.3 * mj}px)`;
+  kc.drawImage(img, (cw - iw) / 2, (ch - ih) / 2, iw, ih);
+  kc.restore();
+
+  // mask: radial-gradient(95% 80% at 70% 26%, #000 0%, rgba(0,0,0,.75) 48%, transparent 88%)
+  const rx = cw * 0.95, ry = ch * 0.80;
+  kc.globalCompositeOperation = 'destination-in';
+  kc.translate(cw * 0.70, ch * 0.26);
+  kc.scale(1, ry / rx);
+  const g = kc.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0,   'rgba(0,0,0,1)');
+  g.addColorStop(.48, 'rgba(0,0,0,.75)');
+  g.addColorStop(.88, 'rgba(0,0,0,0)');
+  g.addColorStop(1,   'rgba(0,0,0,0)');
+  kc.fillStyle = g;
+  kc.fillRect(-cw * 2, -ch * 2 * rx / ry, cw * 4, ch * 4 * rx / ry);
+
+  c.save();
+  c.globalAlpha = jacina;
+  c.globalCompositeOperation = 'luminosity';
+  c.translate(W * 1.12 - cw / 2, H * 0.04 + ch / 2);
+  c.rotate(9 * Math.PI / 180);
+  c.drawImage(kp, -cw / 2, -ch / 2);
+  c.restore();
+}
+
 /** Arabeskni ugao sa zaobljenim prelazom. */
 function ugaoOrnament(c, x, y, sx, sy, u) {
   c.beginPath();
@@ -1726,6 +1774,8 @@ async function nacrtajPlatno() {
   // znak se učitava prije crtanja da se slog ne mijenja naknadno
   let znak = null;
   try { znak = await ucitajSliku(`/assets/brand/ammar_basic_logo_${s.logo}_m_1.png`); } catch { /* bez znaka */ }
+  let korica = null;
+  if (k) try { korica = await ucitajSliku(`/assets/books/${encodeURI(k.slika)}`); } catch { /* bez korice */ }
 
   el.platno.width = f.w;
   el.platno.height = f.h;
@@ -1765,7 +1815,8 @@ async function nacrtajPlatno() {
   c.fillStyle = 'rgba(255,255,255,.05)';
   c.fillRect(0, 0, W, Math.max(1, W * 0.0026));
 
-  /* tekstura ide preko gradijenata, ispod okvira i sloga */
+  /* korica pa tekstura, istim redom kao na kartici (aura → korica → ::after) */
+  if (korica) koricaNaPlatno(c, W, H, korica, s.korica);
   await uzorakNaPlatno(c, W, H, s.uzorak);
 
   /* --- dvostruki okvir i arabeskni uglovi --- */
