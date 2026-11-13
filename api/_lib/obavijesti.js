@@ -7,7 +7,7 @@
    a onaj koji nije — dobije je u sljedećem pozivu, koliko god puta zatrebalo. */
 import { razasalji } from './push.js';
 import {
-  svePretplate, skiniPretplate, isporucene, zabiljeziIsporuke, zabiljeziSlanje,
+  svePretplate, kojiNemaju, skiniPretplate, zabiljeziIsporuke, zabiljeziSlanje,
   predavanjaUObavjestavanju, predavanjaUskoro, oznaciObavijest, uzmiBravu, pustiBravu,
 } from './baza.js';
 
@@ -58,32 +58,34 @@ export async function zapisiSlanje(kljuc, nacin, { pretplata, dostavljeno, r, po
 }
 
 /**
- * Šalje obavijest `kljuc` pretplatama iz `pretplate` koje je još nemaju,
- * bilježi isporuke i briše mrtve pretplate. Bez dnevnika (tabela još nije
- * napravljena) baca grešku — tada se ne šalje ništa, umjesto da isti ljudi
- * dobijaju istu obavijest na svaki poziv crona.
+ * Šalje obavijest `kljuc` pretplatama (filter kao u `svePretplate`) koje je
+ * još nemaju, bilježi isporuke i briše mrtve pretplate. Kad su svi već
+ * dobili, čita samo id-eve — poziv crona ostaje jeftin. Bez dnevnika (tabela
+ * još nije napravljena) baca grešku — tada se ne šalje ništa, umjesto da isti
+ * ljudi dobijaju istu obavijest na svaki poziv crona.
  */
-export async function dostavi(kljuc, pretplate, sadrzaj, opcije = {}, nacin = 'nadoknada', naslov = null) {
+export async function dostavi(kljuc, filter, sadrzaj, opcije = {}, nacin = 'nadoknada', naslov = null) {
   const pocetak = Date.now();
-  // prvo slanje (iz admina) ide i bez dnevnika — jednom je, pa nema ponavljanja
-  let imaju, dnevnik = true;
-  try { imaju = await isporucene(kljuc); }
-  catch (e) { if (nacin !== 'slanje') throw e; imaju = new Set(); dnevnik = false; }
-  const ostali = pretplate.filter(s => !imaju.has(s.id));
-  if (!ostali.length) return { kljuc, vec: imaju.size, poslano: 0 };
+  let ukupno, dobilo = 0, ostali, dnevnik = true;
+  try { ({ ukupno, dobilo, ostali } = await kojiNemaju(kljuc, filter)); }
+  catch (e) {
+    // prvo slanje (iz admina) ide i bez dnevnika — jednom je, pa nema ponavljanja
+    if (nacin !== 'slanje') throw e;
+    ostali = await svePretplate(filter); ukupno = ostali.length; dnevnik = false;
+  }
+  if (!ostali.length) return { kljuc, vec: dobilo, poslano: 0 };
   const r = await razasalji(ostali, sadrzaj, { ...opcije, zabiljezi: dnevnik ? idevi => zabiljeziIsporuke(kljuc, idevi) : null });
   if (r.mrtve.length) { try { await skiniPretplate(r.mrtve); } catch { /* sljedeći put */ } }
-  const dostavljeno = pretplate.filter(s => imaju.has(s.id)).length + r.poslano;
   // naslov ostaje u pregledu i kad se prošlo predavanje obriše
-  await zapisiSlanje(kljuc, nacin, { pretplata: pretplate.length - r.mrtve.length, dostavljeno, r, pocetak, naslov });
-  return { kljuc, vec: imaju.size, ...r, mrtve: r.mrtve.length };
+  await zapisiSlanje(kljuc, nacin, { pretplata: ukupno - r.mrtve.length, dostavljeno: dobilo + r.poslano, r, pocetak, naslov });
+  return { kljuc, vec: dobilo, ...r, mrtve: r.mrtve.length };
 }
 
 /** „Novo predavanje“ svima koji ga nisu isključili, iz admina. Prvo se
     zabilježi da je obavijest krenula — i ako ovaj poziv padne, cron je
     dovršava. Noću (22–7 h po Sarajevu) i dok traje drugo slanje ne šalje se
     odavde: vraća `{ kasnije: 'jutro' | 'uskoro' }`, a cron je pošalje u 7 h,
-    odnosno u narednih 15 minuta. */
+    odnosno pri sljedećem pozivu (najkasnije za sat). */
 export async function obavijestiONovom(p, opcije) {
   let oznaceno = true;
   try { await oznaciObavijest(p.id); } catch { oznaceno = false; /* šema još nije dopunjena */ }
@@ -96,7 +98,7 @@ export async function obavijestiONovom(p, opcije) {
     brava = null;
   }
   try {
-    return await dostavi(`novo:${p.id}`, await svePretplate({ zaPredavanja: true }), sadrzajNovog(p), opcije, 'slanje', p.naslov);
+    return await dostavi(`novo:${p.id}`, { zaPredavanja: true }, sadrzajNovog(p), opcije, 'slanje', p.naslov);
   } finally {
     if (brava) await pustiBravu('slanje').catch(() => { /* istekne sama */ });
   }
@@ -115,12 +117,34 @@ const sutra = dan => new Date(Date.parse(`${dan}T12:00:00Z`) + 86400000).toISOSt
    samo između 7 i 22 h po vremenu mjesta (za „novo“ — po Sarajevu). */
 const DANJU = sat => sat >= 7 && sat < 22;
 
+/** Koliko je sada sati u zoni, u minutama od ponoći. */
+function minuteU(zona) {
+  const d = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: zona || 'Europe/Sarajevo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date()).map(x => [x.type, x.value]));
+  return Number(d.hour) * 60 + Number(d.minute);
+}
+
+/* Podsjetnik ide dan prije, navečer: od 19 h po vremenu mjesta. Cron zove
+   svaki sat od 7 do 21 h po Sarajevu, pa za BiH i Evropu stiže tačno u 19 h,
+   a za Zaljev, Maleziju i Australiju u njihovih 19 h (kod nas prijepodne).
+   Gdje je tamošnjih 19 h kod nas noć (Amerika), to veče cron nikad ne
+   dočeka — tamo podsjetnik ide dan prije čim se kod njih razdani. */
+const VECE = 19;
+function vrijemeZaPodsjetnik(zona, sat) {
+  // razlika zone prema Sarajevu u minutama, -12 h … +12 h
+  const razlika = ((minuteU(zona) - minuteU('Europe/Sarajevo') + 720 + 1440) % 1440) - 720;
+  const nasih = ((VECE * 60 - razlika) % 1440 + 1440) % 1440;     // tamošnjih 19 h po Sarajevu
+  const docekaVece = nasih >= 7 * 60 && nasih <= 21 * 60;
+  return docekaVece ? sat >= VECE && sat < 22 : DANJU(sat);
+}
+
 /**
  * Nadoknada za predavanja (zove je /api/send?nadoknadi=1):
  *   1. „Novo predavanje“ — dovrši za sva kojima je obavijest krenula u
  *      zadnja dva dana, a nije stigla do svih;
  *   2. podsjetnik — za predavanja koja su sutra (po vremenu mjesta), onima
- *      koji ih prate.
+ *      koji ih prate, navečer (vidi vrijemeZaPodsjetnik).
  * Svaki dio ima svoj try: greška u jednom ne zaustavlja ostale.
  */
 export async function nadoknadiPredavanja(opcije) {
@@ -131,17 +155,14 @@ export async function nadoknadiPredavanja(opcije) {
 
   if (DANJU(sadaU('Europe/Sarajevo').sat)) {
     const nova = await predavanjaUObavjestavanju().catch(() => []);
-    if (nova.length) {
-      const pretplate = await svePretplate({ zaPredavanja: true });
-      for (const p of nova) await probaj(`novo:${p.id}`, () => dostavi(`novo:${p.id}`, pretplate, sadrzajNovog(p), opcije, 'nadoknada', p.naslov));
-    }
+    for (const p of nova) await probaj(`novo:${p.id}`, () => dostavi(`novo:${p.id}`, { zaPredavanja: true }, sadrzajNovog(p), opcije, 'nadoknada', p.naslov));
   }
 
   for (const p of await predavanjaUskoro().catch(() => [])) {
     const s = sadaU(p.zona);
-    if (p.datum !== sutra(s.dan) || !DANJU(s.sat)) continue;
-    await probaj(`podsjetnik:${p.id}`, async () =>
-      dostavi(`podsjetnik:${p.id}`, await svePretplate({ prati: p.id }), sadrzajPodsjetnika(p), opcije, 'nadoknada', p.naslov));
+    if (p.datum !== sutra(s.dan) || !vrijemeZaPodsjetnik(p.zona, s.sat)) continue;
+    await probaj(`podsjetnik:${p.id}`, () =>
+      dostavi(`podsjetnik:${p.id}`, { prati: p.id }, sadrzajPodsjetnika(p), opcije, 'nadoknada', p.naslov));
   }
   return izv;
 }

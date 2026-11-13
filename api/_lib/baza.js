@@ -121,10 +121,45 @@ const STRANICA = 1000;
 /** Sve pretplate u obliku koji `web-push` prima direktno, plus `id` za brisanje.
     `zaPredavanja` ostavlja samo uređaje koji nisu isključili obavijesti o
     predavanjima, a `prati` (id predavanja) samo one koji ga prate. */
-export async function svePretplate({ zaPredavanja = false, prati = 0 } = {}) {
-  const filter = `${zaPredavanja || prati ? '&predavanja=is.true' : ''}${prati ? `&pracena=cs.%7B${Number(prati)}%7D` : ''}`;
-  const redovi = await sveStranice(`${TAB_PRETPLATE}?select=id,endpoint,p256dh,auth&order=id.asc${filter}`);
-  return redovi.map(red => ({ id: red.id, endpoint: red.endpoint, keys: { p256dh: red.p256dh, auth: red.auth } }));
+const filterPretplata = ({ zaPredavanja = false, prati = 0 } = {}) =>
+  `${zaPredavanja || prati ? '&predavanja=is.true' : ''}${prati ? `&pracena=cs.%7B${Number(prati)}%7D` : ''}`;
+const uPretplatu = red => ({ id: red.id, endpoint: red.endpoint, keys: { p256dh: red.p256dh, auth: red.auth } });
+
+export async function svePretplate(filter = {}) {
+  const redovi = await sveStranice(`${TAB_PRETPLATE}?select=id,endpoint,p256dh,auth&order=id.asc${filterPretplata(filter)}`);
+  return redovi.map(uPretplatu);
+}
+
+/* Nadoknada se zove svaki sat, a obično su svi već dobili. Zato prvo samo
+   id-evi (par bajtova po pretplati); cijeli red (endpoint i ključevi, ~400 B)
+   čita se samo za one kojima još treba poslati. */
+const KOMAD_ID = 200;            // toliko id-eva u jednom `id=in.(…)` — URL ostaje kratak
+
+/**
+ * Ko od pretplata (uz isti filter kao `svePretplate`) još nema obavijest
+ * `kljuc`. Vraća `{ ukupno, dobilo, ostali }`: koliko pretplata ima, koliko
+ * ih je već dobilo i pune pretplate onih koji nisu. Kad fali većina (prvo
+ * slanje u danu), cijela lista u jednom prolazu je jeftinija od komada.
+ */
+export async function kojiNemaju(kljuc, filter = {}) {
+  const [idevi, imaju] = await Promise.all([
+    sveStranice(`${TAB_PRETPLATE}?select=id&order=id.asc${filterPretplata(filter)}`).then(r => r.map(x => x.id)),
+    isporucene(kljuc),
+  ]);
+  const fale = idevi.filter(id => !imaju.has(id));
+  const dobilo = idevi.length - fale.length;
+  if (!fale.length) return { ukupno: idevi.length, dobilo, ostali: [] };
+  if (fale.length > idevi.length / 2) {
+    const ostali = (await svePretplate(filter)).filter(s => !imaju.has(s.id));
+    return { ukupno: idevi.length, dobilo, ostali };
+  }
+  const ostali = [];
+  for (let i = 0; i < fale.length; i += KOMAD_ID) {
+    const komad = fale.slice(i, i + KOMAD_ID);
+    const redovi = await sveStranice(`${TAB_PRETPLATE}?select=id,endpoint,p256dh,auth&id=in.(${komad.join(',')})&order=id.asc`);
+    ostali.push(...redovi.map(uPretplatu));
+  }
+  return { ukupno: idevi.length, dobilo, ostali };
 }
 
 const izContentRange = r => {

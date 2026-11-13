@@ -4,7 +4,7 @@
 
      /api/send?nadoknadi=1   poruka dana samo onima koji današnju još nemaju,
                              pa obavijesti o predavanjima i podsjetnici. Cron
-                             ga zove svakih 15 minuta preko dana: prvi poziv
+                             ga zove svaki sat preko dana (7–21 h): prvi poziv
                              pošalje svima, ostali dostave ono što je palo ili
                              nije stiglo na red — dok ne stigne do svakoga.
      /api/send               poruka dana onima koji je danas još nisu dobili
@@ -17,7 +17,7 @@
 
    curl -H "x-cron-secret: <CRON_SECRET>" "https://<domen>/api/send?nadoknadi=1"  */
 import {
-  svePretplate, skiniPretplate, bazaSpremna, isporucene, zabiljeziIsporuke, ocistiIsporuke, ocistiDogadjaje,
+  svePretplate, kojiNemaju, skiniPretplate, bazaSpremna, zabiljeziIsporuke, ocistiIsporuke, ocistiDogadjaje,
   obrisiProslaPredavanja, uzmiBravu, pustiBravu,
 } from './_lib/baza.js';
 import { ovlascen, odbij } from './_lib/auth.js';
@@ -81,43 +81,52 @@ export default async function handler(req, res) {
 
 async function posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik, req }) {
   const kljuc = `dan:${dan}`;
-  postaviVapid();
-  const podaci = await jos(() => ucitajPoruke(req));
-  const poruka = porukaZaDatum(podaci);
-  // isti payload za sve — serijalizuje se jednom, ne po uređaju
-  const sadrzaj = JSON.stringify({ ...napraviSadrzaj(podaci, poruka), kljuc });
+  postaviVapid();                       // treba i obavijestima o predavanjima ispod
 
-  const sve = (await jos(() => svePretplate())) || [];
-
-  /* Šalje se samo onima kojih nema u dnevniku. Nadoknada bez dnevnika ne zna
-     kome je već poslano — tada ne šalje nikome, da niko ne dobije istu poruku
-     svakih 15 minuta; obično slanje tada ide svima, kao ranije. */
-  let imaju = new Set();
+  /* Kome slati. Uz dnevnik samo onima kojih u njemu nema — a kad su svi već
+     dobili, poziv ne čita ni pune pretplate ni poruke, samo id-eve (vidi
+     kojiNemaju u baza.js), pa je prazan poziv nadoknade skoro besplatan.
+     Nadoknada bez dnevnika ne zna kome je već poslano — tada ne šalje nikome,
+     da niko ne dobije istu poruku na svaki poziv; obično slanje tada ide
+     svima, kao ranije. */
+  let ukupno = 0, dobilo = 0, pretplate = null;
   if (dnevnik && !svima) {
-    try { imaju = await jos(() => isporucene(kljuc)); }
+    try { ({ ukupno, dobilo, ostali: pretplate } = await jos(() => kojiNemaju(kljuc))); }
     catch (e) {
       if (nadoknadi) return [503, { greska: `Nadoknada ne može pročitati dnevnik isporuka: ${e.message}` }];
     }
   }
-  const pretplate = svima ? sve : sve.filter(s => !imaju.has(s.id));
+  if (!pretplate) {
+    pretplate = (await jos(() => svePretplate())) || [];
+    ukupno = pretplate.length;
+  }
 
-  const r = await razasalji(pretplate, sadrzaj, {
-    pocetak, rokMs: ROK_PORUKE_MS,
-    // bilježi se u svakom načinu: sljedeći poziv zna ko je dobio
-    zabiljezi: dnevnik ? idevi => zabiljeziIsporuke(kljuc, idevi) : null,
-  });
+  // poruke se učitavaju tek kad ima kome slati
+  let poruka = null;
+  let r = { poslano: 0, palo: 0, preskoceno: 0, drugiKrug: 0, mrtve: [], greske: {}, upisPao: false };
+  if (pretplate.length) {
+    const podaci = await jos(() => ucitajPoruke(req));
+    poruka = porukaZaDatum(podaci);
+    // isti payload za sve — serijalizuje se jednom, ne po uređaju
+    const sadrzaj = JSON.stringify({ ...napraviSadrzaj(podaci, poruka), kljuc });
+    r = await razasalji(pretplate, sadrzaj, {
+      pocetak, rokMs: ROK_PORUKE_MS,
+      // bilježi se u svakom načinu: sljedeći poziv zna ko je dobio
+      zabiljezi: dnevnik ? idevi => zabiljeziIsporuke(kljuc, idevi) : null,
+    });
+  }
 
   // mrtve pretplate odlaze u grupama, ne poziv po zapisu
   let ocisceno = 0;
   if (r.mrtve.length) {
     try { ocisceno = await skiniPretplate(r.mrtve); } catch { /* tiho — slanje je prošlo */ }
   }
-  const dostavljeno = sve.filter(s => imaju.has(s.id)).length + r.poslano;
-  // sažetak za pregled kad se nešto desilo — ne isti red svakih 15 minuta zbog
+  const dostavljeno = dobilo + r.poslano;
+  // sažetak za pregled kad se nešto desilo — ne isti red na svaki poziv zbog
   // pretplate koja uporno pada
-  if (pretplate.length && (r.poslano || r.mrtve.length || r.upisPao || !imaju.size)) {
-    await zapisiSlanje(kljuc, imaju.size ? 'nadoknada' : 'slanje',
-      { pretplata: sve.length - r.mrtve.length, dostavljeno, r, pocetak, poruka: poruka.id });
+  if (pretplate.length && (r.poslano || r.mrtve.length || r.upisPao || !dobilo)) {
+    await zapisiSlanje(kljuc, dobilo ? 'nadoknada' : 'slanje',
+      { pretplata: ukupno - r.mrtve.length, dostavljeno, r, pocetak, poruka: poruka.id });
   }
 
   /* Predavanja tek kad je poruka dana obavljena, samo uz PREDAVANJA_PUSH=1 i
@@ -140,9 +149,9 @@ async function posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik, req }) {
     ok: r.preskoceno === 0 && !r.upisPao,
     dan,
     nacin,
-    porukaId: poruka.id,
-    pretplata: sve.length,
-    ...(imaju.size ? { vecDobilo: imaju.size } : {}),
+    ...(poruka ? { porukaId: poruka.id } : {}),
+    pretplata: ukupno,
+    ...(dobilo ? { vecDobilo: dobilo } : {}),
     poslano: r.poslano, palo: r.palo, ocisceno,
     ...(r.drugiKrug ? { drugiKrug: r.drugiKrug } : {}),
     trajanjeMs: Date.now() - pocetak,
@@ -154,6 +163,6 @@ async function posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik, req }) {
       : {}),
     ...(Object.keys(r.greske).length ? { greske: r.greske } : {}),
     ...(predavanja ? { predavanja } : {}),
-    ...(sve.length ? {} : { napomena: 'Nema ni jedne pretplate u bazi — uređaji nisu registrovani' }),
+    ...(ukupno ? {} : { napomena: 'Nema ni jedne pretplate u bazi — uređaji nisu registrovani' }),
   }];
 }

@@ -152,27 +152,32 @@ zaglavlje:  x-cron-secret: <CRON_SECRET>
 servisom, uključujući Vercel Cron.
 
 **Preporučeno: nadoknada, da poruka stigne do svakoga.** U cron servisu
-postavi poziv svakih 15 minuta između 7 i 22 h:
+postavi poziv svaki sat, u punih sat, od 7 do 21 h (vremenska zona
+Europe/Sarajevo):
 
 ```
 GET  https://<domen>/api/send?nadoknadi=1
 zaglavlje:  x-cron-secret: <CRON_SECRET>
-raspored:   */15 7-21 * * *
+raspored:   0 7-21 * * *
 ```
 
 Prvi poziv u danu pošalje poruku dana svima. Svaki sljedeći šalje je samo
 uređajima koji je još nisu dobili: onima kod kojih je push servis pao,
 onima koji nisu stigli na red prije isteka vremena, i novim pretplatama.
 Ko je šta dobio piše u tabeli `isporuke`, pa niko ne dobije istu poruku
-dvaput. Kad je sve dostavljeno, poziv traje nekoliko milisekundi. Kašnjenje
-je moguće, ali poruka stigne do svih.
+dvaput. Kad je sve dostavljeno, poziv iz baze čita samo id-eve pretplata
+(par bajtova po uređaju) i traje nekoliko milisekundi; pune pretplate i
+poruke čita tek kad ima kome slati. Kašnjenje je moguće, ali poruka stigne
+do svih.
 
 Uz `PREDAVANJA_PUSH=1` isti poziv dovršava i obavijesti „Novo predavanje“
-(dva dana od objave) i šalje podsjetnik dan prije za predavanja na koja
-korisnik planira ići. Te obavijesti idu samo između 7 i 22 h po vremenu
-mjesta. Obavijest o novom predavanju kreće samo kad je u adminu uključen
-prekidač „Pošalji obavijest“; bez njega je predavanje samo vidljivo u
-aplikaciji.
+(dva dana od objave, između 7 i 22 h po Sarajevu) i šalje **podsjetnik dan
+prije u 19 h** po vremenu mjesta, onima koji planiraju ići. Za BiH i Evropu
+to je poziv u 19 h; za Zaljev, Maleziju i Australiju njihovih 19 h pada u
+naše prijepodne. Gdje je tamošnjih 19 h kod nas noć (Amerika), podsjetnik
+ide dan prije čim se kod njih razdani. Obavijest o novom predavanju kreće
+samo kad je u adminu uključen prekidač „Pošalji obavijest“; bez njega je
+predavanje samo vidljivo u aplikaciji.
 
 Nadoknada usput čisti: stare isporuke (14 dana), brojače pregleda starije
 od 7 dana i **prošla predavanja — dva dana poslije datuma brišu se iz baze**.
