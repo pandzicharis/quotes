@@ -659,7 +659,7 @@ async function otvoriKalendar(prikaz = 'sva') {
   kalPrikaz = prikaz;
   crtajKalendar();
   app.otvori($('#m-kalendar'));
-  // svježa lista u pozadini — CDN je drži par minuta, pa je ovo jeftino
+  // svježa lista u pozadini — CDN je drži pola minute, pa je ovo jeftino
   try { lista = await ucitajPredavanja(); crtajKalendar(); crtajTraku(); } catch { /* ostaje stara */ }
 }
 
@@ -725,10 +725,23 @@ export async function pokreni(a, ponudi = true) {
   app = a;
   napraviKostur();
   try { lista = await ucitajPredavanja(); } catch { return; }
+  let ucitano = Date.now();
   crtajTraku();
   setInterval(tik, 1000);
-  // odbrojavanje u boxu ide po danima — povratak iz pozadine sutradan ga osvježi
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') crtajTraku(); });
+  /* Povratak iz pozadine: telefon aplikaciju često ne pokreće ispočetka, pa
+     bi novo predavanje ostalo nevidljivo dok se ona potpuno ne zatvori.
+     Odbrojavanje u boxu se osvježi odmah; lista najviše jednom u minuti, pa
+     ako je stiglo nešto novo — ponuda kao pri otvaranju. Mali zastoj da
+     dodir na obavijest (koji otvara baš to predavanje) stigne prvi. */
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible') return;
+    crtajTraku();
+    if (Date.now() - ucitano < 60000) return;
+    ucitano = Date.now();
+    try { lista = await ucitajPredavanja(); } catch { return; }
+    crtajTraku();
+    setTimeout(() => ponudiNovo(), 1500);
+  });
   // praćena koja su prošla (ili skinuta) ne treba čuvati ni slati serveru
   const ziva = pracena().filter(id => lista.some(p => p.id === id && !proslo(p)));
   if (ziva.length !== pracena().length) pisi(PRACENA, ziva);

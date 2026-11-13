@@ -204,9 +204,10 @@ Vraća je li VAPID postavljen, je li baza povezana i koliko je pretplata.
 `"spremno": true` znači da dnevno slanje radi; ako nije, polje `nedostaje`
 imenuje varijable koje treba dodati.
 
-**Statistika:** stranica `https://<domen>/analytics` nije nigdje povezana.
-Traži admin šifru (`ADMIN_SECRET`, ista kao u `/admin`) i za zadnjih 30 dana
-pokazuje:
+**Statistika:** tab „Statistika“ u `/admin` (ugrađena stranica
+`https://<domen>/analytics`, koja radi i sama, ali nije povezana iz
+aplikacije). Traži admin šifru (`ADMIN_SECRET`, ista kao u `/admin`) i za
+zadnjih 30 dana pokazuje:
 - **predato** — koliko je obavijesti primio Apple/Google push servis, koliko
   nije i šta je palo, sa svakim pozivom crona;
 - **stiglo** — koliko je telefona javilo da je obavijest prikazana (donja

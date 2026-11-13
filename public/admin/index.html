@@ -2,7 +2,7 @@
 <html lang="bs">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Admin · Poruka dana</title>
 <link rel="icon" href="/assets/icons/icon-192.png">
@@ -39,6 +39,7 @@
     <symbol id="i-raspon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></symbol>
     <symbol id="i-ulaz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M3 12h11M10 8l4 4-4 4"/></symbol>
     <symbol id="i-ponisti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h11a5 5 0 0 1 0 10H9"/><path d="M8 5L4 9l4 4"/></symbol>
+    <symbol id="i-grafikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 1.7)" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M7 16v-4M12 16V7M17 16v-6"/></symbol>
     <symbol id="i-iskra" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/></symbol>
   </defs>
 </svg>
@@ -66,6 +67,7 @@
     <nav>
       <button data-tab="lista" aria-current="true" title="Predavanja"><svg class="ik"><use href="#i-kalendar"/></svg><span>Predavanja</span></button>
       <button data-tab="citati" title="Poruke"><svg class="ik"><use href="#i-navod"/></svg><span>Poruke</span></button>
+      <button data-tab="statistika" title="Statistika"><svg class="ik"><use href="#i-grafikon"/></svg><span>Statistika</span></button>
     </nav>
     <div class="zaglavlje__desno">
       <span class="znacka" id="rezim" hidden>lokalni režim</span>
@@ -109,6 +111,11 @@
         <button class="tiho opasno" id="citati-ponisti" hidden><svg class="ik"><use href="#i-ponisti"/></svg> Poništi izmjene</button>
       </div>
       <div class="povrsina redovi" id="citati"></div>
+    </section>
+
+    <!-- statistika: stranica /analytics, ugrađena; šifru uzima iz ovog preglednika -->
+    <section data-pogled="statistika" hidden>
+      <iframe class="statistika" id="statistika" title="Statistika"></iframe>
     </section>
   </main>
 </div>

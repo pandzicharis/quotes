@@ -83,6 +83,23 @@ function pogled(ime) {
   $$('[data-tab]').forEach(b => b.setAttribute('aria-current', String(b.dataset.tab === ime)));
   scrollTo({ top: 0 });
   if (ime === 'citati') ucitajCitate();
+  if (ime === 'statistika') ucitajStatistiku();
+}
+
+/* Statistika je stranica /analytics, ugrađena tek kad se tab prvi put otvori.
+   Ista je adresa, pa šifru čita iz istog preglednika. Okvir raste s
+   sadržajem, da se lista kao i ostali tabovi, bez skrola unutar skrola. */
+function ucitajStatistiku() {
+  const okvir = $('#statistika');
+  if (okvir.src) return;
+  okvir.addEventListener('load', () => {
+    const dok = okvir.contentDocument;
+    if (!dok) return;
+    const visina = () => { okvir.style.height = `${dok.documentElement.scrollHeight}px`; };
+    new ResizeObserver(visina).observe(dok.body);
+    visina();
+  });
+  okvir.src = '/analytics/';
 }
 $$('[data-tab]').forEach(b => b.addEventListener('click', () => pogled(b.dataset.tab)));
 $$('[data-novo]').forEach(b => b.addEventListener('click', () => { uFormu(); otvoriModal(); }));

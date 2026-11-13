@@ -17,6 +17,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="/css/app.css">
+<script>
+  // ugrađena u /admin (tab „Statistika“): bez znaka, pozadine i rubova — to daje admin
+  if (window.top !== window.self) document.documentElement.classList.add('ugradjeno');
+</script>
 <style>
   body { padding: max(24px, env(safe-area-inset-top)) 16px max(40px, env(safe-area-inset-bottom)); }
   main { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; }
@@ -85,6 +89,11 @@
   .prijava button { height: 46px; border: 0; border-radius: 999px; cursor: pointer; font: 600 12px var(--sans); letter-spacing: .14em; text-transform: uppercase;
     background: linear-gradient(135deg, var(--brand-gold-l), var(--brand-gold)); color: #11221A; }
   .prijava p { margin: 0; font-size: 13px; color: #E08A6E; min-height: 18px; }
+
+  .ugradjeno body { padding: 0; background: transparent; min-height: 0; }
+  .ugradjeno .ambient, .ugradjeno header img { display: none; }
+  .ugradjeno main { max-width: none; }
+  .ugradjeno header { margin-top: 0; }
 </style>
 </head>
 <body>
