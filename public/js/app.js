@@ -8,15 +8,35 @@
    17 Nadogradnja i reset · 18 Start
    ============================================================ */
 
+import {
+  SERIF, DISPLAY, SANS, STILOVI,
+  ucitajSliku, lomiTekst, uzorakNaPlatno, koricaNaPlatno, podloga, okvir, razdjelnikZnak,
+} from './platno.js';
+
 /* Mora biti isto kao IZDANJE u sw.js — po toj oznaci se odlučuje hoće li se
    korisniku ponuditi traka „nova verzija“. Podiže se samo kad izdanje zaista
    nosi nešto novo, ne na svaku izmjenu koda. */
-const VERZIJA = '1.6.1';
+const VERZIJA = '1.7.0';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
    ponovo kroz onboarding. Dodan korak izbora izgleda u PWA toku, pa ide 3. */
 const UVOD_VERZIJA = 3;
+
+/* Predavanja (kalendar, plakati, obavijest o novom predavanju) su u izradi i
+   za sve su isključena — modul se tada ni ne učitava. Na jednom uređaju se
+   uključe sa ?predavanja=1, a isključe sa ?predavanja=0. */
+const PREDAVANJA = false;
+
+/* Test okruženje: grana `test` na Vercelu (…-git-test-….vercel.app), sa svojom
+   bazom i ključevima. Tamo su predavanja uključena sama — instalirana
+   aplikacija nema adresnu traku za ?predavanja=1 — a gore stoji oznaka TEST,
+   da se ne pomiješa s pravom aplikacijom na istom telefonu. */
+const TEST = /-git-test-/.test(location.hostname);
+if (TEST) {
+  document.documentElement.classList.add('test');
+  document.title = `TEST · ${document.title}`;
+}
 
 /* ---------- 1. KONSTANTE ---------- */
 const DAN_MS = 86400000;
@@ -28,9 +48,6 @@ const MJESECI_KRATKO = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'avg', 
 const HIDZRI_MJESECI = ['muharrem', 'safer', 'rebiu-l-evvel', 'rebiu-l-ahir', 'džumade-l-ula', 'džumade-l-uhra',
                         'redžeb', "ša'ban", 'ramazan', 'ševval', "zu-l-ka'de", 'zu-l-hidždže'];
 
-const SERIF = '"EB Garamond", Georgia, serif';
-const DISPLAY = '"Playfair Display", Georgia, serif';
-const SANS  = '"IBM Plex Sans", system-ui, sans-serif';
 
 const FORMATI = [
   { id: 'prica',   naziv: 'Priča',   opis: '9:16', w: 1080, h: 1920 },
@@ -38,16 +55,6 @@ const FORMATI = [
   { id: 'kvadrat', naziv: 'Kvadrat', opis: '1:1',  w: 1080, h: 1080 },
 ];
 
-/* `uzorak` je jačina teksture na podlozi slike za dijeljenje. Na zelenoj je
-   niža: svijetao motiv na tamnoj podlozi ima veći kontrast pa iskače jače
-   nego zlato na papiru — ista brojka tu ne daje isti utisak. Vrijednosti su
-   složene po izgledu, ne po računu.
-   `korica` je jačina korice knjige u pozadini — ista kao na kartici u
-   tamnoj odnosno svijetloj temi (`--korica-op` × 1,3 iz `.karta > .korica`). */
-const STILOVI = [
-  { id: 'zelena', naziv: 'Zelena', bg: ['#204234', '#0D1C15'], ink: '#F6EFDF', gold: '#E3C489', navod: '#E9C77E', logo: 'w', uzorak: .038, korica: .338 },
-  { id: 'krem',   naziv: 'Krem',   bg: ['#F7F1E2', '#E6D9BC'], ink: '#162C21', gold: '#8E6C28', navod: '#A8813A', logo: 'b', uzorak: .09,  korica: .286 },
-];
 
 /* Uvod ima dva odvojena toka.
 
@@ -105,6 +112,9 @@ const LS = {
   nvOdbijeno: 'pd.nvOdbijeno',   // izdanje koje je korisnik odložio na „Kasnije“
   uredjaj:    'pd.uredjaj',      // nasumična oznaka uređaja, samo za brojanje instalacija
   instalJavljeno: 'pd.instalJavljeno',
+  aktivnoDan: 'pd.aktivnoDan',   // dan kad je uređaj zadnji put javio da je aplikacija otvorena (pregled)
+  predavanja: 'pd.predavanja',   // zastavica PREDAVANJA uključena na ovom uređaju
+  predavanjaObavijesti: 'pd.predavanjaObavijesti',   // obavijest o novom predavanju (postavka u modulu)
 };
 
 /* ---------- 2. HELPERI ---------- */
@@ -279,7 +289,8 @@ function prikaziDan(animiraj = true) {
   else el.cover.hidden = true;
   postaviKoricu(el.korica, k);
 
-  // povratak na danas se nudi samo kad se gleda stariji dan
+  // strelica naprijed nema kuda dalje od danas (lokalno ima — poruke se gledaju
+  // unaprijed); „Danas“ se nudi tek kad do njega treba više od jednog koraka
   el.karta.dataset.stari = jeDanas ? '0' : '1';
   el.danDanas.hidden     = jeDanas;
 
@@ -442,6 +453,59 @@ function postaviSwipe(karta) {
   }, true);
 }
 
+/* ---------- 7b. ŽIVA KARTICA ---------- */
+/* Dvostruki dodir po kartici čuva poruku. Dodatak — bez ovoga kartica radi
+   kao i prije. */
+
+/** Dva brza dodira bilo gdje po kartici (osim po dugmadima) čuvaju poruku. */
+const DVODODIR_MS = 320;
+function postaviDodire(karta) {
+  let t0 = 0, x0 = 0, y0 = 0, zadnji = 0, zx = 0, zy = 0;
+
+  karta.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    t0 = e.target.closest('button, a, input, textarea, select') ? 0 : e.timeStamp;
+    x0 = e.clientX; y0 = e.clientY;
+  });
+
+  // dvoklik mišem inače označi riječ pod pokazivačem
+  karta.addEventListener('mousedown', e => { if (e.detail > 1) e.preventDefault(); });
+
+  karta.addEventListener('pointerup', e => {
+    const dodir = t0 && e.timeStamp - t0 < 320 && Math.hypot(e.clientX - x0, e.clientY - y0) < 10;
+    t0 = 0;
+    if (!dodir) return;
+    if (e.timeStamp - zadnji < DVODODIR_MS && Math.hypot(e.clientX - zx, e.clientY - zy) < 44) {
+      zadnji = 0;
+      sacuvajDodirom(e.clientX, e.clientY);
+      return;
+    }
+    zadnji = e.timeStamp; zx = e.clientX; zy = e.clientY;
+  });
+}
+
+/** Dvostruki dodir: poruka ide u zbirku (ako već nije), a pod prstom procvjeta zvijezda. */
+function sacuvajDodirom(x, y) {
+  if (nadjiSacuvano(stanje.datum) === -1) prebaciFav();
+
+  const z = document.createElement('i');
+  z.className = 'zvijezda-dodir';
+  z.innerHTML = ikona('i-zvijezda-f');
+  z.style.left = `${x}px`; z.style.top = `${y}px`;
+  document.body.appendChild(z);
+  if (mirnoKretanje()) { setTimeout(() => z.remove(), 700); return; }
+  // krivulja ide po dionici, ne preko cijele animacije — inače cvjetanje
+  // proleti u trenu, a gašenje pojede ostatak
+  const tr = (s, r, y2 = -50) => `translate(-50%, ${y2}%) scale(${s}) rotate(${r}deg)`;
+  z.animate([
+    { transform: tr(.2, -18), opacity: 0, easing: 'cubic-bezier(.34, 1.56, .64, 1)' },
+    { transform: tr(1, 0),    opacity: 1, offset: .36 },
+    { transform: tr(1, 0),    opacity: 1, offset: .68, easing: 'cubic-bezier(.4, 0, 1, 1)' },
+    { transform: tr(.9, 0, -96), opacity: 0 },
+  ], { duration: 1000 }).onfinish = () => z.remove();
+  iskreNa(x, y, 12, 44);
+}
+
 /* ---------- 8. AKCIJE ---------- */
 const nadjiSacuvano = d => stanje.sacuvano.findIndex(s => s.d === kljuc(d));
 
@@ -462,6 +526,7 @@ function prebaciFav() {
     setTimeout(() => el.fav.classList.remove('pulse'), 520);
     iskre(el.fav);
     poruka('Sačuvano u tvoju zbirku', 'i-zvijezda-f');
+    javiZaPoruku('sacuvano');
   } else {
     stanje.sacuvano.splice(i, 1);
     poruka('Uklonjeno iz zbirke', 'i-x');
@@ -474,15 +539,19 @@ function prebaciFav() {
 
 /** Kratki bljesak čestica oko dugmeta. */
 function iskre(dugme) {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const r = dugme.getBoundingClientRect();
-  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-  for (let i = 0; i < 9; i++) {
+  iskreNa(r.left + r.width / 2, r.top + r.height / 2);
+}
+
+/** Isti bljesak oko tačke na ekranu; `domet` je koliko daleko čestice odlete. */
+function iskreNa(cx, cy, broj = 9, domet = 22) {
+  if (mirnoKretanje()) return;
+  for (let i = 0; i < broj; i++) {
     const t = document.createElement('i');
     t.className = 'iskra';
     t.style.left = `${cx}px`; t.style.top = `${cy}px`;
     document.body.appendChild(t);
-    const ugao = (Math.PI * 2 * i) / 9, dist = 22 + Math.random() * 22;
+    const ugao = (Math.PI * 2 * i) / broj, dist = domet + Math.random() * domet;
     t.animate(
       [{ transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
        { transform: `translate(${Math.cos(ugao) * dist - 50}%, ${Math.sin(ugao) * dist - 50}%) scale(0)`, opacity: 0 }],
@@ -502,6 +571,7 @@ async function kopirajTekst() {
   try {
     await navigator.clipboard.writeText(t);
     poruka('Poruka kopirana', 'i-kopiraj');
+    javiZaPoruku('kopiranje');
   } catch {
     const p = document.createElement('textarea');
     p.value = t; p.style.position = 'fixed'; p.style.opacity = '0';
@@ -509,6 +579,7 @@ async function kopirajTekst() {
     const ok = document.execCommand?.('copy');
     p.remove();
     poruka(ok ? 'Poruka kopirana' : 'Kopiranje nije uspjelo', ok ? 'i-kopiraj' : 'i-info');
+    if (ok) javiZaPoruku('kopiranje');
   }
 }
 
@@ -707,11 +778,32 @@ function kljucUBajtove(b64) {
 
 const swSpreman = () => ('serviceWorker' in navigator ? navigator.serviceWorker.ready : null);
 
+/* Pretplata koju server više ne može dosegnuti, a preglednik je i dalje
+   drži: napravljena s drugim VAPID ključem (server bi dobijao 403 zauvijek)
+   ili joj ističe rok. Takva se zamjenjuje novom, inače poruke tiho ne stižu. */
+function pretplataZastarjela(sub) {
+  if (sub.expirationTime && sub.expirationTime < Date.now() + DAN_MS) return true;
+  const k = sub.options?.applicationServerKey;
+  // poredimo samo sirov P-256 ključ (65 bajtova); nepoznat oblik ne diramo
+  if (!k || k.byteLength !== 65) return false;
+  const imamo = new Uint8Array(k), treba = kljucUBajtove(push.javniKljuc);
+  return imamo.length !== treba.length || imamo.some((b, i) => b !== treba[i]);
+}
+
+/* Kad je pretplata zadnji put javljena serveru — da se iz pozadine ne javlja
+   na svaki povratak u aplikaciju (vidi init). */
+let pushJavljen = 0;
+
 async function pretplatiPush() {
   const reg = await swSpreman();
   if (!reg || !('pushManager' in reg)) return null;
 
   let sub = await reg.pushManager.getSubscription();
+  // bez ključa sa servera novu ne možemo napraviti — onda staru ne diramo
+  if (sub && push.spreman && pretplataZastarjela(sub)) {
+    await odjaviPush();
+    sub = null;
+  }
   if (!sub) {
     if (!push.spreman) return null;                     // nema VAPID ključa
     sub = await reg.pushManager.subscribe({
@@ -719,12 +811,20 @@ async function pretplatiPush() {
       applicationServerKey: kljucUBajtove(push.javniKljuc),
     });
   }
+  // izbor obavijesti za predavanja ide samo kad ga je korisnik dirao; praćena uvijek kad ih ima
+  const predavanja = cita(LS.predavanjaObavijesti, null);
+  const pracena = cita('pd.predavanjaPracena', null);
   try {
     await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sub),
+      body: JSON.stringify({
+        ...sub.toJSON(),
+        ...(typeof predavanja === 'boolean' ? { predavanja } : {}),
+        ...(Array.isArray(pracena) ? { pracena } : {}),
+      }),
     });
+    pushJavljen = Date.now();
   } catch { /* server nije dostupan, pretplata ostaje lokalno */ }
   return sub;
 }
@@ -1495,18 +1595,6 @@ function crtajVeze() {
 }
 
 /* ---------- 13. DIJELJENJE (canvas) ---------- */
-const slikeCache = new Map();
-function ucitajSliku(src) {
-  if (!slikeCache.has(src)) {
-    slikeCache.set(src, new Promise((res, rej) => {
-      const i = new Image();
-      i.onload = () => res(i);
-      i.onerror = () => rej(new Error(src));
-      i.src = src;
-    }));
-  }
-  return slikeCache.get(src);
-}
 
 function crtajKontrole() {
   el.formati.innerHTML = FORMATI.map(f => {
@@ -1535,18 +1623,6 @@ function crtajKontrole() {
   }));
 }
 
-/** Lomi tekst na redove koji staju u zadanu širinu. */
-function lomiTekst(c, tekst, maxW) {
-  const redovi = [];
-  let red = '';
-  for (const rijec of tekst.split(/\s+/)) {
-    const test = red ? `${red} ${rijec}` : rijec;
-    if (c.measureText(test).width > maxW && red) { redovi.push(red); red = rijec; }
-    else red = test;
-  }
-  if (red) redovi.push(red);
-  return redovi;
-}
 
 /** Pregled se uklapa u dostupnu širinu modala — nikad ne prelije. */
 function dimenzionirajPregled(f) {
@@ -1558,205 +1634,6 @@ function dimenzionirajPregled(f) {
   el.platno.style.height = `${Math.round(h)}px`;
 }
 
-/* --- ornamenti na platnu --- */
-
-/* Odnos stranica iz viewBoxa texture.svg — pločica ga mora poštovati, inače
-   se motiv razvuče i šavovi između pločica postanu vidljivi. */
-const UZORAK_ODNOS = 12649.62 / 11492.45;
-
-/**
- * Maska za teksturu, složena u zasebnom platnu. Tri mrlje se sabiraju
- * (`lighter`) pa se preko njih spusti opšti pad prema dnu: uzorak se negdje
- * nakupi, negdje skoro nestane. Isti dah kao na kartici — nigdje oštrog ruba
- * i nigdje ravnog polja.
- */
-function uzorakMaska(W, H) {
-  const mk = document.createElement('canvas');
-  mk.width = W; mk.height = H;
-  const mc = mk.getContext('2d');
-  mc.globalCompositeOperation = 'lighter';
-
-  const domet = Math.max(W, H);
-  const mrlja = (cx, cy, r, jacina) => {
-    const g = mc.createRadialGradient(W * cx, H * cy, 0, W * cx, H * cy, domet * r);
-    g.addColorStop(0,   `rgba(255,255,255,${jacina})`);
-    g.addColorStop(.55, `rgba(255,255,255,${jacina * .4})`);
-    g.addColorStop(1,   'rgba(255,255,255,0)');
-    mc.fillStyle = g;
-    mc.fillRect(0, 0, W, H);
-  };
-
-  mrlja(.16, .05, .54, .8);
-  mrlja(.93, .24, .40, .5);
-  mrlja(.26, .58, .38, .26);
-
-  /* podnožje ostaje mirno — ispod citata nosi tekst, ne ornament */
-  const pad = mc.createLinearGradient(0, 0, 0, H);
-  pad.addColorStop(0,   'rgba(255,255,255,.5)');
-  pad.addColorStop(.5,  'rgba(255,255,255,.2)');
-  pad.addColorStop(.85, 'rgba(255,255,255,.04)');
-  pad.addColorStop(1,   'rgba(255,255,255,0)');
-  mc.fillStyle = pad;
-  mc.fillRect(0, 0, W, H);
-
-  return mk;
-}
-
-/**
- * Ista tekstura koja stoji iza aplikacije i na kartici, položena preko cijele
- * slike za dijeljenje — krupno, tiho i neravnomjerno, da se osjeti materijal
- * a ne da se čita kao šara.
- *
- * Vraća `false` ako slika ne prođe — slika za dijeljenje se svejedno crta,
- * samo bez teksture.
- */
-async function uzorakNaPlatno(c, W, H, jacina) {
-  let img;
-  try { img = await ucitajSliku('/assets/texture/texture.svg'); } catch { return false; }
-
-  /* Pločica je šira od same slike, pa se motiv preko nje i ne ponovi cijeli —
-     vidi se jedan krupan isječak, isto kao na kartici u aplikaciji. Odnos je
-     preuzet odatle: `background-size: 780px` preko kartice široke ~339px je
-     2,3 širine, pa isto toliko ide i ovdje. Sitnija pločica je davala gust,
-     nervozan uzorak koji se uz karticu vidio kao drugi motiv. */
-  const ploca = Math.round(W * 2.3);
-  const plocaH = Math.round(ploca * UZORAK_ODNOS);
-
-  const pl = document.createElement('canvas');
-  pl.width = ploca; pl.height = plocaH;
-  pl.getContext('2d').drawImage(img, 0, 0, ploca, plocaH);
-
-  const sloj = document.createElement('canvas');
-  sloj.width = W; sloj.height = H;
-  const sc = sloj.getContext('2d');
-  const pat = sc.createPattern(pl, 'repeat');
-  if (!pat) return false;
-  sc.fillStyle = pat;
-  sc.fillRect(0, 0, W, H);
-
-  sc.globalCompositeOperation = 'destination-in';
-  sc.drawImage(uzorakMaska(W, H), 0, 0);
-
-  c.save();
-  c.globalAlpha = jacina;
-  c.drawImage(sloj, 0, 0);
-  c.restore();
-  return true;
-}
-
-/* --- boje i prelivi za platno --- */
-
-/** `#RRGGBB` + alfa (0–1) → `#RRGGBBAA`. */
-const saAlfom = (hex, a) => `${hex}${Math.round(a * 255).toString(16).padStart(2, '0')}`;
-
-/* Ista boja, alfa nula. Canvas `'transparent'` je PROZIRNA CRNA, pa preliv
-   koji na njoj završava usput posivi — zlatna mrlja dobije prljav rub. */
-const prozirno = hex => `${hex.slice(0, 7)}00`;
-
-/** Linearna mješavina dvije `#RRGGBB` boje. */
-function mijesaj(a, b, t) {
-  const raz = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-  const [r1, g1, b1] = raz(a), [r2, g2, b2] = raz(b);
-  const k = v => Math.round(v).toString(16).padStart(2, '0');
-  return `#${k(r1 + (r2 - r1) * t)}${k(g1 + (g2 - g1) * t)}${k(b1 + (b2 - b1) * t)}`;
-}
-
-/** Preliv zadan CSS uglom (0deg = prema gore, 90deg = udesno), kao u `.karta`. */
-function kosiPreliv(c, W, H, deg, stanice) {
-  const rad = deg * Math.PI / 180;
-  const dx = Math.sin(rad), dy = -Math.cos(rad);
-  const duz = Math.abs(W * dx) + Math.abs(H * dy);
-  const g = c.createLinearGradient(
-    W / 2 - dx * duz / 2, H / 2 - dy * duz / 2,
-    W / 2 + dx * duz / 2, H / 2 + dy * duz / 2);
-  for (const [p, boja] of stanice) g.addColorStop(p, boja);
-  return g;
-}
-
-/* CSS `radial-gradient` crta elipsu, canvas zna samo krug — pa se krug razvuče
-   po visini. Bez toga bi mrlje bile okrugle i uzorak sjaja ne bi odgovarao
-   kartici, koja je sve svoje zadala kao elipse. */
-function eliptSjaj(c, W, H, { x, y, rx, ry, boja, kraj = 1 }) {
-  const k = ry / rx;
-  c.save();
-  c.translate(x, y);
-  c.scale(1, k);
-  const g = c.createRadialGradient(0, 0, 0, 0, 0, rx);
-  g.addColorStop(0, boja);
-  g.addColorStop(kraj, prozirno(boja));
-  if (kraj < 1) g.addColorStop(1, prozirno(boja));
-  c.fillStyle = g;
-  c.fillRect(-W * 3, -H * 3 / k, W * 6, H * 6 / k);
-  c.restore();
-}
-
-/* Zlatne mrlje kartice, prepisane iz `.karta` i `.karta__aura`. Udjeli su
-   isti kao u CSS-u, samo se množe sa W/H. Raspored je namjerno asimetričan —
-   vrh, donji desni ugao, gornji lijevi, pa tiha sredina — i baš to čini da
-   podloga diše umjesto da leži ravno. */
-const MRLJE = [
-  { x: .50,  y: -.10, rx: 1.20, ry: .68, a: .17, kraj: .62 },   // karta: vrh
-  { x: 1.05, y: 1.00, rx:  .95, ry: .55, a: .12, kraj: .60 },   // karta: donji desni
-  { x: .16,  y:  .06, rx:  .58, ry: .42, a: .26, kraj: .70 },   // aura: gornji lijevi
-  { x: .88,  y:  .94, rx:  .54, ry: .40, a: .20, kraj: .72 },   // aura: donji desni
-  { x: .50,  y:  .50, rx:  .70, ry: .50, a: .08, kraj: .75 },   // aura: sredina
-];
-
-/**
- * Korica knjige u pozadini, prepisana iz `.korica` i `.karta > .korica`:
- * 64% širine, 2:3, gore desno (top 4%, right -12%), nagnuta 9°, zamućena,
- * utopljena maskom i položena kao `luminosity` — uzme boju podloge, ostane
- * samo njen crtež i svjetlo. Pikseli iz CSS-a (blur, zaobljenje) važe za
- * karticu široku ~339px, pa se skaliraju na širinu slike.
- */
-function koricaNaPlatno(c, W, H, img, jacina) {
-  const mj = W / 339;
-  const cw = Math.round(W * 0.64), ch = Math.round(cw * 1.5);
-
-  const kp = document.createElement('canvas');
-  kp.width = cw; kp.height = ch;
-  const kc = kp.getContext('2d');
-
-  // background: center / cover, uz border-radius 6px
-  kc.save();
-  if (kc.roundRect) { kc.beginPath(); kc.roundRect(0, 0, cw, ch, 6 * mj); kc.clip(); }
-  const sk = Math.max(cw / img.naturalWidth, ch / img.naturalHeight);
-  const iw = img.naturalWidth * sk, ih = img.naturalHeight * sk;
-  kc.filter = `blur(${1.3 * mj}px)`;
-  kc.drawImage(img, (cw - iw) / 2, (ch - ih) / 2, iw, ih);
-  kc.restore();
-
-  // mask: radial-gradient(95% 80% at 70% 26%, #000 0%, rgba(0,0,0,.75) 48%, transparent 88%)
-  const rx = cw * 0.95, ry = ch * 0.80;
-  kc.globalCompositeOperation = 'destination-in';
-  kc.translate(cw * 0.70, ch * 0.26);
-  kc.scale(1, ry / rx);
-  const g = kc.createRadialGradient(0, 0, 0, 0, 0, rx);
-  g.addColorStop(0,   'rgba(0,0,0,1)');
-  g.addColorStop(.48, 'rgba(0,0,0,.75)');
-  g.addColorStop(.88, 'rgba(0,0,0,0)');
-  g.addColorStop(1,   'rgba(0,0,0,0)');
-  kc.fillStyle = g;
-  kc.fillRect(-cw * 2, -ch * 2 * rx / ry, cw * 4, ch * 4 * rx / ry);
-
-  c.save();
-  c.globalAlpha = jacina;
-  c.globalCompositeOperation = 'luminosity';
-  c.translate(W * 1.12 - cw / 2, H * 0.04 + ch / 2);
-  c.rotate(9 * Math.PI / 180);
-  c.drawImage(kp, -cw / 2, -ch / 2);
-  c.restore();
-}
-
-/** Arabeskni ugao sa zaobljenim prelazom. */
-function ugaoOrnament(c, x, y, sx, sy, u) {
-  c.beginPath();
-  c.moveTo(x + sx * u, y);
-  c.lineTo(x + sx * u * 0.4, y);
-  c.quadraticCurveTo(x, y, x, y + sy * u * 0.4);
-  c.lineTo(x, y + sy * u);
-  c.stroke();
-}
 
 /**
  * Slika za dijeljenje.
@@ -1785,56 +1662,13 @@ async function nacrtajPlatno() {
   const W = f.w, H = f.h;
   const odnos = H / W;
 
-  /* --- podloga: isti recept kao kartica u aplikaciji --- */
-  /* Ranije je ovdje bio jedan preliv i jedna mrlja u sredini, pa je slika
-     pored kartice djelovala ravno. Kartica ima kosi preliv i pet zlatnih
-     mrlja (vidi MRLJE) — sve je preuzeto odatle, da su to dvije slike iste
-     ruke. */
-  c.fillStyle = kosiPreliv(c, W, H, 165, [
-    [0,   mijesaj(s.bg[0], s.gold, .08)],
-    [.38, s.bg[0]],
-    [1,   s.bg[1]],
-  ]);
-  c.fillRect(0, 0, W, H);
-
-  for (const m of MRLJE) {
-    eliptSjaj(c, W, H, {
-      x: m.x * W, y: m.y * H, rx: m.rx * W, ry: m.ry * H,
-      boja: saAlfom(s.gold, m.a), kraj: m.kraj,
-    });
-  }
-
-  // tiha sjena pri dnu — dubina, kao `--surface-2` na dnu kartice
-  const dubina = c.createLinearGradient(0, H * 0.62, 0, H);
-  dubina.addColorStop(0, prozirno(s.bg[1]));
-  dubina.addColorStop(1, `${s.bg[1]}66`);
-  c.fillStyle = dubina;
-  c.fillRect(0, H * 0.62, W, H * 0.38);
-
-  // tanka svijetla nit po vrhu — `inset 0 1px 0 rgba(255,255,255,.05)`
-  c.fillStyle = 'rgba(255,255,255,.05)';
-  c.fillRect(0, 0, W, Math.max(1, W * 0.0026));
+  podloga(c, W, H, s);
 
   /* korica pa tekstura, istim redom kao na kartici (aura → korica → ::after) */
   if (korica) koricaNaPlatno(c, W, H, korica, s.korica);
   await uzorakNaPlatno(c, W, H, s.uzorak);
 
-  /* --- dvostruki okvir i arabeskni uglovi --- */
-  const m  = W * 0.062;
-  const m2 = m + W * 0.016;
-  c.strokeStyle = `${s.gold}33`;
-  c.lineWidth = Math.max(1.2, W * 0.0013);
-  c.strokeRect(m, m, W - m * 2, H - m * 2);
-  c.strokeStyle = `${s.gold}1C`;
-  c.strokeRect(m2, m2, W - m2 * 2, H - m2 * 2);
-
-  c.strokeStyle = `${s.gold}A8`;
-  c.lineWidth = W * 0.0032;
-  const u = W * 0.052;
-  ugaoOrnament(c, m, m, 1, 1, u);
-  ugaoOrnament(c, W - m, m, -1, 1, u);
-  ugaoOrnament(c, m, H - m, 1, -1, u);
-  ugaoOrnament(c, W - m, H - m, -1, -1, u);
+  const { m2 } = okvir(c, W, H, s);
 
   c.textAlign = 'center';
   c.textBaseline = 'middle';
@@ -1881,32 +1715,7 @@ async function nacrtajPlatno() {
 
   // razdjelnik: linija — brend znak — linija
   y += W * 0.042 + znakP / 2;
-  const poluL = znakP / 2 + W * 0.034;        // linije se drže dalje od znaka
-  const kraj = W * 0.215;
-  c.lineWidth = Math.max(1.2, W * 0.0013);
-
-  /* Linije se gase prema oba kraja, isto kao `.razdjelnik i` na kartici:
-     pune u sredini, nevidljive tamo gdje prilaze znaku i tamo gdje staju u
-     prazno. Ravna linija je imala dva tvrda reza i bila prva stvar po kojoj
-     se vidjelo da slika nije crtana istom rukom kao kartica. */
-  for (const smjer of [-1, 1]) {
-    const od = W / 2 + smjer * kraj;
-    const do_ = W / 2 + smjer * poluL;
-    const g = c.createLinearGradient(od, y, do_, y);
-    g.addColorStop(0,   prozirno(s.gold));
-    g.addColorStop(.45, saAlfom(s.gold, .27));
-    g.addColorStop(.55, saAlfom(s.gold, .31));
-    g.addColorStop(1,   prozirno(s.gold));
-    c.strokeStyle = g;
-    c.beginPath();
-    c.moveTo(od, y); c.lineTo(do_, y);
-    c.stroke();
-  }
-  if (znak) {
-    c.globalAlpha = 0.95;
-    c.drawImage(znak, W / 2 - znakP / 2, y - znakP / 2, znakP, znakP);
-    c.globalAlpha = 1;
-  }
+  razdjelnikZnak(c, W, y, s, znak, znakP);
   y += znakP / 2;
 
   const gornja = y + zrak * 1.15;
@@ -2008,6 +1817,7 @@ async function podijeliSliku() {
   if (navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], text: tekstZaDijeljenje() });
+      javiZaPoruku('dijeljenje');
       return;
     } catch (e) {
       if (e.name === 'AbortError') return;
@@ -2015,6 +1825,7 @@ async function podijeliSliku() {
   }
   sacuvajBlob(blob);
   poruka('Dijeljenje nije podržano — slika je preuzeta', 'i-preuzmi');
+  javiZaPoruku('preuzimanje');
 }
 
 function sacuvajBlob(blob) {
@@ -2031,6 +1842,7 @@ async function sacuvajSliku() {
   if (!blob) return;
   sacuvajBlob(blob);
   poruka('Slika je preuzeta', 'i-preuzmi');
+  javiZaPoruku('preuzimanje');
 }
 
 async function kopirajSliku() {
@@ -2038,6 +1850,7 @@ async function kopirajSliku() {
     const blob = await uBlob();
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     poruka('Slika kopirana', 'i-kopiraj');
+    javiZaPoruku('kopiranje');
   } catch {
     poruka('Kopiranje slike nije podržano', 'i-info');
   }
@@ -2055,23 +1868,28 @@ function otvori(sloj) {
   sloj.classList.remove('izlazi');
   const m = $('.modal', sloj);
   if (m) { m.style.transition = ''; m.style.translate = ''; }
+  const zav = $('.sloj__zav', sloj);           // ostaci povlačenja
+  if (zav) zav.style.animation = zav.style.transition = zav.style.opacity = '';
   sloj.classList.add('on');
   document.body.style.overflow = 'hidden';
 }
 
-function zatvori(sloj) {
+/* Drawer izlazi krivuljom nativnog sheeta; kad ga je bacio prst, trajanje
+   prati brzinu poteza (vidi postaviPovlacenje). */
+const SHEET = 'cubic-bezier(.32, .72, 0, 1)';
+function zatvori(sloj, { ms = 300, krivulja = SHEET } = {}) {
   if (!sloj || !sloj.classList.contains('on') || sloj.classList.contains('izlazi')) return;
   const m = $('.modal', sloj);
   sloj.classList.add('izlazi');
   if (m && jeDrawer()) {
-    m.style.transition = 'translate .26s cubic-bezier(.4, 0, 1, 1)';
+    m.style.transition = `translate ${ms}ms ${krivulja}`;
     m.style.translate = '0 105%';
   }
   sloj._izlaz = setTimeout(() => {
     sloj.classList.remove('on', 'izlazi');
     if (m) { m.style.transition = ''; m.style.translate = ''; }
     if (!$('.sloj.on')) document.body.style.overflow = '';
-  }, 260);
+  }, ms);
   if (!$('.sloj.on:not(.izlazi)')) resetPocetno();
 }
 
@@ -2083,35 +1901,110 @@ function zatvoriSve() {
 /** Gornji otvoreni sloj — Escape i „nazad“ zatvaraju samo njega. */
 const gornjiSloj = () => $$('.sloj.on:not(.izlazi)').at(-1);
 
-/* Povlačenje drawera: hvata se ručka ili zaglavlje, nikad tijelo — tijelo
-   skrola. Pušta se dalje od 90 px ili brzim potezom nadolje. */
+/* Povlačenje drawera nadolje, kao nativni sheet:
+   · ručka i zaglavlje vuku uvijek;
+   · tijelo vuče kad je skrolano do vrha i potez krene nadolje — inače skrola
+     kao i do sada; a kad skrol u istom potezu stigne do vrha, potez se
+     nastavlja kao povlačenje, bez podizanja prsta;
+   · prema gore drawer se samo malo rastegne, s otporom;
+   · drawer prati prst 1:1, zastor blijedi s njim; pušta se dalje od četvrtine
+     visine (najviše 160 px) ili brzim potezom — tada ide dalje brzinom prsta;
+     inače se vrati na mjesto.
+   Dodir ide kroz touch događaje, jer samo oni smiju zaustaviti skrol; miš
+   kroz pointer, i to samo za ručku i zaglavlje. */
 function postaviPovlacenje(sloj) {
   const m = $('.modal', sloj);
+  const zav = $('.sloj__zav', sloj);
   if (!m) return;
-  let y0 = 0, t0 = 0, dy = 0, vuce = false;
+  let y0 = 0, x0 = 0, dy = 0, zadnjiY = 0, vuce = false, odluka = null, skrol = null, tragovi = [];
 
-  m.addEventListener('pointerdown', e => {
-    if (!jeDrawer() || e.button > 0) return;
-    if (e.target.closest('button, a, input') || !e.target.closest('.modal__rucka, .modal__nas')) return;
-    vuce = true; y0 = e.clientY; t0 = performance.now(); dy = 0;
+  const kreni = (y, x) => { y0 = y; x0 = x; dy = 0; tragovi = [[performance.now(), y]]; };
+  const uhvati = () => {
+    vuce = true;
     m.style.transition = 'none';
-    m.setPointerCapture?.(e.pointerId);
-  });
-  m.addEventListener('pointermove', e => {
-    if (!vuce) return;
-    dy = Math.max(0, e.clientY - y0);
-    m.style.translate = `0 ${dy}px`;
-  });
+    if (zav) { zav.style.animation = 'none'; zav.style.transition = 'none'; }
+  };
+  const pomjeri = y => {
+    const sirovo = y - y0;
+    dy = Math.max(0, sirovo);
+    // nagore: otpor kao na nativnom sheetu — par piksela, ne više
+    m.style.translate = `0 ${sirovo >= 0 ? sirovo : -Math.sqrt(-sirovo) * 2}px`;
+    if (zav) zav.style.opacity = String(Math.max(0, 1 - dy / (m.offsetHeight || 1)));
+    tragovi.push([performance.now(), y]);
+    if (tragovi.length > 5) tragovi.shift();
+  };
+  // brzina zadnjih nekoliko pomaka (px/ms) — po njoj se prepoznaje „bacanje“
+  const brzina = () => {
+    const a = tragovi[0], b = tragovi.at(-1);
+    return b[0] > a[0] ? (b[1] - a[1]) / (b[0] - a[0]) : 0;
+  };
   const pusti = () => {
     if (!vuce) return;
     vuce = false;
-    const brzina = dy / Math.max(performance.now() - t0, 1);
-    if (dy > 90 || (dy > 24 && brzina > .6)) return zatvori(sloj);
-    m.style.transition = 'translate .32s var(--ease)';
+    const v = brzina();
+    if (dy > Math.min(160, m.offsetHeight * .25) || (dy > 20 && v > .45)) {
+      // ostatak puta brzinom kojom je prst krenuo, ali ne brže od 160 ms ni sporije od 320 ms
+      const ms = Math.round(Math.min(320, Math.max(160, (m.offsetHeight - dy) / Math.max(v, 1.1))));
+      if (zav) { zav.style.transition = `opacity ${ms}ms`; zav.style.opacity = '0'; }
+      return zatvori(sloj, { ms, krivulja: 'cubic-bezier(.2, .6, .35, 1)' });
+    }
+    m.style.transition = `translate .4s ${SHEET}`;
     m.style.translate = '';
+    if (zav) { zav.style.transition = 'opacity .4s'; zav.style.opacity = ''; }
   };
-  m.addEventListener('pointerup', pusti);
-  m.addEventListener('pointercancel', pusti);
+
+  m.addEventListener('touchstart', e => {
+    odluka = null;
+    if (!jeDrawer() || e.touches.length > 1) { odluka = 'ne'; return; }
+    if (e.target.closest('input, textarea, select')) { odluka = 'ne'; return; }
+    kreni(e.touches[0].clientY, e.touches[0].clientX);
+    zadnjiY = e.touches[0].clientY;
+    // najbliži element između dodira i drawera koji stvarno skrola
+    skrol = null;
+    for (let n = e.target; n && n !== m; n = n.parentElement) {
+      if (n.scrollHeight > n.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(n).overflowY)) { skrol = n; break; }
+    }
+  }, { passive: true });
+  m.addEventListener('touchmove', e => {
+    if (odluka === 'ne') return;
+    const t = e.touches[0];
+    const nadolje = t.clientY > zadnjiY;
+    zadnjiY = t.clientY;
+    // skrol je stigao do vrha, a prst i dalje ide nadolje — preuzmi kao povlačenje
+    if (odluka === 'skrol') {
+      if (!nadolje || skrol.scrollTop > 0) return;
+      kreni(t.clientY, t.clientX);
+      uhvati();
+      odluka = 'da';
+    }
+    if (odluka === null) {
+      const ddy = t.clientY - y0, ddx = t.clientX - x0;
+      if (Math.abs(ddy) < 6 && Math.abs(ddx) < 6) return;
+      const uspravno = Math.abs(ddy) > Math.abs(ddx);
+      odluka = ddy > 0 && uspravno && (!skrol || skrol.scrollTop <= 0) ? 'da'
+        : uspravno && skrol ? 'skrol' : 'ne';
+      if (odluka !== 'da') return;
+      kreni(t.clientY, t.clientX);              // od ove tačke, da drawer ne skoči
+      uhvati();
+    }
+    if (e.cancelable) e.preventDefault();
+    pomjeri(t.clientY);
+  }, { passive: false });
+  const krajDodira = () => { if (odluka === 'da') pusti(); odluka = null; };
+  m.addEventListener('touchend', krajDodira);
+  m.addEventListener('touchcancel', krajDodira);
+
+  m.addEventListener('pointerdown', e => {
+    if (!jeDrawer() || e.pointerType === 'touch' || e.button > 0) return;
+    if (e.target.closest('button, a, input') || !e.target.closest('.modal__rucka, .modal__nas')) return;
+    kreni(e.clientY, e.clientX);
+    uhvati();
+    m.setPointerCapture?.(e.pointerId);
+  });
+  m.addEventListener('pointermove', e => { if (vuce && e.pointerType !== 'touch') pomjeri(e.clientY); });
+  const pustiMis = e => { if (e.pointerType !== 'touch') pusti(); };
+  m.addEventListener('pointerup', pustiMis);
+  m.addEventListener('pointercancel', pustiMis);
 }
 
 async function otvoriDijeljenje() {
@@ -2131,8 +2024,10 @@ function otvoriPoruku(d) {
   const p = porukaZa(d), k = knjigaPo(p.knjiga);
   const h = hidzri(d);
 
+  // datum je u zaglavlju drawera, kao naslov na ostalim
+  $('#mp-nad').textContent = `Poruka dana · ${naziviDana(d)}`;
+  $('#mp-datum').textContent = punDatum(d);
   el.mpSadrzaj.innerHTML = `
-    <div class="mp__dat">${naziviDana(d)} · ${punDatum(d)}</div>
     ${h ? `<div class="mp__hidzri">${h}</div>` : ''}
     <div class="razdjelnik razdjelnik--znak" aria-hidden="true"><i></i>
       <img class="razdjelnik__znak" data-znak src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="" width="40" height="40">
@@ -2172,6 +2067,7 @@ function prebaciDetaljFav() {
     el.mpFav.classList.add('pulse');
     setTimeout(() => el.mpFav.classList.remove('pulse'), 520);
     poruka('Sačuvano u tvoju zbirku', 'i-zvijezda-f');
+    javiDogadjaj('sacuvano', `poruka:${porukaZa(d).id}`);
   } else {
     stanje.sacuvano.splice(i, 1);
     poruka('Uklonjeno iz zbirke', 'i-x');
@@ -2864,6 +2760,32 @@ function javiInstalaciju() {
     .catch(() => { /* nema veze — javićemo se pri sljedećem otvaranju */ });
 }
 
+/* ---------- 17b. PREGLED (/analytics) ----------
+   Uređaj javi samo vrstu događaja i ključ ('dijeljenje', 'poruka:12') —
+   ništa o sebi ni o korisniku. Ne čeka se i ne smeta: ako ne prođe, ništa.
+   Lokalni razvoj se ne broji. */
+function javiDogadjaj(vrsta, kljucD = '') {
+  if (RAZVOJ) return;
+  fetch('/api/analitika', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ vrsta, kljuc: kljucD }),
+    keepalive: true,
+  }).catch(() => {});
+}
+const javiZaPoruku = vrsta => javiDogadjaj(vrsta, `poruka:${porukaZa(stanje.datum).id}`);
+
+/** Prvo otvaranje u danu, jednom po uređaju — broje se ljudi, ne otvaranja.
+    Zove se i pri povratku iz pozadine: instalirana aplikacija danima ostaje
+    u memoriji bez novog pokretanja. */
+function javiAktivnost() {
+  if (document.visibilityState !== 'visible') return;
+  const dan = kljuc(new Date());
+  if (cita(LS.aktivnoDan, '') === dan) return;
+  pisi(LS.aktivnoDan, dan);
+  javiDogadjaj('aplikacija', jeInstalirana() ? 'pwa' : 'web');
+}
+
 /* ---------- 17c. VERZIJA NA EKRANU ---------- */
 /** Koja je verzija keša aktivna na ovom uređaju — ide pored verzije aplikacije. */
 function verzijaKesa() {
@@ -3018,6 +2940,7 @@ function slusaci() {
   // dani
   el.danDanas.addEventListener('click', naDanas);
   postaviSwipe(el.karta);
+  postaviDodire(el.karta);
 
   addEventListener('keydown', e => {
     if (e.key === 'Escape') {
@@ -3256,11 +3179,20 @@ async function start() {
   osvjeziBrojSacuvanih();
   osvjeziInstal();
   javiInstalaciju();
+  javiAktivnost();
+  document.addEventListener('visibilitychange', javiAktivnost);
   osvjeziNotif();
 
   await ucitajPushConfig();
   osvjeziNotif();
   if (stanje.notif && Notification.permission === 'granted') pretplatiPush();
+  /* Instalirana aplikacija (naročito na iPhoneu) danima se samo vraća iz
+     pozadine, bez novog pokretanja — pa se pretplata osvježi i tada, najviše
+     jednom u šest sati. Server tako uvijek ima živ endpoint i ključeve. */
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || Date.now() - pushJavljen < 6 * 3600e3) return;
+    if (stanje.notif && notifPodrzan() && Notification.permission === 'granted') pretplatiPush();
+  });
 
   // razvojna simulacija iz URL-a (?instal=ios-2) — samo na localhostu
   if (RAZVOJ && simIzUrl) { primijeniSim(simIzUrl); pokazi(); return; }
@@ -3278,10 +3210,21 @@ async function start() {
     uvodIde = false;
   }
   pokazi();
+  pokreniPredavanja(!uvodIde);
 
   // Kad uvoda ima, pozdrav ide iz zavrsiUvod(); ovdje samo za onog ko ga je
   // već prošao pa se aplikaciji vraća prvi put nakon toga.
   if (!uvodIde) setTimeout(pozdrav, 700);
+}
+
+/* Modul predavanja je dodatak: ako se ne učita, aplikacija radi kao i do sada. */
+function pokreniPredavanja(ponudi) {
+  const q = new URLSearchParams(location.search).get('predavanja');
+  if (q === '1' || q === '0') pisi(LS.predavanja, q === '1');
+  if (!PREDAVANJA && !TEST && cita(LS.predavanja, false) !== true) return;
+  import('./predavanja.js')
+    .then(m => m.pokreni({ otvori, zatvori, postaviPovlacenje, poruka, autor: stanje.podaci.autor.ime, javi: javiDogadjaj }, ponudi))
+    .catch(() => {});
 }
 
 start();

@@ -30,8 +30,8 @@
    datoteke, i kad se promijeni samo komentar. Ranije je svaka takva sitnica
    izlazila korisniku kao „Instaliraj novu verziju“; sada se preuzme tiho,
    a pita se samo kad se IZDANJE zaista promijeni. */
-const IZDANJE = '1.6.1';
-const KESH_V  = 'v17';
+const IZDANJE = '1.7.0';
+const KESH_V  = 'v18';
 const KESH = `poruka-dana-${KESH_V}`;
 /* Broj nepročitanih poruka na ikonici. Živi u svom kešu jer worker nema
    localStorage, a mora preživjeti i zamjenu workera (vidi activate). */
@@ -43,6 +43,7 @@ const LJUSKA = [
   '/index.html',
   '/css/app.css',
   '/js/app.js',
+  '/js/platno.js',
   '/data/poruke.json',
   '/manifest.webmanifest',
   '/assets/brand/ammar_basic_logo_w_m_1.png',
@@ -93,8 +94,8 @@ self.addEventListener('fetch', e => {
 
   const url = new URL(request.url);
 
-  // API nikad ne keširamo; ni grafike za mreže — velike su i nisu dio aplikacije
-  if (url.origin === location.origin && /^\/(api|grafike)(\/|$)/.test(url.pathname)) return;
+  // API nikad ne keširamo; ni grafike za mreže, admin i privatne plakate — nisu dio aplikacije
+  if (url.origin === location.origin && /^\/(api|grafike|admin|plakat|analytics)(\/|$)/.test(url.pathname)) return;
 
   const vanjski = url.origin !== location.origin;
   if (vanjski && !jeFont(url)) return;
@@ -147,10 +148,11 @@ self.addEventListener('push', e => {
     tag: d.tag || 'poruka-dana',
     renotify: true,
     requireInteraction: false,
-    data: { url: d.url || '/' },
-    actions: [{ action: 'open', title: 'Pročitaj poruku' }],
+    data: { url: d.url || '/', kljuc: d.kljuc || null },
+    actions: [{ action: 'open', title: d.akcija || 'Pročitaj poruku' }],
   };
-  e.waitUntil(Promise.all([self.registration.showNotification(naslov, opcije), povecajZnacku()]));
+  // prvo se prikaže; javljanje „stiglo“ ide poslije i ne može ga zakočiti
+  e.waitUntil(Promise.all([self.registration.showNotification(naslov, opcije), povecajZnacku(), javi('stiglo', d.kljuc, 8000)]));
 });
 
 /* Svaka poruka koja stigne dok aplikacija nije otvorena podigne broj na
@@ -166,9 +168,28 @@ async function povecajZnacku() {
   } catch { /* značka je ukras — bez nje notifikacija i dalje stiže */ }
 }
 
+/* Pregled (/analytics): uređaj javi da je obavijest stigla ili dodirnuta —
+   samo vrsta i ključ obavijesti, ništa o uređaju. Ne čeka se i ne smeta: ako
+   ne prođe, notifikacija i aplikacija rade isto. `rasipanje` je nasumičan
+   zastoj, da dvije hiljade telefona ne javi u istoj sekundi. Lokalni razvoj
+   se ne broji. */
+const RAZVOJ = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(self.location.hostname);
+async function javi(vrsta, kljuc, rasipanje = 0) {
+  if (!kljuc || RAZVOJ) return;
+  if (rasipanje) await new Promise(r => setTimeout(r, Math.random() * rasipanje));
+  try {
+    await fetch('/api/analitika', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vrsta, kljuc }),         // bez keepalive: waitUntil drži worker budnim
+    });
+  } catch { /* pregled je dodatak */ }
+}
+
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const cilj = new URL(e.notification.data?.url || '/', self.location.origin).href;
+  e.waitUntil(javi('otvoreno', e.notification.data?.kljuc));
 
   e.waitUntil((async () => {
     const lista = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
@@ -188,9 +209,14 @@ self.addEventListener('pushsubscriptionchange', e => {
   e.waitUntil((async () => {
     try {
       const stara = e.oldSubscription;
-      const nova = e.newSubscription || await self.registration.pushManager.subscribe(
-        stara?.options || { userVisibleOnly: true }
-      );
+      /* Chrome ovdje često ne daje ni novu pretplatu ni opcije stare, a bez
+         VAPID ključa preglednik odbije novu — zato ključ pitamo server. */
+      let opcije = stara?.options;
+      if (!opcije?.applicationServerKey) {
+        const d = await (await fetch('/api/config', { cache: 'no-store' })).json();
+        opcije = { userVisibleOnly: true, applicationServerKey: d.vapidPublicKey };
+      }
+      const nova = e.newSubscription || await self.registration.pushManager.subscribe(opcije);
       await fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

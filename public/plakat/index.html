@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="bs" data-tema="tamna">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0B1711">
+<title>Plakat predavanja</title>
+<!-- Privatna stranica: do nje se dolazi samo linkom s ključem iz admina
+     (/plakat/?k=…). Nigdje nije izlistana i ne indeksira se. Izgled je isti
+     kao /grafike — zaglavlje u sredini, prekidač boje, kartica po formatu. -->
+<link rel="icon" href="/assets/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap">
+<!-- boje, slova i ambijent su iz aplikacije -->
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  body { padding: max(28px, env(safe-area-inset-top)) 16px max(40px, env(safe-area-inset-bottom)); }
+  main { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; }
+
+  header { text-align: center; margin: 12px 0 30px; }
+  header img { width: 64px; height: 64px; margin: 0 auto; }
+  .nad { margin-top: 14px; font-size: 10.5px; font-weight: 700; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(30px, 7vw, 42px); line-height: 1.1; margin: 8px 0 0; }
+  header p { max-width: 480px; margin: 12px auto 0; font-size: 14px; line-height: 1.6; color: var(--ink-soft); }
+
+  .izbor {
+    display: inline-flex; gap: 4px; padding: 4px; margin-top: 22px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface);
+  }
+  .izbor button {
+    display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border: 0; border-radius: 999px;
+    background: none; color: var(--ink-soft); font: 600 11px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase;
+    cursor: pointer; transition: background .18s, color .18s;
+  }
+  .izbor button i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2); }
+  .izbor button[aria-pressed="true"] { background: linear-gradient(135deg, var(--brand-gold-l), var(--brand-gold)); color: #11221A; }
+
+  /* Kartice iste visine: plakati su iste visine (širina ide za omjerom), a
+     dno kartice je isto složeno — naziv, pa red dugmadi. Na telefonu su
+     jedna ispod druge, preko cijele širine. */
+  .mreza { display: flex; justify-content: center; align-items: stretch; gap: 18px; }
+  .karta {
+    display: flex; flex-direction: column;
+    border: 1px solid var(--line); border-radius: 20px; padding: 12px;
+    background: linear-gradient(170deg, color-mix(in srgb, var(--gold) 8%, var(--surface)), var(--surface) 45%);
+    box-shadow: var(--shadow);
+  }
+  .karta canvas { display: block; height: min(60vh, 560px); width: auto; border-radius: 10px; background: var(--bg-2); }
+  @media (max-width: 760px) {
+    .mreza { flex-direction: column; gap: 26px; }
+    .karta canvas { height: auto; width: 100%; }
+  }
+  .karta__dno { display: flex; align-items: center; gap: 10px; padding: 14px 4px 4px; flex-wrap: wrap; margin-top: auto; }
+  .karta__ime { flex-basis: 100%; }
+  .karta__ime b { display: block; font-family: var(--serif); font-size: 19px; font-weight: 500; }
+  .karta__ime span { font-size: 11.5px; color: var(--ink-mute); }
+  .dugme {
+    flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 42px; padding: 0 15px;
+    border-radius: 999px; font: 600 11px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; cursor: pointer;
+    border: 1px solid var(--line); background: none; color: var(--ink);
+  }
+  .dugme svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .dugme--zlatno { background: linear-gradient(135deg, var(--brand-gold-l), var(--brand-gold)); border-color: transparent; color: #11221A; }
+  .dugme:active { transform: scale(.97); }
+  .dugme:disabled { opacity: .5; }
+
+  .greska { text-align: center; color: var(--ink-soft); }
+  footer { margin-top: 34px; text-align: center; font-size: 12px; line-height: 1.7; color: var(--ink-mute); }
+  footer a { color: var(--gold); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="ambient" aria-hidden="true">
+  <div class="ambient__glow"></div>
+  <div class="ambient__zraka"></div>
+  <div class="ambient__uzorak"></div>
+</div>
+<main>
+  <header>
+    <img id="znak" src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="">
+    <div class="nad">Plakat predavanja</div>
+    <h1 id="naslov">Učitavam…</h1>
+    <p id="kad"></p>
+    <div class="izbor" id="boje" role="group" aria-label="Boja" hidden>
+      <button type="button" data-stil="zelena" aria-pressed="true"><i style="background:#163023"></i>Zelena</button>
+      <button type="button" data-stil="krem" aria-pressed="false"><i style="background:#F4EEE1"></i>Krem</button>
+    </div>
+  </header>
+
+  <div class="mreza" id="mreza"></div>
+  <p class="greska" id="greska" hidden>Link je možda pogrešan ili je predavanje obrisano.</p>
+
+  <footer>Aplikacija: <a href="/">porukadana.ammarbasic.ba</a></footer>
+</main>
+
+<script type="module">
+import { predavanjePoKljucu, danUSedmici, punDatumP, imeZemlje } from '/js/predavanja-jezgro.js';
+import { PLAKAT_FORMATI, nacrtajPlakat, plakatBlob, imePlakata, mjeriloEkrana } from '/js/plakat.js';
+
+const $ = s => document.querySelector(s);
+const k = new URLSearchParams(location.search).get('k') || '';
+let p = null, stil = 'zelena';
+
+// objava prva, kao na /grafike; A3 na kraju, on je za print
+const FORMATI = ['objava', 'prica', 'a3'].map(id => PLAKAT_FORMATI.find(f => f.id === id));
+// preuzima se u duploj veličini, A3 u punoj (vidi plakatBlob)
+const mjere = f => (f.id === 'a3' ? `A3 · za print · ${f.w} × ${f.h} px` : `${f.opis} · ${f.w * 2} × ${f.h * 2} px`);
+
+// Dijeljenje fajla ide pravo u Instagram/WhatsApp na telefonu; gdje toga
+// nema, ostaje preuzimanje.
+const moze = !!(navigator.canShare && window.File &&
+  navigator.canShare({ files: [new File([''], 'a.png', { type: 'image/png' })] }));
+const IK_DIJELI = '<svg viewBox="0 0 24 24"><path d="M12 3v13M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
+const IK_PREUZMI = '<svg viewBox="0 0 24 24"><path d="M12 3v12M7.5 11 12 15.5l4.5-4.5M5 20h14"/></svg>';
+
+function spusti(blob, ime) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = ime;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+const fajl = async f => {
+  const b = await plakatBlob(p, { format: f, stil });
+  return new File([b], imePlakata(p, `${f}-${stil}`), { type: b.type });
+};
+
+async function crtaj() {
+  // krem plakat ide uz svijetlu stranicu, zeleni uz tamnu — kao bijela/zelena na /grafike
+  document.documentElement.dataset.tema = stil === 'krem' ? 'svijetla' : 'tamna';
+  $('#znak').src = `/assets/brand/ammar_basic_logo_${stil === 'krem' ? 'b' : 'w'}_m_1.png`;
+  document.querySelectorAll('#boje button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.stil === stil)));
+  $('#mreza').innerHTML = FORMATI.map(f => `
+    <section class="karta" data-f="${f.id}">
+      <canvas aria-label="${f.naziv}"></canvas>
+      <div class="karta__dno">
+        <div class="karta__ime"><b>${f.naziv}</b><span>${mjere(f)}</span></div>
+        ${moze && f.id !== 'a3' ? `<button class="dugme" data-dijeli type="button">${IK_DIJELI}Podijeli</button>` : ''}
+        <button class="dugme dugme--zlatno" data-preuzmi type="button">${IK_PREUZMI}Preuzmi</button>
+      </div>
+    </section>`).join('');
+  // pregled je tačno po ekranu — puna veličina crta se tek za preuzimanje.
+  // Platno prvo dobije omjer formata, da se izmjeri koliko je široko.
+  for (const f of FORMATI) {
+    const cv = $(`.karta[data-f="${f.id}"] canvas`);
+    cv.width = f.w; cv.height = f.h;
+    await nacrtajPlakat(cv, p, { format: f.id, stil, mjerilo: mjeriloEkrana(f.id, cv.clientWidth || 340) });
+  }
+}
+
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-preuzmi], [data-dijeli]');
+  if (!b) return;
+  const f = b.closest('.karta').dataset.f, tekst = b.innerHTML;
+  b.disabled = true;
+  b.textContent = 'Trenutak…';
+  try {
+    const dat = await fajl(f);
+    if (b.dataset.dijeli !== undefined) await navigator.share({ files: [dat], title: p.naslov });
+    else spusti(dat, dat.name);
+  } catch { /* korisnik je odustao */ }
+  b.innerHTML = tekst;
+  b.disabled = false;
+});
+$('#boje').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || b.dataset.stil === stil) return;
+  stil = b.dataset.stil;
+  crtaj();
+});
+
+try {
+  p = /^[a-f0-9]{32}$/.test(k) ? await predavanjePoKljucu(k) : null;
+} catch { p = null; }
+if (!p) {
+  $('#naslov').textContent = 'Plakat nije pronađen';
+  $('#greska').hidden = false;
+} else {
+  stil = p.stil || 'zelena';
+  document.title = `${p.naslov} · plakat`;
+  $('#naslov').textContent = p.naslov;
+  $('#kad').textContent = `${danUSedmici(p.datum)}, ${punDatumP(p.datum)} u ${p.vrijeme}${p.vrijeme_opis ? ` (${p.vrijeme_opis})` : ''} · ${[p.mjesto, p.grad, imeZemlje(p.drzava)].filter(Boolean).join(', ')}`;
+  $('#boje').hidden = false;
+  crtaj();
+}
+</script>
+</body>
+</html>

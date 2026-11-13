@@ -1,0 +1,313 @@
+/* ============================================================
+   PREDAVANJA — učitava ga js/predavanja.js tek kad je modul uključen
+   ------------------------------------------------------------
+   Malo elemenata, jasna hijerarhija: tipografija nosi, linije razdvajaju,
+   zlato samo tamo gdje je radnja ili naglasak.
+   ============================================================ */
+
+/* ---------- box predavanja ispod poruke (početni ekran) ----------
+   Dva dijela pod svojim natpisima: „Nadolazeća predavanja“ (sljedeće) i
+   „Planiram ići“ (mali plakati). Zlatna nit je ista kao oko kartice s citatom,
+   ali ravnomjerna — vidi se cijelom dužinom, ne samo u uglovima. */
+.pred-box {
+  position: relative; isolation: isolate;
+  margin-top: clamp(16px, 4vw, 24px); padding: 17px 16px 18px;
+  border: 1.5px solid transparent; border-radius: var(--r-lg); color: var(--ink);
+  background:
+    radial-gradient(120% 70% at 50% -14%, color-mix(in srgb, var(--gold) 13%, transparent) 0%, transparent 62%) padding-box,
+    linear-gradient(165deg, color-mix(in srgb, var(--surface) 90%, var(--gold)) 0%, var(--surface) 55%, var(--surface-2) 100%) padding-box,
+    linear-gradient(120deg, var(--nit-jako), color-mix(in srgb, var(--gold) 62%, transparent) 50%, var(--nit-jako)) border-box;
+  box-shadow: 0 18px 36px -24px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04);
+  animation: rise .5s var(--ease) .08s both;
+}
+/* tekstura motiva, kao na kartici poruke — motiv se gore nakupi, desno
+   tek dotakne, a prema dnu nestane */
+.pred-box::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: url("/assets/texture/texture.svg") repeat center top / 620px auto;
+  opacity: calc(var(--uzorak-karta) * 1.4); filter: var(--zlato-filter);
+  -webkit-mask-image:
+    radial-gradient(110% 60% at 12% 0%, #000 0%, rgba(0,0,0,.45) 40%, transparent 74%),
+    radial-gradient(80% 50% at 96% 30%, rgba(0,0,0,.6) 0%, transparent 66%),
+    linear-gradient(178deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.25) 50%, transparent 92%);
+          mask-image:
+    radial-gradient(110% 60% at 12% 0%, #000 0%, rgba(0,0,0,.45) 40%, transparent 74%),
+    radial-gradient(80% 50% at 96% 30%, rgba(0,0,0,.6) 0%, transparent 66%),
+    linear-gradient(178deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.25) 50%, transparent 92%);
+}
+.pred-box__glava { display: flex; align-items: center; justify-content: space-between; min-height: 20px; margin: 0 0 12px; }
+.pred-box__glava span { font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--ink); }
+.pred-box__glava span b { margin-left: 5px; color: var(--gold); }
+.pred-box__link {
+  display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 4px 0 4px 10px; cursor: pointer;
+  font: 700 9px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--gold);
+}
+.pred-box__link svg { width: 11px; height: 11px; }
+
+/* red sljedećeg predavanja — složen kao red „Iz knjige“ na kartici */
+.pred-sub {
+  display: flex; align-items: center; gap: 13px; width: 100%; padding: 0;
+  border: 0; background: none; cursor: pointer; text-align: left; font: inherit; color: var(--ink);
+  transition: transform var(--t-fast) var(--ease);
+}
+.pred-sub:active { transform: scale(.985); }
+/* list kalendara: gore zlatna traka s mjesecom, ispod krupan dan */
+.pred-sub__list {
+  /* visok tačno koliko tekst desno od njega — dan, naslov, sat i mjesto */
+  flex: none; align-self: stretch; width: 46px; min-height: 48px; border-radius: 10px; overflow: hidden;
+  display: grid; grid-template-rows: 17px 1fr; text-align: center;
+  border: 1px solid color-mix(in srgb, var(--gold) 34%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 86%, var(--gold)), var(--surface-2));
+  box-shadow: 0 10px 20px -14px rgba(0,0,0,.65), inset 0 -1px 0 rgba(255,255,255,.03);
+}
+.pred-sub__list small {
+  display: grid; place-items: center; padding-left: .18em;
+  font-size: 8px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+  color: #11221A; background: linear-gradient(150deg, var(--brand-gold-l), var(--brand-gold));
+}
+.pred-sub__list b { display: grid; place-items: center; font-family: var(--serif); font-size: 22px; font-weight: 500; line-height: 1; color: var(--ink); }
+.pred-sub__tekst { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.pred-sub__tekst > small { font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+/* satnica i mjesto u boxu — podebljani i punom bojom, krupnije od onih u kalendaru */
+.pred-sub .pred-meta, .pred-moja__karta .pred-meta { font-size: 13px; color: var(--ink); }
+.pred-sub .pred-meta svg { width: 12px; height: 12px; }
+.pred-sub__tekst > b { font-family: var(--serif); font-size: 16.5px; font-weight: 500; line-height: 1.22; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* natpisi velikim slovima u boxu iste veličine kao „Nadolazeća predavanja“ */
+.pred-box .pred-sub__list { grid-template-rows: 19px 1fr; }
+.pred-box .pred-sub__list small, .pred-sub .izvor__cta { font-size: 10.5px; }
+.pred-sub__str { flex: none; width: 13px; height: 13px; color: var(--ink-mute); }
+/* „Detalji“ je ista pilula kao „Kupi“ na kartici poruke (.izvor__cta) */
+@media (hover: hover) {
+  .pred-sub:hover .izvor__cta { transform: translateX(2px); border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+}
+
+/* „Planiram ići“: red malih plakata, odvojen tankom zlatnom linijom */
+.pred-moja { margin-top: 24px; }
+.pred-moja__red {
+  display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; overscroll-behavior-x: contain;
+  margin: 0 -16px; padding: 2px 16px 4px; scroll-padding-inline: 16px; scrollbar-width: none;
+}
+.pred-moja__red::-webkit-scrollbar { display: none; }
+.pred-moja__karta {
+  position: relative; overflow: hidden; isolation: isolate;
+  flex: none; width: 236px; display: flex; gap: 12px; padding: 12px; border-radius: 13px; cursor: pointer;
+  text-align: left; font: inherit; color: var(--ink); scroll-snap-align: start;
+  /* mala kartica poruke: boje teme, zlatni sjaj odozgo i odozdo desno,
+     zlatni rub i tekstura motiva */
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+  background:
+    radial-gradient(120% 70% at 50% -12%, color-mix(in srgb, var(--gold) 17%, transparent) 0%, transparent 62%),
+    radial-gradient(95% 55% at 105% 100%, color-mix(in srgb, var(--gold) 12%, transparent) 0%, transparent 60%),
+    linear-gradient(165deg, color-mix(in srgb, var(--surface) 92%, var(--gold)) 0%, var(--surface) 38%, var(--surface-2) 100%);
+  box-shadow: 0 16px 30px -20px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05);
+  transition: transform var(--t-fast) var(--ease);
+}
+.pred-moja__karta::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: url("/assets/texture/texture.svg") repeat center top / 420px auto;
+  opacity: calc(var(--uzorak-karta) * 1.6); filter: var(--zlato-filter);
+  -webkit-mask-image: radial-gradient(120% 90% at 10% 0%, #000 0%, rgba(0,0,0,.4) 45%, transparent 80%);
+          mask-image: radial-gradient(120% 90% at 10% 0%, #000 0%, rgba(0,0,0,.4) 45%, transparent 80%);
+}
+.pred-moja__karta:active { transform: scale(.97); }
+
+/* kartica je mali red „Nadolazeća“: isti list kalendara, dan u sedmici, naslov,
+   pa sat i mjesto istim slovima kao gore */
+.pred-moja__tekst { flex: 1; min-width: 0; display: grid; gap: 4px; align-content: center; }
+.pred-moja__tekst > small { font-size: 10.5px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+.pred-moja__tekst > b {
+  font-family: var(--serif); font-size: 15px; font-weight: 500; line-height: 1.22;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* sat i mjesto sa sitnim ikonicama — u traci i u redovima kalendara */
+.pred-meta { display: flex; align-items: center; gap: 5px; min-width: 0; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.pred-meta svg { width: 12px; height: 12px; flex: none; color: var(--gold); }
+.pred-meta svg:not(:first-child) { margin-left: 6px; }
+.pred-meta > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pred-zastava { flex: none; width: 15px; height: 10px; margin-left: 2px; border-radius: 2px; object-fit: cover; box-shadow: 0 0 0 .5px rgba(255,255,255,.25); }
+
+/* ---------- oba drawer-a: fiksno zaglavlje, skrola samo tijelo ---------- */
+.modal--predavanje, .modal--kalendar { display: flex; flex-direction: column; }
+.modal--predavanje .modal__telo, .modal--kalendar .modal__telo { flex: 1; min-height: 0; }
+
+/* ---------- PREDAVANJE: podaci, pa plakat ---------- */
+.modal--predavanje .modal__telo { padding-top: 16px; display: flex; flex-direction: column; gap: 14px; }
+.modal--predavanje .modal__telo > * { flex: none; }    /* u flexu se ništa ne sabija — plakat ne prelazi preko teksta */
+
+.pr-sadrzaj { display: grid; gap: 7px; }
+.pr-nad { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-variant-numeric: tabular-nums; }
+.pr-nad b { font-weight: 700; }
+.pr-naslov { margin: 2px 0 0; font-family: var(--display); font-size: 30px; font-weight: 700; line-height: 1.12; }
+.pr-pod { margin: 0; font-family: var(--serif); font-style: italic; font-size: 18.5px; color: var(--gold); }
+.pr-podaci { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--line-soft); }
+.pr-podaci li { display: grid; grid-template-columns: 22px 1fr; gap: 13px; padding: 14px 0; border-bottom: 1px solid var(--line-soft); }
+.pr-podaci svg { width: 21px; height: 21px; color: var(--gold); margin-top: 1px; --ik-sw: 2; }
+.pr-podaci b { display: block; font-family: var(--serif); font-size: 19px; font-weight: 600; line-height: 1.28; }
+.pr-podaci span { display: block; margin-top: 3px; font-size: 14px; font-weight: 500; line-height: 1.45; color: color-mix(in srgb, var(--ink) 78%, transparent); }
+.pr-opis { margin: 12px 0 0; font-family: var(--serif); font-size: 18px; line-height: 1.6; white-space: pre-line; }
+
+.pr-sekcija { margin: 16px 0 -4px; font: 700 11px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.pr-plakat {
+  margin: 0; width: 100%; aspect-ratio: 4 / 5; border-radius: 10px; overflow: hidden; background: var(--surface);
+  box-shadow: 0 24px 48px -26px rgba(0,0,0,.7), 0 0 0 1px var(--line);
+  transition: aspect-ratio .35s var(--ease);
+}
+.pr-plakat[data-format="prica"] { aspect-ratio: 9 / 16; }
+.pr-plakat[data-format="a3"] { aspect-ratio: 297 / 420; }
+.pr-plakat img { width: 100%; height: 100%; display: block; object-fit: cover; transition: opacity .25s; }
+.pr-plakat img:not([src]) { opacity: 0; }
+
+/* format i boja u jednom redu: format se širi, boje su kružići na kraju */
+.pr-izbor { display: flex; align-items: center; gap: 12px; }
+.pr-segment { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.pr-segment button {
+  border: 0; background: none; cursor: pointer; padding: 11px 12px; border-radius: 11px;
+  font: 600 13px/1 var(--sans); color: var(--ink-soft); transition: background .2s, color .2s;
+}
+.pr-segment button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.pr-segment button { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.pr-segment svg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.pr-boje { flex: none; display: flex; gap: 10px; padding-right: 2px; }
+.pr-boje button {
+  width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  background: linear-gradient(150deg, var(--a), var(--b));
+  box-shadow: 0 0 0 1px var(--line), inset 0 0 0 1px rgba(255,255,255,.08);
+  transition: box-shadow .2s;
+}
+.pr-boje button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 3.5px var(--gold); }
+
+/* dvije krupne radnje jedna ispod druge: puno zlato pa obrub */
+.pr-akcije { display: grid; gap: 8px; }
+.pr-akcije .btn { width: 100%; padding-block: 15px; font-size: 12.5px; }
+.pr-akcije #pr-ics { background: none; border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
+
+/* ---------- KALENDAR: filteri ispod zaglavlja, lista po mjesecima ---------- */
+/* sva predavanja ili samo moja (praćena) — isti segment kao format plakata */
+.kal-prikaz {
+  flex: none; display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 12px var(--mpad, 20px) 0; padding: 3px;
+  border-radius: 14px; background: var(--surface); border: 1px solid var(--line);
+}
+.kal-prikaz button {
+  display: flex; align-items: center; justify-content: center; gap: 7px; border: 0; background: none; cursor: pointer;
+  padding: 10px 8px; border-radius: 11px; font: 600 13px/1 var(--sans); color: var(--ink-soft); transition: background .2s, color .2s;
+}
+.kal-prikaz button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.kal-prikaz svg { width: 14px; height: 14px; flex: none; }
+.kal-prikaz [data-prikaz="pracena"] svg { color: var(--gold); }
+.kal-prikaz b {
+  min-width: 19px; height: 19px; padding: 0 5px; border-radius: 99px; display: inline-grid; place-items: center;
+  font-size: 11px; font-weight: 700; background: var(--gold); color: #11221A;
+}
+.kal-prikaz b[hidden] { display: none; }
+.kal-filteri[hidden] { display: none; }
+
+.kal-filteri {
+  flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px;
+  padding: 12px var(--mpad, 20px); border-bottom: 1px solid var(--line-soft);
+}
+.kal-izbor {
+  position: relative; display: flex; align-items: center; height: 46px; min-width: 0;
+  border-radius: 14px; background: var(--surface); border: 1px solid var(--line-soft);
+}
+.kal-izbor > svg:first-child { position: absolute; left: 13px; width: 16px; height: 16px; color: var(--gold); pointer-events: none; }
+.kal-izbor > svg:last-child { position: absolute; right: 12px; width: 11px; height: 11px; color: var(--ink-mute); rotate: 90deg; pointer-events: none; }
+.kal-izbor select {
+  appearance: none; -webkit-appearance: none; width: 100%; height: 100%; min-width: 0; border: 0; background: none; cursor: pointer;
+  padding: 0 30px 0 38px; font: 600 13.5px var(--sans); color: var(--ink); text-overflow: ellipsis; text-transform: capitalize;
+}
+.kal-izbor select:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; border-radius: 14px; }
+
+.kal-mjesec { margin: 18px 0 2px; font: 700 10.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.kal-mjesec:first-child { margin-top: 2px; }
+.kal-red {
+  display: grid; grid-template-columns: 46px 1fr auto; gap: 14px; align-items: center; width: 100%;
+  padding: 14px 0; border: 0; border-bottom: 1px solid var(--line-soft); background: none;
+  font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+}
+.kal-red .kal-red__dan { width: auto; height: 52px; align-self: center; }   /* list kalendara kao u boxu (.pred-sub__list) */
+.kal-red__tekst { display: grid; gap: 4px; min-width: 0; }
+.kal-red__tekst > b { font-family: var(--serif); font-size: 17px; font-weight: 500; line-height: 1.25; transition: color .2s; }
+@media (hover: hover) { .kal-red:hover .kal-red__tekst > b { color: var(--gold); } }
+.kal-red__str { width: 13px; height: 13px; color: var(--ink-mute); }
+/* ---------- NOVA PREDAVANJA: splash s plakatima ----------
+   Kartice se listaju vodoravno i staju na sredinu; susjedna viri sa strane,
+   da se vidi da ih ima još. */
+.modal--nova .modal__telo { padding: 14px 0 6px; overflow-x: hidden; }
+.nova-uvod { margin: 0 var(--mpad) 14px; font-family: var(--serif); font-size: 16.5px; line-height: 1.5; color: var(--ink-soft); }
+.nova-uvod b { font-weight: 500; color: var(--gold); }
+.nova-karusel {
+  display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
+  padding: 2px var(--mpad) 6px; scroll-padding-inline: var(--mpad); scrollbar-width: none;
+}
+.nova-karusel::-webkit-scrollbar { display: none; }
+.nova-karta {
+  flex: 0 0 min(80%, 330px); scroll-snap-align: center; cursor: pointer;
+  border-radius: 16px; overflow: hidden; background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line), 0 22px 44px -28px rgba(0,0,0,.75);
+  transition: transform var(--t-fast) var(--ease);
+}
+.nova-karta:only-child { margin-inline: auto; }
+.nova-karta:active { transform: scale(.985); }
+.nova-karta__plakat { margin: 0; aspect-ratio: 4 / 5; background: linear-gradient(160deg, var(--surface-2), var(--surface)); }
+.nova-karta__plakat img { width: 100%; height: 100%; display: block; object-fit: cover; transition: opacity .3s; }
+.nova-karta__plakat img:not([src]) { opacity: 0; }
+.nova-karta__dno { display: flex; align-items: center; gap: 10px; padding: 12px 10px 13px 14px; }
+.nova-karta__tekst { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.nova-karta__tekst small { font-size: 9.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.nova-karta__tekst b { font-family: var(--serif); font-size: 17.5px; font-weight: 500; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nova-karta__prati, .pr-prati {
+  flex: none; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 1px solid var(--line); background: none; color: var(--ink-soft); transition: color .2s, border-color .2s, transform .15s;
+}
+.nova-karta__prati svg, .pr-prati svg { width: 18px; height: 18px; }
+.nova-karta__prati[aria-pressed="true"], .pr-prati[aria-pressed="true"] {
+  color: var(--gold); border-color: color-mix(in srgb, var(--gold) 50%, transparent); background: color-mix(in srgb, var(--gold) 10%, transparent);
+}
+.nova-karta__prati:active, .pr-prati:active { transform: scale(.9); }
+/* u zaglavlju zvjezdica je isti krug kao „x“ do nje */
+.modal__nas .pr-prati { width: 36px; height: 36px; border-color: color-mix(in srgb, var(--ink) 15%, transparent);
+  background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.modal__nas .pr-prati svg { width: 17px; height: 17px; }
+.modal__nas .pr-prati[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--gold) 50%, transparent); background: color-mix(in srgb, var(--gold) 10%, transparent);
+}
+.modal--predavanje .pr-prati + [data-zatvori] { margin-left: -4px; }   /* par dugmadi bliže jedno drugom: 8 px umjesto 12 */
+.nova-tacke { display: flex; justify-content: center; gap: 6px; min-height: 6px; margin: 14px 0 4px; }
+.nova-tacke i { width: 6px; height: 6px; border-radius: 99px; background: var(--line); transition: width .25s var(--ease), background .25s; }
+.nova-tacke i.on { width: 18px; background: var(--gold); }
+.modal--nova .modal__pod .btn { width: 100%; padding-block: 15px; font-size: 12.5px; border-color: color-mix(in srgb, var(--gold) 45%, transparent); background: none; }
+
+/* praćeno predavanje: sitna zlatna zvjezdica uz naslov u kalendaru */
+.kal-red__zvj { display: none; width: 12px; height: 12px; margin-left: 7px; vertical-align: 1px; color: var(--gold); }
+.kal-red--prati .kal-red__zvj { display: inline-block; }
+
+/* lista | plakati — dva mala dugmeta u jednom krugu, do „x“ */
+.kal-pogled {
+  flex: none; display: flex; gap: 2px; padding: 2px; border-radius: 99px;
+  border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent); background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.kal-pogled button {
+  width: 30px; height: 30px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  background: none; color: var(--ink-mute); transition: background .2s, color .2s;
+}
+.kal-pogled button svg { width: 16px; height: 16px; }
+.kal-pogled button[aria-pressed="true"] { color: var(--gold); background: color-mix(in srgb, var(--gold) 14%, transparent); }
+.kal-pogled + [data-zatvori] { margin-left: -4px; }
+
+/* plakati u kalendaru: isti vrtuljak kao nova predavanja, od ruba do ruba drawera */
+.kal-karusel { margin: 4px calc(-1 * var(--mpad)) 0; }
+.nova-broj { font: 600 12px var(--sans); letter-spacing: .08em; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+
+.kal-prazno { display: grid; justify-items: center; gap: 10px; padding: 44px 8px; text-align: center; color: var(--ink-soft); }
+.kal-prazno svg { width: 28px; height: 28px; color: var(--gold); opacity: .7; }
+.kal-prazno p { margin: 0; font-family: var(--serif); font-size: 17px; line-height: 1.5; }
+
+/* ---------- svijetla tema: box predavanja ----------
+   Na papiru meke sjene bez tamnog oreola, i linije u toplom zlatu. */
+:root[data-tema="svijetla"] .pred-box { box-shadow: 0 18px 36px -26px rgba(60,44,12,.35), inset 0 1px 0 rgba(255,255,255,.6); }
+:root[data-tema="svijetla"] .pred-moja__karta { box-shadow: 0 14px 28px -18px rgba(19,39,29,.25), inset 0 1px 0 rgba(255,255,255,.7); }
+/* broj „Planiram ići“ u kalendaru: na tamnijem zlatu svijetle teme svijetao tekst */
+:root[data-tema="svijetla"] .kal-prikaz b { color: #FFF9EC; }
+:root[data-tema="svijetla"] .pred-sub__list { background: linear-gradient(180deg, #fff, color-mix(in srgb, var(--gold) 7%, #fff)); box-shadow: 0 8px 18px -12px rgba(19,39,29,.3); }
+:root[data-tema="svijetla"] .pred-sub__list small { color: #FFF9EC; background: linear-gradient(150deg, color-mix(in srgb, var(--gold) 70%, #fff), var(--gold)); }

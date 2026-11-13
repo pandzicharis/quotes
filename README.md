@@ -151,11 +151,41 @@ zaglavlje:  x-cron-secret: <CRON_SECRET>
 `Authorization: Bearer <tajna>` i `?secret=<tajna>` — pa radi s bilo kojim
 servisom, uključujući Vercel Cron.
 
-**Endpoint šalje na svaki poziv** — ne provjerava je li danas već slao. Koliko
-puta korisnik dobije poruku određuje raspored crona, pa raspored treba biti
-jednom dnevno. Poziv u minuti = notifikacija u minuti, što je korisno za
-testiranje. Poruka je ista cijeli dan (bira se po datumu), a nosi isti
-`tag`, pa u traci notifikacija ne gomila — nova zamijeni prethodnu.
+**Preporučeno: nadoknada, da poruka stigne do svakoga.** U cron servisu
+postavi poziv svakih 15 minuta između 7 i 22 h:
+
+```
+GET  https://<domen>/api/send?nadoknadi=1
+zaglavlje:  x-cron-secret: <CRON_SECRET>
+raspored:   */15 7-21 * * *
+```
+
+Prvi poziv u danu pošalje poruku dana svima. Svaki sljedeći šalje je samo
+uređajima koji je još nisu dobili: onima kod kojih je push servis pao,
+onima koji nisu stigli na red prije isteka vremena, i novim pretplatama.
+Ko je šta dobio piše u tabeli `isporuke`, pa niko ne dobije istu poruku
+dvaput. Kad je sve dostavljeno, poziv traje nekoliko milisekundi. Kašnjenje
+je moguće, ali poruka stigne do svih.
+
+Uz `PREDAVANJA_PUSH=1` isti poziv dovršava i obavijesti „Novo predavanje“
+(dva dana od objave) i šalje podsjetnik dan prije za predavanja na koja
+korisnik planira ići. Te obavijesti idu samo između 7 i 22 h po vremenu
+mjesta. Obavijest o novom predavanju kreće samo kad je u adminu uključen
+prekidač „Pošalji obavijest“; bez njega je predavanje samo vidljivo u
+aplikaciji.
+
+Nadoknada usput čisti: stare isporuke (14 dana), brojače pregleda starije
+od 7 dana i **prošla predavanja — dva dana poslije datuma brišu se iz baze**.
+
+Nadoknada traži tabele iz `sql/shema.sql` (`isporuke`, `slanja`,
+`dogadjaji`). Bez njih ne šalje ništa i vraća 503, da niko ne dobija istu
+poruku svakih 15 minuta. Šema se smije pokrenuti više puta — sve je
+`if not exists`.
+
+**`/api/send` bez parametra šalje na svaki poziv**, kao i ranije: ne provjerava
+je li danas već slao. To je zgodno za probu, a isporuke se ipak bilježe. Poruka
+je ista cijeli dan (bira se po datumu) i nosi isti `tag`, pa u traci
+notifikacija ne gomila: nova zamijeni prethodnu.
 
 Ako radije hoćeš Vercelov cron, dodaj blok u `vercel.json` (Hobby plan dopušta
 jedan dnevno, u približno zadano vrijeme) — Vercel sam šalje `CRON_SECRET`:
@@ -173,6 +203,28 @@ curl https://<domen>/api/status
 Vraća je li VAPID postavljen, je li baza povezana i koliko je pretplata.
 `"spremno": true` znači da dnevno slanje radi; ako nije, polje `nedostaje`
 imenuje varijable koje treba dodati.
+
+**Statistika:** stranica `https://<domen>/analytics` nije nigdje povezana.
+Traži admin šifru (`ADMIN_SECRET`, ista kao u `/admin`) i za zadnjih 30 dana
+pokazuje:
+- **predato** — koliko je obavijesti primio Apple/Google push servis, koliko
+  nije i šta je palo, sa svakim pozivom crona;
+- **stiglo** — koliko je telefona javilo da je obavijest prikazana (donja
+  granica: ugašeni telefoni ne jave odmah);
+- **otvorilo** — koliko je ljudi dodirnulo notifikaciju;
+- **aktivni** — koliko uređaja dnevno otvori aplikaciju (svaki jednom
+  dnevno), posebno instalirana aplikacija i preglednik;
+- dijeljenja, preuzimanja i kopiranja po poruci, i najdijeljenije poruke;
+- za predavanja: obavijesti, otvaranja, „Planiram ići“, dodavanja u kalendar
+  i preuzete plakate.
+
+U adminu, uz svaku poruku, piše koliko je puta bila poruka dana, kad zadnji
+put, kad dolazi sljedeći put i koliko je podijeljena.
+
+Brojanje ne zna ništa o osobi ni uređaju: telefon javi samo vrstu događaja i
+ključ (npr. `dijeljenje`, `poruka:12`), a u bazi je jedan red po danu i vrsti,
+s brojem. Javljanje ne čeka niko — ako ne prođe, aplikacija radi isto.
+Lokalno, bez servera, stranica pokazuje primjer s izmišljenim brojkama.
 
 ### Koliko je ljudi instaliralo aplikaciju
 
@@ -227,6 +279,28 @@ Polja odgovora koja vrijedi gledati:
 | `greske`      | po HTTP kodu: `{ "503": { broj, primjer } }`                  |
 
 `poslano + palo + preskoceno` se uvijek zatvara na `pretplata`.
+
+### Testno okruženje
+
+Grana `test` na Vercelu je zasebna aplikacija na telefonu: svoja adresa
+(`<projekat>-git-test-<tim>.vercel.app`), svoja Supabase baza i svoji
+ključevi. Ništa odatle ne dira produkciju — ni bazu, ni pretplate korisnika.
+
+- **Baza je odvojena:** produkcijski `SUPABASE_URL` i `SUPABASE_SECRET_KEY`
+  važe samo za *Production*. Za *Preview* su postavljeni oni iz test projekta
+  (sa `sql/shema.sql`), uz `ADMIN_SECRET` i `PREDAVANJA_PUSH=1`.
+- `VAPID_*` i `CRON_SECRET` su zajednički (*Production and Preview*). To ne
+  smeta: test šalje samo uređajima iz test baze.
+- **Deployment Protection → Vercel Authentication** je isključen, inače
+  instalirana aplikacija traži prijavu u Vercel.
+- Na test adresi gore stoji oznaka **TEST**, a predavanja su uključena sama
+  (bez `?predavanja=1`) — vidi `TEST` u `js/app.js`.
+- Cron na test ne ide: poruka dana se šalje ručno,
+  `https://<test adresa>/api/send?secret=<CRON_SECRET>` — samo uređajima
+  iz test baze.
+
+Tok: šta se pusha na `test`, odmah je na test adresi; produkcija se mijenja
+tek kad se `test` spoji u `trunk`.
 
 ---
 
@@ -318,6 +392,14 @@ početni ekran**. U Safari tabu prekidač neće raditi — zato je u postavkama
 „Instaliraj aplikaciju“ sa uputom za Podijeli → Dodaj na početni ekran.
 
 ---
+
+## Kartica: „Danas“ i dvostruki dodir
+
+- **„Danas“** uz hidžretski datum vraća na današnju poruku; vidi se samo dok
+  se gleda neki drugi dan. Stoji u istom redu, pa se kartica ne pomjera.
+- **Dvostruki dodir** bilo gdje po kartici čuva poruku — pod prstom procvjeta
+  zvijezda. Već sačuvanu ne uklanja. Uz `prefers-reduced-motion` nema iskri ni
+  animacije zvijezde.
 
 ## Sačuvane poruke
 
@@ -455,6 +537,11 @@ Vide se **samo na `localhost`**; na objavljenoj verziji ih nema:
   glumi; za stanja sa dijalogom se samo kaže da bi ga preglednik otvorio.
   Van `localhost`-a je prekidač mrtav.
 - **Pošalji test notifikaciju** i **Ponovi uvod** u postavkama.
+- Uz uključena predavanja (`?predavanja=1`), u postavkama:
+  **Simuliraj: dodano novo predavanje** otvori aplikaciju ispočetka kao kod
+  korisnika koji je vidio sve osim zadnjeg dodanog (isto radi
+  `?nova=zadnje`), a **Prikaži nova predavanja** pokaže sva nadolazeća kao
+  neviđena (`?nova=1`).
 
 Prekidači u URL-u rade i na objavljenoj adresi, pa se tok može provjeriti na
 pravom telefonu: `?uvod=web`, `?uvod=pwa`, `?pwa=1`, `?reset`.

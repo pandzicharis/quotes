@@ -1,0 +1,436 @@
+/* ============================================================
+   ADMIN — izgled
+   ------------------------------------------------------------
+   Mirno: jedna površina, tanke linije, zlato samo za radnju i naglasak.
+   ============================================================ */
+:root {
+  --bg: #0B1711; --bg-2: #0F1E18; --surface: #13261E; --surface-2: #183026; --hover: rgba(242,236,224,.04);
+  --ink: #F2ECE0; --ink-soft: #B4BEB4; --ink-mute: #7F8D83;
+  --gold: #C6A968; --gold-l: #E9C77E; --line: rgba(198,169,104,.16); --line-soft: rgba(242,236,224,.07);
+  --greska: #E58B7B; --na-zlatu: #10231A;
+  --serif: "EB Garamond", Georgia, serif; --display: "Playfair Display", Georgia, serif;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --r: 14px; --ease: cubic-bezier(.2,.8,.2,1);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; min-height: 100vh; color: var(--ink); font: 14.5px/1.5 var(--sans); background: var(--bg); }
+[hidden] { display: none !important; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 500; margin: 0; }
+a { color: var(--gold-l); }
+
+/* ---------- kontrole ---------- */
+button, .dugme {
+  font: 600 13.5px var(--sans); border-radius: 10px; padding: 9px 14px; cursor: pointer;
+  border: 1px solid var(--line-soft); background: var(--surface); color: var(--ink); text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background .2s, border-color .2s, color .2s;
+}
+button:hover, .dugme:hover { border-color: var(--line); background: var(--surface-2); }
+button:disabled { opacity: .5; cursor: default; }
+/* dugmad, ručka i redovi koji otvaraju prozor se ne označavaju — dvoklik ne
+   ostavi plavo označen tekst kad se prozor otvori */
+button, .dugme, .rucka, .pred-red, [data-citat] { -webkit-user-select: none; user-select: none; }
+.zlatno, .zlatno:hover { background: linear-gradient(135deg, var(--gold-l), var(--gold)); color: var(--na-zlatu); border-color: transparent; }
+.tiho { background: none; border-color: transparent; color: var(--ink-soft); }
+.tiho:hover { background: var(--hover); border-color: transparent; color: var(--ink); }
+.opasno { color: var(--greska); }
+.ikona-dugme { padding: 8px; }
+svg.ik { width: 16px; height: 16px; flex: none; }
+
+label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+input, select, textarea {
+  font: 14.5px var(--sans); color: var(--ink); background: var(--bg-2); border: 1px solid var(--line-soft);
+  border-radius: 10px; padding: 10px 12px; width: 100%; font-weight: 400; transition: border-color .2s;
+}
+input:hover, select:hover, textarea:hover { border-color: var(--line); }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 18%, transparent); }
+textarea { min-height: 96px; resize: vertical; line-height: 1.55; }
+
+.segment { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line-soft); }
+.segment button { border: 0; background: none; padding: 6px 12px; font-size: 12.5px; border-radius: 7px; color: var(--ink-soft); }
+.segment button:hover { background: none; color: var(--ink); }
+.segment button[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); box-shadow: 0 1px 0 rgba(255,255,255,.04), 0 2px 6px -2px rgba(0,0,0,.5); }
+
+/* prekidač */
+.prekidac { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 0;
+  font-size: 14px; font-weight: 500; color: var(--ink); cursor: pointer; }
+.prekidac small { display: block; font-size: 12px; font-weight: 400; color: var(--ink-mute); }
+.prekidac input { appearance: none; width: 36px; height: 20px; border-radius: 99px; padding: 0; flex: none; box-shadow: none;
+  background: var(--surface-2); border: 1px solid var(--line); position: relative; cursor: pointer; transition: background .2s; }
+.prekidac input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--ink-mute); transition: translate .2s var(--ease), background .2s; }
+.prekidac input:checked { background: color-mix(in srgb, var(--gold) 45%, transparent); border-color: transparent; }
+.prekidac input:checked::after { translate: 16px 0; background: var(--gold-l); }
+
+.boje { display: flex; gap: 10px; }
+.boje button { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 0;
+  background: linear-gradient(150deg, var(--a), var(--b)); box-shadow: 0 0 0 1px var(--line); }
+.boje button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--gold); }
+
+.nad { font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.sitno { font-size: 12.5px; color: var(--ink-soft); }
+.red { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.razmak { flex: 1; }
+
+.poruka { position: fixed; left: 50%; bottom: 24px; translate: -50% 12px; background: var(--surface-2); border: 1px solid var(--line);
+  padding: 10px 18px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s, translate .2s var(--ease); pointer-events: none; z-index: 50; }
+.poruka.on { opacity: 1; translate: -50% 0; }
+.poruka.greska { color: var(--greska); }
+
+/* ---------- prijava ---------- */
+.prijava { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+  background: radial-gradient(90% 60% at 50% 0%, #1A3529, var(--bg) 70%); }
+.prijava__karta { width: min(380px, 100%); text-align: center; }
+.prijava__karta img { width: 56px; height: 56px; }
+.prijava__karta h1 { font-size: 30px; margin-top: 18px; }
+.prijava__karta > p { margin: 4px 0 28px; color: var(--ink-soft); font-family: var(--serif); font-style: italic; font-size: 17px; }
+.prijava__polje { position: relative; text-align: left; }
+.prijava__polje input { padding: 13px 46px 13px 14px; font-size: 15px; }
+.prijava__oko { position: absolute; right: 5px; bottom: 5px; }
+.prijava__karta .zlatno { width: 100%; margin-top: 12px; padding: 13px; font-size: 14.5px; }
+.prijava__greska { color: var(--greska); min-height: 20px; font-size: 13px; margin-top: 12px; }
+.prijava__napomena { font-size: 12.5px; color: var(--ink-mute); }
+
+/* ---------- ljuska: zaglavlje + sadržaj ----------
+   Minimalno, kao na Appleovim stranicama: tanka prozirna traka, znak lijevo,
+   navigacija tačno u sredini, odjava desno. Na telefonu ostaju samo ikonice. */
+.ljuska { min-height: 100vh; }
+.zaglavlje {
+  position: sticky; top: 0; z-index: 20; height: 56px;
+  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+  padding: 0 clamp(14px, 3vw, 32px);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: .5px solid rgba(242,236,224,.12);
+}
+.zaglavlje__znak { display: flex; align-items: center; gap: 9px; justify-self: start; }
+.zaglavlje__znak img { width: 26px; height: 26px; }
+.zaglavlje__znak b { font: 600 15px var(--sans); letter-spacing: -.01em; }
+.zaglavlje nav { display: flex; gap: 4px; }
+.zaglavlje nav button {
+  gap: 7px; padding: 7px 14px; border: 0; border-radius: 99px; background: none;
+  font: 500 13px var(--sans); letter-spacing: -.005em; color: var(--ink-soft);
+}
+.zaglavlje nav button svg { width: 17px; height: 17px; }
+.zaglavlje nav button:hover { background: rgba(242,236,224,.05); color: var(--ink); }
+.zaglavlje nav button[aria-current="true"] { background: rgba(242,236,224,.09); color: var(--ink); }
+.zaglavlje nav button[aria-current="true"] svg { color: var(--gold-l); }
+.zaglavlje__desno { justify-self: end; display: flex; align-items: center; gap: 6px; }
+.zaglavlje__desno button { padding: 7px 10px; border-radius: 99px; font-size: 13px; font-weight: 500; }
+.znacka { font-size: 11px; padding: 3px 9px; border-radius: 99px; border: .5px solid var(--line); color: var(--gold); white-space: nowrap; }
+.sadrzaj { padding: 32px clamp(16px, 3.4vw, 40px) 80px; max-width: 1360px; margin: 0 auto; }
+@media (max-width: 720px) {
+  .zaglavlje { height: 52px; gap: 6px; }
+  .zaglavlje__znak b, .znacka, .zaglavlje__desno button span { display: none; }
+  .zaglavlje nav { gap: 2px; padding: 3px; border-radius: 99px; background: rgba(242,236,224,.05); }
+  .zaglavlje nav button { height: 34px; padding: 0 12px; gap: 6px; font-size: 13px; }
+  .zaglavlje nav button[aria-current="true"] { background: rgba(242,236,224,.12); }
+  .sadrzaj { padding-top: 22px; }
+}
+
+/* zaglavlje stranice */
+.glava { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
+.glava h1 { font-size: clamp(26px, 3vw, 32px); line-height: 1.1; }
+/* mjesec iz kalendara dolazi malim slovom — veliko samo prvo, ne svaka riječ */
+.glava h1::first-letter { text-transform: uppercase; }
+.glava__akcije { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+.povrsina { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--r); }
+
+/* ---------- lista predavanja ---------- */
+.zastavica { width: 20px; height: 14px; border-radius: 3px; object-fit: cover; flex: none; box-shadow: 0 0 0 1px rgba(0,0,0,.3); }
+.alati { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.trazi { position: relative; flex: 1; min-width: 220px; }
+.trazi input { padding-left: 36px; }
+.trazi svg { position: absolute; left: 12px; top: 50%; translate: 0 -50%; width: 16px; height: 16px; color: var(--ink-mute); }
+.redovi > * { border-bottom: 1px solid var(--line-soft); }
+.redovi > *:last-child { border-bottom: 0; }
+/* lista po mjesecima, kao kalendar u aplikaciji: zlatni naslov mjeseca, ispod njegova predavanja */
+.lista-mjeseci { display: grid; gap: 8px; }
+.mjesec-nas { display: flex; align-items: baseline; gap: 8px; margin: 14px 2px 0; font: 700 11px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.mjesec-nas:first-child { margin-top: 0; }
+.mjesec-nas span { color: var(--ink-mute); letter-spacing: .04em; }
+.pred-red { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 14px 18px; cursor: pointer; transition: background .15s; }
+.pred-red:hover { background: var(--hover); }
+/* datum kao list kalendara, isti kao u aplikaciji: gore zlatna traka, ispod krupan dan */
+.pred-red__datum {
+  display: grid; grid-template-rows: 18px 1fr; height: 56px; border-radius: 11px; overflow: hidden; text-align: center;
+  border: 1px solid color-mix(in srgb, var(--gold) 34%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 86%, var(--gold)), var(--surface-2));
+  box-shadow: 0 10px 20px -14px rgba(0,0,0,.65);
+}
+.pred-red .pred-red__datum small {
+  display: grid; place-items: center; padding-left: .16em; font: 700 8.5px var(--sans); letter-spacing: .16em; text-transform: uppercase;
+  color: #11221A; background: linear-gradient(150deg, var(--gold-l), var(--gold));
+}
+.pred-red .pred-red__datum b { display: grid; place-items: center; font-family: var(--serif); font-size: 23px; font-weight: 500; line-height: 1; color: var(--ink); }
+.pred-red b { display: block; font-family: var(--serif); font-size: 18px; font-weight: 500; line-height: 1.25; }
+.pred-red .sitno { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+.pred-red .sitno svg { width: 12px; height: 12px; color: var(--gold); flex: none; }
+.pred-red .sitno > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pred-red .sitno .zastavica { margin-left: 2px; }
+.oznaka { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: var(--hover); color: var(--ink-mute); }
+.prazno { padding: 40px 18px; text-align: center; color: var(--ink-soft); font-family: var(--serif); font-size: 17px; }
+
+/* ---------- uređivanje: veliki modal ----------
+   Zaglavlje s naslovom i radnjama stoji, a forma i dizajner plakata skrolaju
+   svaki za sebe. Ispod 1020px su jedno ispod drugog uz prekidač Podaci |
+   Plakat, a na telefonu je modal sheet preko skoro cijelog ekrana. */
+body:has(dialog[open]) { overflow: hidden; }
+.dijalog.dijalog--uredi { width: min(1240px, calc(100% - 48px)); height: min(940px, calc(100% - 48px)); max-height: none; }
+.dijalog--uredi[open] { display: flex; flex-direction: column; }
+.um__glava { flex: none; }
+.um__glava #sacuvaj { height: 36px; padding: 0 20px; }
+.um__dno, .rucka { display: none; }
+.uredi { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 430px); }
+.uredi > #forma { overflow: auto; scrollbar-width: thin; }
+.uredi > .dizajner { overflow: auto; border-left: 1px solid var(--line-soft); background: var(--surface); }
+.sekcija { padding: 22px 24px; }
+.sekcija + .sekcija { border-top: 1px solid var(--line-soft); }
+.sekcija h2 { font-size: 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+.sekcija h2 svg { width: 17px; height: 17px; color: var(--gold); }
+.polja { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.polja .puno { grid-column: 1 / -1; }
+@media (max-width: 560px) { .polja { grid-template-columns: 1fr; } }
+.s-zastavom { position: relative; display: block; }
+.s-zastavom select { padding-left: 46px; }
+.s-zastavom .zastavica { position: absolute; left: 12px; top: 50%; translate: 0 -50%; pointer-events: none; }
+
+/* dizajner plakata: pregled, pa format, boja i elementi kao kartice */
+.dizajner { padding: 20px; display: grid; gap: 18px; align-content: start; scrollbar-width: thin; }
+.dizajner canvas { width: 100%; height: auto; border-radius: 8px; box-shadow: 0 24px 50px -30px #000, 0 0 0 1px var(--line-soft); background: var(--bg-2); }
+.dizajner__grupa { display: grid; gap: 8px; }
+.dizajner__nas { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); }
+.karte { display: grid; gap: 8px; }
+.karte--3 { grid-template-columns: repeat(3, 1fr); }
+.karte--2 { grid-template-columns: repeat(2, 1fr); }
+.karte button { flex-direction: column; gap: 6px; padding: 12px 8px 10px; border-radius: 12px; background: var(--bg-2); }
+.karte button small { font-size: 11px; font-weight: 500; color: var(--ink-mute); }
+.karte button[aria-pressed="true"] { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 8%, var(--bg-2)); }
+.karte button[aria-pressed="true"] small { color: var(--gold); }
+.okvir-ikona { display: grid; place-items: center; height: 34px; }
+.okvir-ikona i { border: 1.5px solid currentColor; border-radius: 3px; opacity: .8; }
+.karte button[aria-pressed="true"] .okvir-ikona i { color: var(--gold); opacity: 1; }
+.uzorak { display: grid; place-items: center; width: 100%; height: 40px; border-radius: 8px; font: 700 26px/1 var(--display); font-style: normal;
+  background: linear-gradient(150deg, var(--a), var(--b)); color: var(--z); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.element { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: center; padding: 8px 0; cursor: pointer; }
+.element + .element { border-top: 1px solid var(--line-soft); }
+.element > svg { width: 32px; height: 32px; padding: 7px; border-radius: 9px; background: var(--bg-2); color: var(--gold); }
+.element b { display: block; font-size: 14px; font-weight: 500; }
+.element small { display: block; font-size: 12px; color: var(--ink-mute); }
+.element.ugaseno { opacity: .45; cursor: default; }
+.element input { appearance: none; width: 36px; height: 20px; border-radius: 99px; padding: 0; box-shadow: none; flex: none;
+  background: var(--surface-2); border: 1px solid var(--line); position: relative; cursor: pointer; transition: background .2s; }
+.element input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--ink-mute); transition: translate .2s var(--ease), background .2s; }
+.element input:checked { background: color-mix(in srgb, var(--gold) 45%, transparent); border-color: transparent; }
+.element input:checked::after { translate: 16px 0; background: var(--gold-l); }
+.dizajner__preuzmi { display: grid; }
+.dizajner__link { display: grid; gap: 8px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.dizajner__link .sitno { margin: 0; }
+.link-polje { display: flex; gap: 8px; }
+.link-polje input { font-size: 12.5px; color: var(--ink-soft); }
+
+/* ---------- citati ---------- */
+.citat { display: grid; grid-template-columns: 40px 1fr; gap: 4px 12px; padding: 16px 18px; cursor: pointer; transition: background .15s; }
+.citat__br { grid-row: span 2; font-family: var(--serif); font-size: 20px; line-height: 1.3; color: var(--gold); font-variant-numeric: tabular-nums; text-align: right; }
+.citat:hover { background: var(--hover); }
+.citat p { margin: 0; font-family: var(--serif); font-size: 17px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.citat mark { background: color-mix(in srgb, var(--gold) 35%, transparent); color: inherit; border-radius: 3px; }
+.dijalog.dijalog--citat { width: min(600px, calc(100% - 28px)); }
+.citat-uredi textarea { min-height: 150px; font-family: var(--serif); font-size: 18px; }
+
+/* ---------- telefon ----------
+   Polja od 16px (iOS inače zumira čim se dodirnu), „Novo predavanje“ kao
+   okruglo dugme pri dnu, „Sačuvaj“ u traci pri dnu dok se uređuje, alati
+   preko cijele širine. */
+@media (max-width: 720px) {
+  input, select, textarea { font-size: 16px; }
+  .sadrzaj { padding-left: 14px; padding-right: 14px; }
+  .glava { margin-bottom: 16px; }
+  .glava h1 { font-size: 27px; }
+  .glava__akcije { margin-left: 0; width: 100%; flex-wrap: nowrap; gap: 6px; }
+  .glava__akcije .zlatno, .glava__akcije [data-izvoz] { flex: 1 1 0; justify-content: center; white-space: nowrap; padding: 10px 12px; }   /* izvoz i „Novo“ dijele red popola, iste visine */
+  .glava__akcije .segment button { padding: 6px 10px; }
+  .glava__akcije [data-popuni] { flex: none; padding: 10px; }        /* samo lokalno — na telefonu tek ikonica */
+  .glava__akcije [data-popuni] span { display: none; }
+  .alati { flex-direction: column; align-items: stretch; }
+  .alati .segment button, .glava__akcije .segment button { flex: 1; }
+  .alati .segment { display: flex; }
+  .trazi { min-width: 0; }
+  .pred-red { padding: 12px 14px; gap: 12px; }
+  .pred-red b { font-size: 16.5px; }
+  .sekcija { padding: 18px 16px; }
+  .dizajner { padding: 16px; gap: 16px; }
+  .citat { grid-template-columns: 30px 1fr; padding: 14px; }
+  .citat p { font-size: 16px; }
+}
+
+/* ---------- uređivanje: prekidač Podaci | Plakat (samo kad su jedno ispod drugog) ---------- */
+.uredi-tabovi { display: none; flex: none; margin: 12px 16px 0; }
+.uredi-tabovi button { flex: 1; padding: 9px; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.test { padding: 2px 0; font-size: 12.5px; color: var(--gold); }
+@media (max-width: 1020px) {
+  .uredi-tabovi { display: flex; }
+  .uredi { display: block; overflow: auto; margin-top: 12px; border-top: 1px solid var(--line-soft); }
+  .uredi > #forma, .uredi > .dizajner { overflow: visible; border: 0; background: none; }
+  .uredi[data-dio="podaci"] .dizajner { display: none; }
+  .uredi[data-dio="plakat"] #forma { display: none; }
+  .dizajner canvas { max-width: 460px; margin: 0 auto; }
+}
+
+/* ---------- izvoz: dijalog ---------- */
+.dijalog {
+  width: min(460px, calc(100% - 28px)); max-height: calc(100% - 28px); padding: 0; border: 1px solid var(--line);
+  border-radius: 20px; background: var(--bg-2); color: var(--ink); box-shadow: 0 40px 90px -30px #000;
+}
+.dijalog::backdrop { background: rgba(3,9,6,.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+/* Tekstura motiva kao u drawerima aplikacije: gore lijevo se nakupi, desno
+   tek dotakne, a prema dnu nestane — polja i tekst ostaju čisti. */
+.dijalog { isolation: isolate; }
+.dijalog::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: url("/assets/texture/texture.svg") repeat center top / 620px auto;
+  opacity: .036;
+  -webkit-mask-image:
+    radial-gradient(110% 46% at 10% 0%, #000 0%, rgba(0,0,0,.45) 40%, transparent 74%),
+    radial-gradient(80% 40% at 96% 22%, rgba(0,0,0,.6) 0%, transparent 66%),
+    linear-gradient(178deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.25) 45%, transparent 85%);
+          mask-image:
+    radial-gradient(110% 46% at 10% 0%, #000 0%, rgba(0,0,0,.45) 40%, transparent 74%),
+    radial-gradient(80% 40% at 96% 22%, rgba(0,0,0,.6) 0%, transparent 66%),
+    linear-gradient(178deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.25) 45%, transparent 85%);
+}
+.dijalog[open] { animation: dijalogIn .3s var(--ease); }
+@keyframes dijalogIn { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+.dijalog__karta { display: grid; gap: 16px; padding: 20px; }
+.dijalog__karta > .dijalog__glava { margin: -20px -20px 0; }
+
+/* Zaglavlje prozora — isto kao zaglavlje drawera u aplikaciji: svjetlija,
+   zamućena traka sa zlatnim sjajem odozgo, zlatni krug s ikonom, mali zlatni
+   natpis nad naslovom i okruglo „x“ iste veličine kao krug. Ikone u traci
+   su deblje (--ik-sw ulazi u simbol, vidi sprite). */
+.um__glava, .dijalog__glava {
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  background: radial-gradient(120% 110% at 50% 0%, color-mix(in srgb, var(--gold) 13%, transparent), transparent 72%), rgba(255,255,255,.075);
+  -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+  -webkit-user-select: none; user-select: none;
+  --ik-sw: 2;
+}
+.glava__ikona {
+  flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--gold);
+  border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold) 24%, transparent), transparent 70%);
+}
+.glava__ikona svg.ik { width: 17px; height: 17px; }
+.glava__naslov { flex: 1; min-width: 0; }
+.glava__naslov .nad {
+  display: block; font-size: 10px; line-height: 1; letter-spacing: .2em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.glava__naslov h2 {
+  font-size: 22px; font-weight: 600; line-height: 1.1; margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.glava__red { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.glava__red h2 { min-width: 0; }
+.glava__red .test { flex: none; height: 24px; margin-top: 4px; padding: 0 10px; font-size: 12px; }
+.um__glava .ikona-dugme {
+  width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%;
+}
+.glava__x {
+  color: rgba(242,236,224,.9); border: 1px solid rgba(242,236,224,.15); background: rgba(242,236,224,.08);
+}
+.dijalog__glava .glava__x { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+.glava__x svg.ik { width: 15px; height: 15px; --ik-sw: 2.4; }
+@media (hover: hover) { .glava__x:hover { color: var(--ink); background: rgba(242,236,224,.12); } }
+.dijalog__nacin { display: flex; }
+.dijalog__nacin button { flex: 1; padding: 9px 12px; font-size: 13.5px; }
+.dijalog__nacin svg.ik { width: 15px; height: 15px; }
+svg.ik--okvir { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.dijalog__opis { margin: -4px 0 0; }
+
+/* izvoz rasporeda: pregled slike lijevo, izbor desno */
+.dijalog.dijalog--izvoz { width: min(880px, calc(100% - 48px)); }
+.izvoz { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 22px; align-items: start; }
+/* izbor perioda stoji iznad slike — prvo se bira šta, pa se vidi kako izgleda */
+.izvoz__lijevo { display: grid; gap: 12px; min-width: 0; }
+.izvoz__period { display: grid; gap: 6px; padding: 6px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line-soft); }
+.izvoz__period .segment { display: flex; }
+.mjesec-korak { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px; }
+.mjesec-korak select {
+  appearance: none; -webkit-appearance: none; text-align: center; text-align-last: center; cursor: pointer;
+  border-color: transparent; background: none; padding: 8px 6px;
+  font: 500 21px/1.2 var(--serif); color: var(--ink);
+}
+.mjesec-korak select:hover { background: var(--hover); }
+.mjesec-korak .ikona-dugme { padding: 10px; }
+.mjesec-korak .ikona-dugme:disabled { opacity: .25; }
+.period-polja { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 4px 4px 2px; }
+.izvoz__pregled { position: relative; display: grid; place-items: center; min-height: 240px; border-radius: 12px; background: var(--surface); padding: 14px; }
+.izvoz__pregled canvas { display: block; max-width: 100%; max-height: min(58vh, 600px); width: auto; height: auto; border-radius: 6px; box-shadow: 0 24px 50px -28px #000; }
+.izvoz__pregled.prazno canvas { visibility: hidden; }
+.izvoz__pregled.prazno::after { content: 'Nema objavljenih predavanja u ovom periodu.'; position: absolute; inset: 0; display: grid; place-items: center; padding: 20px; text-align: center; font-size: 13.5px; color: var(--ink-mute); }
+.izvoz__preuzmi { width: 100%; padding: 12px; }
+.izvoz__kontrole { display: grid; gap: 14px; }
+.izvoz__izbor { display: flex; align-items: center; gap: 14px; }
+.izvoz__izbor .segment { flex: 1; display: flex; }
+.izvoz__izbor .segment button { flex: 1; padding: 8px 6px; }
+.izvoz__izbor .boje button { width: 30px; height: 30px; }
+.test svg.ik { width: 14px; height: 14px; }
+
+@media (max-width: 720px) {
+  /* Svi draweri jednako: ručka, nadnaslov i naslov iste veličine, okruglo
+     dugme za zatvaranje, glavna radnja preko cijele širine na dnu. */
+  .dijalog { width: 100%; max-width: none; max-height: 92%; margin: auto 0 0; border-radius: 22px 22px 0 0; border-bottom: 0; }
+  .izvoz__preuzmi, #citat-sacuvaj { padding: 13px; font-size: 15px; }
+  .citat-uredi .red { flex-wrap: nowrap; }
+  .citat-uredi .razmak, #citat-odustani { display: none; }
+  #citat-sacuvaj { flex: 1; }
+  .dijalog[open] { animation: sheetIn .38s cubic-bezier(.32, .72, 0, 1); }
+  .dijalog__karta { padding: 6px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .dijalog.dijalog--izvoz, .dijalog.dijalog--citat { width: 100%; }
+  .izvoz { grid-template-columns: 1fr; gap: 16px; }
+  .izvoz__pregled { min-height: 0; padding: 10px; }
+  .izvoz__pregled canvas { max-height: 38vh; }
+  /* uređivanje: sheet do vrha, uz tračak pozadine iznad — kao iOS */
+  .dijalog.dijalog--uredi { width: 100%; height: calc(100% - 10px - env(safe-area-inset-top)); max-height: none; border-radius: 22px 22px 0 0; }
+  .um__glava #sacuvaj { display: none; }
+  .um__dno { display: block; flex: none; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line-soft); background: var(--bg-2); }
+  .um__dno button { width: 100%; padding: 13px; font-size: 15px; }
+  /* ručka kao na drawerima u aplikaciji — za nju i zaglavlje drawer se spušta prstom */
+  /* hvataljka leži na traci zaglavlja: traka se podvuče pod nju (kao u aplikaciji) */
+  .rucka { display: block; position: relative; z-index: 2; flex: none; height: 22px; touch-action: none; }
+  .rucka::before { content: ''; position: absolute; left: 50%; top: 18px; translate: -50% 0; width: 34px; height: 4px; border-radius: 99px; background: rgba(242,236,224,.38); }
+  .um__glava, .dijalog__glava { touch-action: none; padding: 40px 16px 12px; }
+  .um__glava { margin-top: -22px; }
+  .dijalog__karta > .dijalog__glava { margin: -28px -16px 0; }
+  .dijalog::backdrop { opacity: calc(1 - var(--povuceno, 0)); }
+}
+@keyframes sheetIn { from { transform: translateY(100%); } }
+
+/* prijedlozi ispod polja (grad): zastava, ime, država */
+.s-prijedlozima { position: relative; display: block; }
+.prijedlozi {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 20; display: grid; gap: 2px; padding: 5px;
+  max-height: 280px; overflow: auto; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line);
+  box-shadow: 0 20px 44px -18px rgba(0,0,0,.85);
+}
+.prijedlozi button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 8px;
+  background: none; text-align: left; font: 400 14px var(--sans); color: var(--ink); cursor: pointer;
+}
+.prijedlozi button:hover, .prijedlozi button.on { border: 0; background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.prijedlozi b { font-weight: 500; }
+.prijedlozi small { margin-left: auto; font-size: 12px; color: var(--ink-mute); white-space: nowrap; }
+
+/* poruke: kad dolazi, koliko je puta bila poruka dana, dijeljenja */
+.citat__stat { grid-column: 2; display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: 12px; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+.citat__stat .danas { color: var(--gold); font-weight: 600; }
+
+/* izmjena predavanja: sakrij / obriši, umjesto prekidača za obavijest */
+.upravljanje { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
+.upravljanje button { display: inline-flex; align-items: center; gap: 8px; }

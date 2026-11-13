@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="bs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin · Poruka dana</title>
+<link rel="icon" href="/assets/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 2)" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="i-lijevo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></symbol>
+    <symbol id="i-desno" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="i-lupa" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></symbol>
+    <symbol id="i-oko" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></symbol>
+    <symbol id="i-preuzmi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-plakat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="9.5" cy="9" r="1.8"/><path d="M4 17l4.5-4.5 3.5 3.5 2.5-2.5L20 19"/></symbol>
+    <symbol id="i-kalendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 1.7)" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-lista" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></symbol>
+    <symbol id="i-navod" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 1.7)" stroke-linecap="round" stroke-linejoin="round"><path d="M10 7H6a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v1a3 3 0 0 1-3 3M20 7h-4a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h3v1a3 3 0 0 1-3 3"/></symbol>
+    <symbol id="i-foto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/></symbol>
+    <symbol id="i-zastava" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4c4-2 7 2 11 0v9c-4 2-7-2-11 0"/></symbol>
+    <symbol id="i-mjesec" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-sat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+    <symbol id="i-mjesto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+    <symbol id="i-izvoz" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 1.8)" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7 8l5-5 5 5M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></symbol>
+    <symbol id="i-kanta" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 1.8)" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-izlaz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></symbol>
+    <symbol id="i-kvaka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-kopiraj" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+    <symbol id="i-raspon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></symbol>
+    <symbol id="i-ulaz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M3 12h11M10 8l4 4-4 4"/></symbol>
+    <symbol id="i-ponisti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h11a5 5 0 0 1 0 10H9"/><path d="M8 5L4 9l4 4"/></symbol>
+    <symbol id="i-iskra" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/></symbol>
+  </defs>
+</svg>
+
+<!-- ===== PRIJAVA ===== -->
+<section class="prijava" id="prijava" hidden>
+  <form class="prijava__karta" id="f-prijava">
+    <img src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="">
+    <h1>Dobro došli</h1>
+    <p>Predavanja i citati hafiza Ammara Bašića</p>
+    <label class="prijava__polje">Šifra
+      <input type="password" id="tajna" autocomplete="current-password" required autofocus>
+      <button type="button" class="tiho ikona-dugme prijava__oko" id="oko" aria-label="Prikaži šifru"><svg class="ik"><use href="#i-oko"/></svg></button>
+    </label>
+    <button class="zlatno"><svg class="ik"><use href="#i-ulaz"/></svg> Prijava</button>
+    <div class="prijava__greska" id="prijava-greska"></div>
+    <div class="prijava__napomena" id="prijava-napomena" hidden>Lokalno, bez servera, šifra je <b>admin</b>.</div>
+  </form>
+</section>
+
+<!-- ===== RADNI DIO ===== -->
+<div class="ljuska" id="radno" hidden>
+  <header class="zaglavlje">
+    <div class="zaglavlje__znak"><img src="/assets/brand/ammar_basic_logo_w_m_1.png" alt=""><b>Admin</b></div>
+    <nav>
+      <button data-tab="lista" aria-current="true" title="Predavanja"><svg class="ik"><use href="#i-kalendar"/></svg><span>Predavanja</span></button>
+      <button data-tab="citati" title="Poruke"><svg class="ik"><use href="#i-navod"/></svg><span>Poruke</span></button>
+    </nav>
+    <div class="zaglavlje__desno">
+      <span class="znacka" id="rezim" hidden>lokalni režim</span>
+      <button class="tiho" id="odjava" title="Odjava"><svg class="ik"><use href="#i-izlaz"/></svg><span>Odjava</span></button>
+    </div>
+  </header>
+
+  <main class="sadrzaj">
+    <!-- lista predavanja -->
+    <section data-pogled="lista">
+      <header class="glava">
+        <div><span class="nad">Hafiz Ammar Bašić</span><h1>Naredna predavanja</h1></div>
+        <div class="glava__akcije">
+          <button data-popuni hidden title="Samo lokalno — doda 5 test predavanja (BiH i dijaspora)"><svg class="ik"><use href="#i-kalendar"/></svg><span>Test predavanja</span></button>
+          <button data-izvoz><svg class="ik"><use href="#i-izvoz"/></svg><span>Izvoz rasporeda</span></button>
+          <button class="zlatno" data-novo><svg class="ik"><use href="#i-plus"/></svg><span>Novo predavanje</span></button>
+        </div>
+      </header>
+      <div class="alati">
+        <div class="trazi"><svg><use href="#i-lupa"/></svg><input type="search" id="lista-trazi" placeholder="Traži po naslovu, gradu, mjestu…"></div>
+      </div>
+      <div class="lista-mjeseci" id="lista"></div>
+    </section>
+
+    <!-- citati -->
+    <section data-pogled="citati" hidden>
+      <header class="glava">
+        <div><span class="nad">Poruka dana u aplikaciji</span><h1>Poruke</h1></div>
+        <div class="glava__akcije">
+          <button class="zlatno" id="citat-novi"><svg class="ik"><use href="#i-plus"/></svg><span>Nova poruka</span></button>
+        </div>
+      </header>
+      <div class="alati">
+        <div class="trazi"><svg><use href="#i-lupa"/></svg><input type="search" id="citati-trazi" placeholder="Traži po tekstu, knjizi, poglavlju…"></div>
+        <select id="citati-knjiga" style="width:auto"></select>
+      </div>
+      <div class="red sitno" style="margin:-4px 0 14px">
+        <span id="citati-broj"></span>
+        <span class="razmak"></span>
+        <span id="citati-izmjene"></span>
+        <button class="tiho opasno" id="citati-ponisti" hidden><svg class="ik"><use href="#i-ponisti"/></svg> Poništi izmjene</button>
+      </div>
+      <div class="povrsina redovi" id="citati"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ===== UREĐIVANJE PREDAVANJA: veliki modal, na telefonu sheet preko cijelog ekrana ===== -->
+<dialog class="dijalog dijalog--uredi" id="uredi-modal" aria-labelledby="f-naslov">
+      <i class="rucka" aria-hidden="true"></i>
+      <header class="um__glava">
+        <span class="glava__ikona"><svg class="ik"><use href="#i-kalendar"/></svg></span>
+        <div class="glava__naslov">
+          <span class="nad">Predavanja</span>
+          <div class="glava__red">
+            <h2 id="f-naslov">Novo predavanje</h2>
+            <button class="tiho test" id="test" hidden><svg class="ik"><use href="#i-iskra"/></svg> Popuni test podacima</button>
+          </div>
+        </div>
+        <button class="tiho opasno ikona-dugme" id="obrisi" hidden title="Obriši predavanje" aria-label="Obriši predavanje"><svg class="ik"><use href="#i-kanta"/></svg></button>
+        <button class="zlatno" id="sacuvaj" data-sacuvaj form="forma"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj</button>
+        <button class="tiho ikona-dugme glava__x" id="uredi-zatvori" title="Zatvori" aria-label="Zatvori"><svg class="ik"><use href="#i-x"/></svg></button>
+      </header>
+
+      <div class="segment uredi-tabovi" id="uredi-tabovi" role="group" aria-label="Dio">
+        <button type="button" data-dio="podaci" aria-pressed="true"><svg class="ik"><use href="#i-lista"/></svg>Podaci</button>
+        <button type="button" data-dio="plakat" aria-pressed="false"><svg class="ik"><use href="#i-plakat"/></svg>Plakat</button>
+      </div>
+
+      <div class="uredi" id="uredi" data-dio="podaci">
+        <form id="forma" autocomplete="off">
+          <div class="sekcija">
+            <h2>Predavanje</h2>
+            <div class="polja">
+              <label class="puno">Naslov <input name="naslov" required maxlength="200" placeholder="npr. Učvrsti svoje srce"></label>
+              <label class="puno">Podnaslov <input name="podnaslov" maxlength="200" placeholder="Kratko — na plakatu ide ispod naslova"></label>
+            </div>
+          </div>
+          <div class="sekcija">
+            <h2><svg><use href="#i-kalendar"/></svg>Kada</h2>
+            <div class="polja">
+              <label>Datum <input type="date" name="datum" required></label>
+              <label>Vrijeme, po lokalnom <input type="time" name="vrijeme" required value="19:00"></label>
+              <label class="puno">Uz vrijeme <input name="vrijeme_opis" maxlength="80" placeholder="Neobavezno — npr. poslije jacije namaza"></label>
+              <label class="prekidac puno"><span>Hidžretski datum<small>Na plakatu, ispod datuma</small></span><input type="checkbox" data-opcija="hidzri"></label>
+              <label>Država <span class="s-zastavom"><img class="zastavica" id="drzava-zastava" alt=""><select name="drzava" id="drzava"></select></span></label>
+              <label>Vremenska zona <select name="zona" id="zona"></select></label>
+            </div>
+          </div>
+          <div class="sekcija">
+            <h2><svg><use href="#i-mjesto"/></svg>Gdje</h2>
+            <div class="polja">
+              <label>Grad <span class="s-prijedlozima"><input name="grad" maxlength="120" placeholder="npr. Beč" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="gradovi"><span class="prijedlozi" id="gradovi" role="listbox" hidden></span></span></label>
+              <label>Mjesto ili centar <input name="mjesto" maxlength="200" placeholder="npr. Bošnjački kulturni centar"></label>
+              <label class="puno">Adresa <input name="adresa" maxlength="300"></label>
+              <label class="puno">Organizator <input name="organizator" maxlength="200" placeholder="Ako predavanje organizuje neko drugi — npr. Džemat Bosna Beč"></label>
+            </div>
+          </div>
+          <div class="sekcija">
+            <h2>U aplikaciji</h2>
+            <div class="polja">
+              <label class="puno">Opis <textarea name="opis" maxlength="4000" placeholder="Nekoliko rečenica o predavanju — ne ide na plakat"></textarea></label>
+              <label class="puno">Link <input type="url" name="link" maxlength="500" placeholder="https:// — prijava, prijenos uživo…"></label>
+              <label class="prekidac puno" id="obavijest-red"><span>Pošalji obavijest<small>Korisnici dobiju obavijest o ovom predavanju. Isključeno — predavanje je samo vidljivo u aplikaciji.</small></span><input type="checkbox" name="obavijest" checked></label>
+              <div class="puno upravljanje" id="upravljanje" hidden>
+                <button type="button" class="tiho" id="sakrij"><svg class="ik"><use href="#i-oko"/></svg><span>Sakrij iz aplikacije</span></button>
+                <button type="button" class="tiho opasno" id="obrisi-dole"><svg class="ik"><use href="#i-kanta"/></svg><span>Obriši predavanje</span></button>
+              </div>
+            </div>
+          </div>
+        </form>
+
+        <aside class="dizajner">
+          <div class="dizajner__glava"><span class="nad">Dizajn plakata</span></div>
+          <canvas id="platno" width="1080" height="1350"></canvas>
+
+          <div class="dizajner__grupa">
+            <span class="dizajner__nas">Format</span>
+            <div class="karte karte--3" id="formati"></div>
+          </div>
+          <div class="dizajner__grupa">
+            <span class="dizajner__nas">Boja</span>
+            <div class="karte karte--2" id="boje">
+              <button type="button" data-stil="zelena"><i class="uzorak" style="--a:#204234;--b:#0D1C15;--z:#E3C489">“</i><span>Zelena</span></button>
+              <button type="button" data-stil="krem"><i class="uzorak" style="--a:#F7F1E2;--b:#E6D9BC;--z:#8E6C28">“</i><span>Krem</span></button>
+            </div>
+          </div>
+          <div class="dizajner__preuzmi">
+            <button class="zlatno" id="preuzmi"><svg class="ik"><use href="#i-preuzmi"/></svg> Preuzmi izabrani plakat</button>
+          </div>
+          <div class="dizajner__link" id="link-blok" hidden>
+            <span class="dizajner__nas"><svg class="ik"><use href="#i-link"/></svg> Plakat za dijeljenje</span>
+            <div class="link-polje">
+              <input id="link" readonly>
+              <button id="kopiraj-link"><svg class="ik"><use href="#i-kopiraj"/></svg> Kopiraj</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+      <div class="um__dno"><button class="zlatno" data-sacuvaj form="forma"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj predavanje</button></div>
+</dialog>
+
+<!-- ===== PORUKA ===== -->
+<dialog class="dijalog dijalog--citat" id="citat-modal" aria-labelledby="citat-naslov">
+  <i class="rucka" aria-hidden="true"></i>
+  <form method="dialog" class="dijalog__karta citat-uredi">
+    <header class="dijalog__glava">
+      <span class="glava__ikona"><svg class="ik"><use href="#i-navod"/></svg></span>
+      <div class="glava__naslov"><span class="nad">Poruka dana</span><h2 id="citat-naslov">Nova poruka</h2></div>
+      <button value="zatvori" class="tiho ikona-dugme glava__x" aria-label="Zatvori"><svg class="ik"><use href="#i-x"/></svg></button>
+    </header>
+    <textarea id="citat-tekst" placeholder="Tekst poruke…"></textarea>
+    <div class="polja">
+      <label>Knjiga <select id="citat-knjiga"></select></label>
+      <label>Poglavlje ili tema <input id="citat-poglavlje" maxlength="120"></label>
+    </div>
+    <div class="red">
+      <button type="button" class="tiho opasno" id="citat-obrisi" hidden><svg class="ik"><use href="#i-kanta"/></svg> Obriši</button>
+      <span class="razmak"></span>
+      <button type="button" class="tiho" id="citat-odustani"><svg class="ik"><use href="#i-x"/></svg> Odustani</button>
+      <button type="button" class="zlatno" id="citat-sacuvaj"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj poruku</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===== IZVOZ ===== -->
+<dialog class="dijalog dijalog--izvoz" id="izvoz" aria-labelledby="izvoz-naslov">
+  <i class="rucka" aria-hidden="true"></i>
+  <form method="dialog" class="dijalog__karta">
+    <header class="dijalog__glava">
+      <span class="glava__ikona"><svg class="ik"><use href="#i-izvoz"/></svg></span>
+      <div class="glava__naslov"><span class="nad">Izvoz</span><h2 id="izvoz-naslov">Raspored predavanja</h2></div>
+      <button value="zatvori" class="tiho ikona-dugme glava__x" aria-label="Zatvori"><svg class="ik"><use href="#i-x"/></svg></button>
+    </header>
+    <div class="izvoz">
+      <div class="izvoz__lijevo">
+        <div class="izvoz__period">
+          <div class="segment dijalog__nacin" id="izvoz-nacin">
+            <button type="button" data-nacin="mjesec" aria-pressed="true"><svg class="ik"><use href="#i-kalendar"/></svg>Mjesec</button>
+            <button type="button" data-nacin="period" aria-pressed="false"><svg class="ik"><use href="#i-raspon"/></svg>Period</button>
+          </div>
+          <div class="mjesec-korak" data-za="mjesec">
+            <button type="button" class="tiho ikona-dugme" data-korak="-1" aria-label="Prethodni mjesec"><svg class="ik"><use href="#i-lijevo"/></svg></button>
+            <select id="izvoz-mjesec" aria-label="Mjesec"></select>
+            <button type="button" class="tiho ikona-dugme" data-korak="1" aria-label="Sljedeći mjesec"><svg class="ik"><use href="#i-desno"/></svg></button>
+          </div>
+          <div class="period-polja" data-za="period" hidden>
+            <label>Od <input type="date" id="izvoz-od"></label>
+            <label>Do <input type="date" id="izvoz-do"></label>
+          </div>
+        </div>
+        <div class="izvoz__pregled"><canvas id="izvoz-platno" width="1080" height="1350"></canvas></div>
+      </div>
+      <div class="izvoz__kontrole">
+        <div class="izvoz__izbor">
+          <div class="segment" id="izvoz-format"></div>
+          <div class="boje" id="izvoz-boje">
+            <button type="button" data-stil="zelena" style="--a:#204234;--b:#0D1C15" aria-pressed="true" title="Zelena"></button>
+            <button type="button" data-stil="krem" style="--a:#F7F1E2;--b:#E6D9BC" aria-pressed="false" title="Krem"></button>
+          </div>
+        </div>
+        <button type="button" class="zlatno izvoz__preuzmi" data-izvezi="slika"><svg class="ik"><use href="#i-preuzmi"/></svg> <span>Preuzmi sliku</span></button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<div class="poruka" id="poruka"></div>
+<script type="module" src="/admin/admin.js"></script>
+</body>
+</html>

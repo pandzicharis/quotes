@@ -40,6 +40,10 @@
   --ease-back: cubic-bezier(.34, 1.56, .64, 1);
   --t-fast: .18s;  --t: .34s;
 
+  /* zaglavlje drawera: traka svjetlija od panela, rub ispod */
+  --glava:     rgba(255,255,255,.075);
+  --glava-rub: rgba(255,255,255,.09);
+
 }
 
 /* --- TAMNA: „noć“ --- */
@@ -74,6 +78,8 @@
 /* --- SVIJETLA: „papir“ --- */
 :root[data-tema="svijetla"] {
   --korica-op: .22;
+  --glava:     rgba(19,39,29,.035);
+  --glava-rub: rgba(19,39,29,.09);
   --bg:        #F5F1E7;
   --bg-2:      #FBF8F1;
   --surface:   #FDFBF6;
@@ -125,6 +131,9 @@ body {
 }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { background: none; border: 0; cursor: pointer; padding: 0; }
+/* dugmad, zaglavlja drawera i kutija predavanja se ne označavaju — dvoklik ili
+   brz dodir koji otvori drawer ne ostavi plavo označen tekst */
+button, .modal__rucka, .modal__nas, .pred-box { -webkit-user-select: none; user-select: none; }
 a { color: inherit; text-decoration: none; }
 img { max-width: 100%; display: block; }
 :focus-visible { outline: 1.5px solid var(--gold); outline-offset: 3px; border-radius: 6px; }
@@ -501,7 +510,7 @@ html:not(.ucitano) .app { visibility: hidden; }
 .karta__dan span { transform: translateX(.17em); }   /* letter-spacing ostavlja rep desno */
 
 .karta__datum {
-  font-family: var(--serif); font-size: clamp(21px, 5.4vw, 26px); font-weight: 400;
+  font-family: var(--serif); font-size: clamp(21px, 5.4vw, 26px); font-weight: 600;
   line-height: 1.18; margin-top: 10px; letter-spacing: -.012em;
   background: linear-gradient(100deg, var(--ink) 18%, color-mix(in srgb, var(--gold) 62%, var(--ink)) 100%);
   -webkit-background-clip: text; background-clip: text;
@@ -509,7 +518,16 @@ html:not(.ucitano) .app { visibility: hidden; }
   animation: rise .55s .05s var(--ease) both;
 }
 .karta__hidzri { font-family: var(--serif); font-style: italic; color: var(--ink-soft);
-  font-size: clamp(13.5px, 3.7vw, 15.5px); margin-top: 4px; animation: rise .55s .1s var(--ease) both; }
+  font-size: clamp(13.5px, 3.7vw, 15.5px); animation: rise .55s .1s var(--ease) both; }
+
+/* hidžretski datum u sredini, „Danas“ uz desni rub — bez novog reda na
+   kartici, pa se ništa ne pomjera kad se „Danas“ pojavi ili nestane */
+.karta__red {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
+  margin: 4px -8px 0; min-height: 24px;
+}
+.karta__red .karta__hidzri { grid-column: 2; }
+.karta__red .karta__danas  { grid-column: 3; margin-right: 6px; }
 
 /* tijelo — prilagođeno dužim porukama */
 .karta__telo {
@@ -668,27 +686,38 @@ html:not(.ucitano) .app { visibility: hidden; }
 @keyframes pop { 0% { transform: scale(1); } 45% { transform: scale(1.45) rotate(-8deg); } 100% { transform: scale(1.1); } }
 .iskra { position: fixed; width: 4px; height: 4px; border-radius: 50%; background: var(--gold); pointer-events: none; z-index: 200; }
 
+/* ---------- 6b. ŽIVA KARTICA ---------- */
+
+/* dvostruki dodir: zvijezda procvjeta pod prstom */
+.zvijezda-dodir {
+  position: fixed; z-index: 200; width: 92px; height: 92px; pointer-events: none;
+  transform: translate(-50%, -50%); opacity: 0;
+  color: var(--navod);
+  filter: drop-shadow(0 8px 22px color-mix(in srgb, var(--brand-gold) 55%, transparent));
+}
+.zvijezda-dodir svg { width: 100%; height: 100%; }
+@media (prefers-reduced-motion: reduce) { .zvijezda-dodir { opacity: 1; } }
+
 /* ---------- 7. SLIDER (prevlačenje kartice) ---------- */
 
 /* povratak na današnju poruku — samo kad se gleda stariji dan */
 .karta__danas {
-  display: inline-flex; align-items: center; gap: 6px;
-  margin-top: 12px; padding: 6px 14px; border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--gold) 28%, transparent);
-  background: color-mix(in srgb, var(--gold) 8%, transparent);
-  color: var(--gold); font-weight: 700;
-  font-size: 9px; letter-spacing: .2em; text-transform: uppercase; white-space: nowrap;
+  justify-self: end; align-self: center;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+  color: var(--gold); font-weight: 700; line-height: 1.3;
+  font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase; white-space: nowrap;
   animation: rise .34s var(--ease) both;
   transition: background var(--t-fast), border-color var(--t-fast),
               transform var(--t-fast) var(--ease-back);
 }
 @media (hover: hover) {
   .karta__danas:hover {
-    background: color-mix(in srgb, var(--gold) 15%, transparent);
-    border-color: color-mix(in srgb, var(--gold) 50%, transparent);
+    background: color-mix(in srgb, var(--gold) 12%, transparent);
+    border-color: color-mix(in srgb, var(--gold) 55%, transparent);
   }
 }
-.karta__danas:active { transform: scale(.96); }
+.karta__danas:active { transform: scale(.94); }
 
 /* pokazivači smjera dok se kartica vuče kao slider */
 .potez {
@@ -738,6 +767,9 @@ html:not(.ucitano) .app { visibility: hidden; }
    koja bi se „zaglavila“, pa radi i kad se PWA probudi u pozadini. */
 .traka {
   overflow-x: auto; overflow-y: hidden;
+  /* mjesto iznad korica: pri hoveru se knjiga podigne, a traka bi joj
+     inače odsjekla zaobljene gornje uglove */
+  padding-top: 10px; margin-top: -10px;
   scrollbar-width: none; -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
@@ -749,9 +781,10 @@ html:not(.ucitano) .app { visibility: hidden; }
    a da i dalje može biti širi od nje i scrollati se */
 .traka__vrpca { display: flex; justify-content: center; min-width: max-content; }
 .traka__grupa { display: flex; gap: clamp(13px, 3vw, 18px); }
-.knjiga { flex: none; width: clamp(102px, 26vw, 122px); }
+/* korice su 600×847 — prave proporcije knjige, bez odsijecanja sa strane */
+.knjiga { flex: none; width: clamp(116px, 30vw, 138px); }
 .knjiga img {
-  width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 4px;
+  width: 100%; aspect-ratio: 600/847; object-fit: cover; border-radius: 9px;
   box-shadow: 0 16px 32px -18px rgba(0,0,0,.7), 0 0 0 1px var(--line);
   transition: transform var(--t) var(--ease), box-shadow var(--t) var(--ease);
 }
@@ -840,6 +873,25 @@ html:not(.ucitano) .app { visibility: hidden; }
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--gold) 55%, transparent), transparent);
 }
 .modal { isolation: isolate; }
+/* Tekstura motiva na svakom draweru i modalu, kao na kartici poruke: tri
+   mrlje i pad prema dnu se sabiraju, pa se uzorak gore lijevo nakupi, desno
+   tek dotakne, a prema dnu nestane — sadržaj ostaje čist. */
+.modal::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: url("/assets/texture/texture.svg") repeat center top / 620px auto;
+  opacity: calc(var(--uzorak-karta) * 1.15);
+  filter: var(--zlato-filter);
+  -webkit-mask-image:
+    radial-gradient(110% 46% at 10% 0%,  #000 0%, rgba(0,0,0,.45) 40%, transparent 74%),
+    radial-gradient(80% 40% at 96% 22%,  rgba(0,0,0,.6) 0%, transparent 66%),
+    radial-gradient(70% 36% at 30% 60%,  rgba(0,0,0,.28) 0%, transparent 74%),
+    linear-gradient(178deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.25) 45%, transparent 85%);
+          mask-image:
+    radial-gradient(110% 46% at 10% 0%,  #000 0%, rgba(0,0,0,.45) 40%, transparent 74%),
+    radial-gradient(80% 40% at 96% 22%,  rgba(0,0,0,.6) 0%, transparent 66%),
+    radial-gradient(70% 36% at 30% 60%,  rgba(0,0,0,.28) 0%, transparent 74%),
+    linear-gradient(178deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.25) 45%, transparent 85%);
+}
 .sloj.izlazi .sloj__zav { animation: fadeVan .26s var(--ease-soft) both; }
 @keyframes fadeVan { from { opacity: 1; } to { opacity: 0; } }
 @media (min-width: 600px) {
@@ -851,34 +903,47 @@ html:not(.ucitano) .app { visibility: hidden; }
   color: var(--gold); padding: 5px 9px 4px; border-radius: 999px;
   border: 1px solid var(--line); background: color-mix(in srgb, var(--gold) 7%, transparent);
 }
+/* Zaglavlje drawera — isto na svima: svjetlija, zamućena traka sa zlatnim
+   sjajem odozgo (na mobitelu i ispod hvataljke), zlatni krug s ikonom, mali
+   zlatni natpis nad naslovom i „x“ iste veličine kao krug. Ikone u traci su
+   deblje (--ik-sw ulazi u simbol, vidi sprite). */
 .modal__nas {
   display: flex; align-items: center; gap: 12px;
-  padding: 15px var(--mpad) 13px; border-bottom: 1px solid var(--line-soft);
+  padding: 12px var(--mpad); border-bottom: 1px solid var(--glava-rub);
+  background: radial-gradient(120% 110% at 50% 0%, color-mix(in srgb, var(--gold) 13%, transparent), transparent 72%), var(--glava);
+  -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+  --ik-sw: 2;
 }
-.modal__nas h3 { font-family: var(--serif); font-size: 18px; font-weight: 500; margin: 0; flex: 1;
-  letter-spacing: .01em; }
+.modal__naslov { flex: 1; min-width: 0; }
+.modal__naslov small {
+  display: block; font-size: 10px; font-weight: 700; line-height: 1; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.modal__nas h3 {
+  font-family: var(--serif); font-size: 22px; font-weight: 600; line-height: 1.1; margin: 4px 0 0; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
-/* ikona uz naslov, bez okvira */
-.modal__ikona { flex: none; display: grid; place-items: center; color: var(--gold); }
-.modal__ikona svg { width: 18px; height: 18px; }
+.modal__ikona {
+  flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; color: var(--gold);
+  border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent);
+  background: radial-gradient(circle, color-mix(in srgb, var(--gold) 24%, transparent), transparent 70%);
+}
+.modal__ikona svg { width: 17px; height: 17px; }
+.modal__nas [data-zatvori] {
+  width: 36px; height: 36px; color: color-mix(in srgb, var(--ink) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+.modal__nas [data-zatvori] svg { width: 15px; height: 15px; --ik-sw: 2.4; }
+@media (hover: hover) {
+  .modal__nas [data-zatvori]:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 12%, transparent); }
+}
 .modal__telo { overflow-y: auto; overscroll-behavior: contain; padding: 18px var(--mpad) 22px; min-height: 0; }
 
-/* detalj poruke: nema zaglavlja — samo poruka i tiho „x“ */
+/* detalj poruke: isto zaglavlje kao ostali draweri, datum mu je naslov */
 .modal--poruka { display: flex; flex-direction: column; }
-.modal--poruka .modal__telo { flex: 1; padding-top: 30px; }
-.modal__x {
-  position: absolute; top: 12px; right: 12px; z-index: 6;
-  width: 32px; height: 32px; display: grid; place-items: center;
-  border-radius: 50%; color: var(--ink-mute);
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
-  border: 1px solid var(--line-soft);
-  transition: color var(--t-fast), border-color var(--t-fast), transform var(--t-fast) var(--ease-back);
-}
-.modal__x svg { width: 15px; height: 15px; }
-@media (hover: hover) {
-  .modal__x:hover { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
-}
-.modal__x:active { transform: scale(.9); }
+.modal--poruka .modal__telo { flex: 1; }
 .modal__pod { padding: 13px var(--mpad) calc(15px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line-soft); }
 
@@ -892,20 +957,21 @@ html:not(.ucitano) .app { visibility: hidden; }
     max-height: 92dvh;
     border-radius: var(--r-xl) var(--r-xl) 0 0;
     border-left: 0; border-right: 0; border-bottom: 0;
-    animation: drawerIn .4s var(--ease) both;
+    animation: drawerIn .5s cubic-bezier(.32, .72, 0, 1) both;   /* krivulja nativnog sheeta */
   }
   @keyframes drawerIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
   /* ručka je cijela traka iznad zaglavlja — za nju se drawer povlači */
+  /* hvataljka leži na traci zaglavlja: traka se podvuče pod nju, pa su
+     sjaj i zamućenje jedan komad od vrha drawera */
   .modal__rucka {
-    display: block; position: relative; height: 18px; margin: 0;
+    display: block; position: relative; z-index: 2; height: 22px; margin: 0;
     touch-action: none; cursor: grab;
   }
   .modal__rucka::before {
-    content: ''; position: absolute; left: 50%; top: 9px; translate: -50% 0;
-    width: 34px; height: 4px; border-radius: 999px; background: var(--line);
+    content: ''; position: absolute; left: 50%; top: 18px; translate: -50% 0;
+    width: 34px; height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 38%, transparent);
   }
-  .modal__nas { padding-top: 6px; touch-action: none; }
-  .modal--poruka .modal__telo { padding-top: 16px; }
+  .modal__nas { margin-top: -22px; padding-top: 40px; touch-action: none; }
 }
 
 /* ---------- 11. REDOVI ---------- */
@@ -1063,8 +1129,6 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 .prazno p { color: var(--ink-mute); font-size: 12px; margin: 0 auto; max-width: 270px; line-height: 1.6; }
 
 /* detalj poruke */
-.mp__dat { font-size: 9.5px; letter-spacing: .26em; text-transform: uppercase;
-  color: var(--gold); font-weight: 700; text-align: center; }
 .mp__hidzri { font-family: var(--serif); font-style: italic; color: var(--ink-soft);
   font-size: 15px; text-align: center; margin-top: 5px; }
 .mp__tekst { font-family: var(--serif); font-size: 20.5px; line-height: 1.64;
@@ -1747,7 +1811,7 @@ html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-
   .izvor__cta-tekst { display: none; }
   .izvor__cta-kratko { display: inline; }
   .potez__strana i { display: none; }
-  .knjiga { width: 96px; }
+  .knjiga { width: 112px; }
 }
 @media (max-width: 380px) {
   .izvor__tema { display: none; }
@@ -1792,3 +1856,14 @@ html:not(.anim) .stavka { opacity: 1; transform: none; }
 .sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
   clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .hide { display: none !important; }
+
+/* Test okruženje (vidi TEST u app.js): oznaka iznad svega, ne hvata dodire */
+.test body::after {
+  content: 'TEST';
+  position: fixed; z-index: 1000; left: 50%; translate: -50% 0;
+  top: env(safe-area-inset-top);
+  padding: 1px 8px 2px; border-radius: 0 0 6px 6px;
+  background: #c0392b; color: #fff;
+  font: 700 9px/1.2 system-ui, sans-serif; letter-spacing: .2em;
+  pointer-events: none;
+}

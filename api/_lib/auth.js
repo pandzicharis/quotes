@@ -26,3 +26,18 @@ export function odbij(res) {
       : 'CRON_SECRET nije postavljen na serveru',
   });
 }
+
+/* Admin predavanja ima svoju tajnu (ADMIN_SECRET), da onaj ko upisuje
+   predavanja ne dobije usput i ključ od slanja notifikacija svima. Bez nje
+   admin radi samo lokalno. Šalje se samo kao Authorization: Bearer. */
+export function ovlascenAdmin(req) {
+  const tajna = process.env.ADMIN_SECRET;
+  if (!tajna) return jeLokalno(req);
+  return (req.headers.authorization || '') === `Bearer ${tajna}`;
+}
+
+export function odbijAdmin(res) {
+  return res.status(401).json({
+    greska: process.env.ADMIN_SECRET ? 'Pogrešna admin šifra' : 'ADMIN_SECRET nije postavljen na serveru',
+  });
+}

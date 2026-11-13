@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="bs" data-tema="tamna">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0B1711">
+<title>Statistika</title>
+<!-- Privatna stranica: nigdje nije povezana. Podatke daje /api/analitika uz
+     admin šifru (ista kao u /admin, pamti se u ovom pregledniku): slanje
+     obavijesti, šta je stiglo i otvoreno, koliko ljudi otvara aplikaciju i
+     šta dijele. Lokalno, bez servera, pokazuje primjer da se izgled može
+     provjeriti. -->
+<link rel="icon" href="/assets/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+<style>
+  body { padding: max(24px, env(safe-area-inset-top)) 16px max(40px, env(safe-area-inset-bottom)); }
+  main { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 14px; margin: 6px 0 24px; }
+  header img { width: 44px; height: 44px; }
+  header div { flex: 1; min-width: 0; }
+  .nad { font-size: 10.5px; font-weight: 700; letter-spacing: .26em; text-transform: uppercase; color: var(--gold); }
+  h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(26px, 6vw, 34px); line-height: 1.1; margin: 4px 0 0; }
+  .osvjezi { flex: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px;
+    height: 38px; padding: 0 14px 0 12px; font: 600 11px/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 7px; }
+  .osvjezi svg { width: 15px; height: 15px; flex: none; color: var(--gold); }
+  .osvjezi.vrti svg { animation: vrti .8s linear infinite; }
+  @keyframes vrti { to { transform: rotate(360deg); } }
+  .napomena { margin: -10px 0 20px; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5;
+    background: color-mix(in srgb, var(--gold) 12%, transparent); color: var(--ink-soft); }
+
+  /* sekcija: naslov, pa pločice ili tabela */
+  .sekcija { margin-bottom: 30px; }
+  h2 { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 0 2px 12px;
+    font: 700 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+  h2 small { font: 500 12px var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink-mute); }
+
+  .plocice { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .plocice--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 680px) { .plocice { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .plocica {
+    display: grid; align-content: start; gap: 8px; min-width: 0; padding: 16px 16px 15px; border-radius: 16px;
+    border: 1px solid var(--line); background: linear-gradient(165deg, color-mix(in srgb, var(--surface) 92%, var(--gold)), var(--surface) 60%);
+  }
+  .plocica small { font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-mute); }
+  .plocica b { font-family: var(--serif); font-size: clamp(28px, 7vw, 34px); font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; }
+  .plocica span { font-size: 12.5px; line-height: 1.4; color: var(--ink-soft); }
+  .plocica span em { font-style: normal; font-weight: 600; color: var(--gold); }
+  /* traka: koliki je dio od cijelog — vidi se na prvi pogled */
+  .udio { height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; }
+  .udio i { display: block; height: 100%; width: var(--w, 0%); border-radius: inherit; background: linear-gradient(90deg, var(--brand-gold), var(--brand-gold-l)); }
+
+  /* sedam stupaca u pločici — kretanje kroz sedmicu, danas je zlatan */
+  .stupci { display: flex; align-items: flex-end; gap: 4px; height: 30px; }
+  .stupci i { flex: 1; min-height: 3px; height: var(--h, 3px); border-radius: 3px 3px 1px 1px; background: color-mix(in srgb, var(--gold) 32%, transparent); }
+  .stupci i:last-child { background: linear-gradient(180deg, var(--brand-gold-l), var(--brand-gold)); }
+  .trend { font-weight: 600; }
+  .trend.gore { color: #7FC59A; }
+  .trend.dole { color: #E08A6E; }
+
+  /* po danima: stalne širine kolona, broj u jednom redu, postotak ispod */
+  .lista { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); overflow: hidden; }
+  .skrol { overflow-x: auto; }
+  .tabela { width: 100%; min-width: 330px; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .tabela col:first-child { width: 28%; }
+  .tabela th, .tabela td { padding: 12px 9px; text-align: right; vertical-align: top; white-space: nowrap; border-top: 1px solid var(--line-soft); }
+  .tabela th:first-child, .tabela td:first-child { padding-left: 14px; }
+  .tabela th:last-child, .tabela td:last-child { padding-right: 14px; }
+  .tabela th { border-top: 0; vertical-align: bottom; font: 700 9px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); }
+  .tabela th:first-child, .tabela td:first-child { text-align: left; }
+  .tabela td:first-child b { display: block; font-weight: 600; }
+  .tabela td small { display: block; margin-top: 2px; font-size: 11px; color: var(--ink-mute); }
+  .tabela tr.danas td { background: color-mix(in srgb, var(--gold) 7%, transparent); }
+  .tabela tr.danas td:first-child b { color: var(--gold); }
+  .prazno { padding: 18px 16px; font-size: 13.5px; color: var(--ink-mute); }
+
+  .prijava { max-width: 360px; margin: 40px auto; display: grid; gap: 12px; text-align: center; }
+  .prijava input { height: 46px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    padding: 0 14px; font: 500 16px var(--sans); }
+  .prijava button { height: 46px; border: 0; border-radius: 999px; cursor: pointer; font: 600 12px var(--sans); letter-spacing: .14em; text-transform: uppercase;
+    background: linear-gradient(135deg, var(--brand-gold-l), var(--brand-gold)); color: #11221A; }
+  .prijava p { margin: 0; font-size: 13px; color: #E08A6E; min-height: 18px; }
+</style>
+</head>
+<body>
+<div class="ambient" aria-hidden="true"><div class="ambient__glow"></div><div class="ambient__uzorak"></div></div>
+<main>
+  <header>
+    <img src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="">
+    <div><div class="nad">Pregled</div><h1>Statistika</h1></div>
+    <button class="osvjezi" id="osvjezi" type="button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>Osvježi</button>
+  </header>
+  <div id="sadrzaj"></div>
+</main>
+
+<script type="module">
+import { danUSedmici } from '/js/predavanja-jezgro.js';
+
+const TAJNA = 'pd.adminTajna';   // ista kao u /admin
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// tačka za hiljade, kao kod nas — preglednici često nemaju bosanski format
+const broj = n => (n == null ? '—' : String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'));
+// na niže, s jednom decimalom: 99,9 % ne smije izgledati kao 100 %
+const posto = (a, b) => (b ? String(Math.floor((a / b) * 1000) / 10).replace('.', ',') : '0');
+// dan po Sarajevu — isti po kojem server broji; po dijelovima, jer oblik iz .format() zavisi od preglednika
+const danS = (d = new Date()) => {
+  const x = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Sarajevo', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(d).map(p => [p.type, p.value]));
+  return `${x.year}-${x.month}-${x.day}`;
+};
+const kratko = dan => { const [, m, d] = dan.split('-').map(Number); return `${d}. ${m}.`; };
+const lokalno = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+let tajna = localStorage.getItem(TAJNA) || '';
+
+/* Lokalno nema baze — primjer s izmišljenim brojkama, samo za izgled. */
+function primjer() {
+  const sada = Date.now(), obavijesti = [], dogadjaji = [];
+  const dog = (dan, vrsta, kljuc, n) => n > 0 && dogadjaji.push({ dan, vrsta, kljuc, broj: Math.round(n) });
+  for (let d = 0; d < 14; d++) {
+    const dan = danS(new Date(sada - d * 864e5));
+    const pretplata = 2000 - d * 9, dostavljeno = pretplata - (d === 3 ? 41 : d % 4);
+    const stiglo = Math.round(dostavljeno * (.9 + (d % 3) * .02)), otvorilo = Math.round(pretplata * (.12 + (d % 5) * .03));
+    const pozivi = [{ kad: `${dan}T05:00:04Z`, nacin: 'slanje', poslano: dostavljeno - (d === 5 ? 63 : 0), palo: d === 5 ? 63 : 2, preskoceno: 0,
+      greske: d === 5 ? { 500: { broj: 61, primjer: '500 Internal Server Error' }, 410: { broj: 2 } } : { 410: { broj: 2 } }, trajanjeMs: 9400 }];
+    if (d === 5) pozivi.unshift({ kad: `${dan}T05:15:02Z`, nacin: 'nadoknada', poslano: 63, palo: 0, preskoceno: 0, greske: {}, trajanjeMs: 820 });
+    obavijesti.push({ kljuc: `dan:${dan}`, pretplata, dostavljeno, stiglo, otvorilo, pozivi });
+    dog(dan, 'stiglo', `dan:${dan}`, stiglo);
+    dog(dan, 'otvoreno', `dan:${dan}`, otvorilo);
+    dog(dan, 'aplikacija', 'pwa', 900 - d * 11 + (d % 3) * 40);
+    dog(dan, 'aplikacija', 'web', 260 - d * 4);
+    for (let id = 1; id <= 6; id++) {
+      dog(dan, 'dijeljenje', `poruka:${id}`, ((id * 7 + d * 3) % 23) - 4);
+      dog(dan, 'preuzimanje', `poruka:${id}`, ((id * 5 + d) % 9) - 3);
+      dog(dan, 'kopiranje', `poruka:${id}`, ((id * 3 + d * 2) % 11) - 2);
+      dog(dan, 'sacuvano', `poruka:${id}`, ((id + d) % 13) - 1);
+    }
+  }
+  obavijesti.splice(2, 0, { kljuc: 'novo:1', naslov: 'Učvrsti svoje srce', pretplata: 1720, dostavljeno: 1716, stiglo: 1590, otvorilo: 402,
+    pozivi: [{ kad: new Date(sada - 2 * 864e5).toISOString(), nacin: 'slanje', poslano: 1716, palo: 4, preskoceno: 0, greske: { 410: { broj: 4 } }, trajanjeMs: 7100 }] });
+  obavijesti.splice(1, 0, { kljuc: 'podsjetnik:1', naslov: 'Učvrsti svoje srce', pretplata: 213, dostavljeno: 213, stiglo: 201, otvorilo: 88,
+    pozivi: [{ kad: new Date(sada - 864e5).toISOString(), nacin: 'nadoknada', poslano: 213, palo: 0, preskoceno: 0, greske: {}, trajanjeMs: 1300 }] });
+  for (const [id, n] of [[1, 640], [2, 310], [3, 120]]) {
+    dog(danS(), 'pregled', `predavanje:${id}`, n);
+    dog(danS(), 'plakat', `predavanje:${id}`, n * .08);
+    dog(danS(), 'prati', `predavanje:${id}`, n * .3);
+    dog(danS(), 'kalendar', `predavanje:${id}`, n * .12);
+  }
+  return { primjer: true, osvjezeno: new Date().toISOString(), pretplata: 2000, instalacije: { ios: 640, android: 1210, ostalo: 95 }, obavijesti, dogadjaji };
+}
+
+async function ucitaj() {
+  const r = await fetch('/api/analitika', { cache: 'no-store', headers: tajna ? { Authorization: `Bearer ${tajna}` } : {} });
+  if (!(r.headers.get('content-type') || '').includes('json')) {
+    if (lokalno) return primjer();
+    throw new Error(`Server je vratio ${r.status}`);
+  }
+  const d = await r.json();
+  if (r.status === 401) throw Object.assign(new Error('Šifra nije ispravna'), { prijava: true });
+  if (!r.ok) throw new Error(d.greska || `Greška ${r.status}`);
+  return d;
+}
+
+/** Brojači po danu → { 'YYYY-MM-DD': { vrsta: zbir, 'aplikacija:pwa': … } }. */
+function poDanima(dogadjaji) {
+  const dani = {};
+  for (const { dan, vrsta, kljuc, broj: n } of dogadjaji || []) {
+    const d = (dani[dan] ||= {});
+    d[vrsta] = (d[vrsta] || 0) + n;
+    if (vrsta === 'aplikacija') d[`aplikacija:${kljuc}`] = (d[`aplikacija:${kljuc}`] || 0) + n;
+  }
+  return dani;
+}
+const udio = (a, b) => `<div class="udio"><i style="--w:${b ? Math.min(100, (a / b) * 100).toFixed(1) : 0}%"></i></div>`;
+
+function crtaj(d) {
+  const ima = Array.isArray(d.dogadjaji);
+  const dani = poDanima(d.dogadjaji);
+  const danas = danS();
+  const sedam = Array.from({ length: 7 }, (_, i) => danS(new Date(Date.now() - i * 864e5)));
+  const dan = (x, k) => dani[x]?.[k] || 0;
+  const inst = d.instalacije || {};
+  const slanja = Object.fromEntries(d.obavijesti.filter(o => o.kljuc.startsWith('dan:')).map(o => [o.kljuc.slice(4), o]));
+
+  // zadnje slanje poruke dana: danas, ako je već otišla, inače prvo prije toga
+  const zadnjiDan = sedam.find(x => slanja[x]);
+  const z = zadnjiDan ? slanja[zadnjiDan] : null;
+  const kad = !zadnjiDan ? '' : zadnjiDan === danas ? 'danas' : `${danUSedmici(zadnjiDan)}, ${kratko(zadnjiDan)}`;
+  const aktivni7 = sedam.reduce((zb, x) => zb + dan(x, 'aplikacija'), 0) / 7;
+  const zbir7 = (...vrste) => sedam.reduce((zb, x) => zb + vrste.reduce((z2, v) => z2 + dan(x, v), 0), 0);
+
+  // aktivni danas prema jučer — strelica i postotak
+  const jucer = dan(sedam[1], 'aplikacija'), danasA = dan(danas, 'aplikacija');
+  const promjena = jucer ? Math.round(((danasA - jucer) / jucer) * 100) : null;
+  const trend = promjena == null ? 'otvorilo aplikaciju danas'
+    : promjena === 0 ? 'isto kao jučer'
+    : `<span class="trend ${promjena > 0 ? 'gore' : 'dole'}">${promjena > 0 ? '↑' : '↓'} ${Math.abs(promjena)} %</span> od jučer`;
+  // stupci: od najstarijeg do danas
+  const najvise = Math.max(1, ...sedam.map(x => dan(x, 'aplikacija')));
+  const stupci = `<div class="stupci" aria-hidden="true">${[...sedam].reverse().map(x =>
+    `<i style="--h:${Math.max(10, (dan(x, 'aplikacija') / najvise) * 100).toFixed(0)}%" title="${kratko(x)}: ${broj(dan(x, 'aplikacija'))}"></i>`).join('')}</div>`;
+
+  // šta ljudi rade u sedmici: otvaranja obavijesti, dijeljenja, čuvanja, predavanja
+  const sedmicaSlanja = sedam.map(x => slanja[x]).filter(Boolean);
+  const poslano7 = sedmicaSlanja.reduce((zb, o) => zb + (o.dostavljeno || 0), 0);
+  const otvorilo7 = sedmicaSlanja.reduce((zb, o) => zb + (o.otvorilo || 0), 0);
+  const podijeljeno7 = zbir7('dijeljenje', 'preuzimanje', 'kopiranje');
+  const sacuvano7 = zbir7('sacuvano');
+  const pregledi7 = zbir7('pregled'), prati7 = zbir7('prati');
+
+  const redovi = sedam.map(x => {
+    const o = slanja[x];
+    return `<tr${x === danas ? ' class="danas"' : ''}>
+      <td><b>${x === danas ? 'Danas' : esc(danUSedmici(x))}</b><small>${kratko(x)}</small></td>
+      <td>${ima ? broj(dan(x, 'aplikacija')) : '—'}</td>
+      <td>${o ? `${broj(o.dostavljeno)}<small>od ${broj(o.pretplata)}</small>` : '—'}</td>
+      <td>${o?.stiglo != null ? `${broj(o.stiglo)}<small>${posto(o.stiglo, o.dostavljeno)} %</small>` : '—'}</td>
+      <td>${o?.otvorilo != null ? `${broj(o.otvorilo)}<small>${posto(o.otvorilo, o.dostavljeno)} %</small>` : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  $('#sadrzaj').innerHTML = `
+    ${d.primjer ? '<div class="napomena">Lokalni primjer s izmišljenim brojkama — pravi podaci se vide na objavljenoj stranici.</div>' : ''}
+    ${ima ? '' : '<div class="napomena">Brojanje otvaranja još nije uključeno — pokreni sql/shema.sql u Supabaseu.</div>'}
+
+    <section class="sekcija">
+      <h2>Korisnici</h2>
+      <div class="plocice">
+        <div class="plocica"><small>Pretplaćeno</small><b>${broj(d.pretplata)}</b><span>telefona prima poruku dana</span></div>
+        <div class="plocica"><small>Instalacije</small><b>${broj((inst.ios || 0) + (inst.android || 0) + (inst.ostalo || 0))}</b><span>iPhone ${broj(inst.ios || 0)} · Android ${broj(inst.android || 0)}</span></div>
+        <div class="plocica"><small>Aktivni danas</small><b>${ima ? broj(danasA) : '—'}</b><span>${ima ? trend : 'otvorilo aplikaciju danas'}</span></div>
+        <div class="plocica"><small>Aktivni · 7 dana</small><b>${ima ? broj(aktivni7) : '—'}</b>${ima ? stupci : ''}<span>prosječno dnevno</span></div>
+      </div>
+    </section>
+
+    <section class="sekcija">
+      <h2>Zadnje slanje <small>${esc(kad) || 'još nije bilo'}</small></h2>
+      <div class="plocice plocice--2">
+        <div class="plocica"><small>Poslano</small><b>${z ? broj(z.dostavljeno) : '—'}</b>
+          ${z ? `${udio(z.dostavljeno, z.pretplata)}<span><em>${posto(z.dostavljeno, z.pretplata)} %</em> od ${broj(z.pretplata)} pretplaćenih</span>` : '<span>poruka još nije otišla</span>'}</div>
+        <div class="plocica"><small>Stiglo</small><b>${z?.stiglo != null ? broj(z.stiglo) : '—'}</b>
+          ${z?.stiglo != null ? `${udio(z.stiglo, z.dostavljeno)}<span><em>${posto(z.stiglo, z.dostavljeno)} %</em> poslanih — telefon potvrdio</span>` : '<span>čeka potvrde s telefona</span>'}</div>
+      </div>
+    </section>
+
+    ${ima ? `<section class="sekcija">
+      <h2>Šta ljudi rade <small>zadnjih 7 dana</small></h2>
+      <div class="plocice">
+        <div class="plocica"><small>Otvorilo obavijest</small><b>${broj(otvorilo7)}</b>
+          ${udio(otvorilo7, poslano7)}<span><em>${posto(otvorilo7, poslano7)} %</em> poslanih poruka</span></div>
+        <div class="plocica"><small>Podijeljeno</small><b>${broj(podijeljeno7)}</b><span>slika ili tekst poruke dalje</span></div>
+        <div class="plocica"><small>Sačuvano</small><b>${broj(sacuvano7)}</b><span>poruka dodano u zbirku</span></div>
+        <div class="plocica"><small>Predavanja</small><b>${broj(pregledi7)}</b><span>otvoreno predavanja${prati7 ? ` · <em>${broj(prati7)}</em> planira ići` : ''}</span></div>
+      </div>
+    </section>` : ''}
+
+    <section class="sekcija">
+      <h2>Zadnjih 7 dana</h2>
+      <div class="lista skrol"><table class="tabela">
+        <colgroup><col>${'<col>'.repeat(4)}</colgroup>
+        <thead><tr><th>Dan</th><th>Aktivni</th><th>Poslano</th><th>Stiglo</th><th>Otvorilo</th></tr></thead>
+        <tbody>${redovi}</tbody>
+      </table></div>
+    </section>`;
+}
+
+function prijava(poruka = '') {
+  $('#osvjezi').hidden = true;
+  $('#sadrzaj').innerHTML = `
+    <form class="prijava" id="prijava">
+      <input type="password" id="sifra" placeholder="Admin šifra" autocomplete="current-password" required autofocus>
+      <button>Prikaži pregled</button>
+      <p>${esc(poruka)}</p>
+    </form>`;
+  $('#prijava').addEventListener('submit', e => {
+    e.preventDefault();
+    tajna = $('#sifra').value.trim();
+    try { localStorage.setItem(TAJNA, tajna); } catch { /* privatni način */ }
+    pokreni();
+  });
+}
+
+async function pokreni() {
+  const dugme = $('#osvjezi');
+  if (!dugme.hidden) { dugme.classList.add('vrti'); dugme.disabled = true; }
+  else $('#sadrzaj').innerHTML = '<div class="prazno" style="text-align:center">Učitavam…</div>';
+  try {
+    const d = await ucitaj();
+    $('#osvjezi').hidden = false;
+    crtaj(d);
+  } catch (e) {
+    if (e.prijava || !tajna) prijava(tajna ? e.message : '');
+    else $('#sadrzaj').innerHTML = `<div class="prazno" style="text-align:center">${esc(e.message)}</div>`;
+  } finally {
+    dugme.classList.remove('vrti'); dugme.disabled = false;
+  }
+}
+$('#osvjezi').addEventListener('click', pokreni);
+pokreni();
+</script>
+</body>
+</html>
