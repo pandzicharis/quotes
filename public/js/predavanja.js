@@ -659,7 +659,7 @@ async function otvoriKalendar(prikaz = 'sva') {
   kalPrikaz = prikaz;
   crtajKalendar();
   app.otvori($('#m-kalendar'));
-  // svježa lista u pozadini — CDN je drži pola minute, pa je ovo jeftino
+  // svježa lista u pozadini — CDN je drži nekoliko sekundi, pa je ovo jeftino
   try { lista = await ucitajPredavanja(); crtajKalendar(); crtajTraku(); } catch { /* ostaje stara */ }
 }
 
@@ -707,14 +707,25 @@ function ponudiNovo(pokusaj = 0, proba = false) {
   const v = vidjena();
   const nova = sljedeca().filter(p => !v.includes(p.id));
   if (!nova.length) return;
-  // ne preko drugog prozora (pozdrav, uvod…) — kratko sačekaj pa probaj opet
+  // ne preko drugog prozora (pozdrav, uvod…) — čim se on zatvori, ponuda je tu
   if ($('.sloj.on, #uvod.on')) {
-    if (pokusaj < 5) setTimeout(() => ponudiNovo(pokusaj + 1, proba), 4000);
+    if (pokusaj < 40) setTimeout(() => ponudiNovo(pokusaj + 1, proba), 600);
     return;
   }
   crtajNova(nova);
   pisi(VIDJENA, [...new Set([...v, ...nova.map(p => p.id)])].slice(-200));
   app.otvori($('#m-nova'));
+}
+
+/* Lista kreće čim se modul učita — app.js ga traži odmah pri pokretanju,
+   uporedo s ostalim, pa je lista tu kad dođe red na pokreni(). Došao s push
+   notifikacije o novom predavanju: lista odmah svježa (`svjeze` zaobilazi
+   CDN), jednim pozivom — bez čekanja na staru listu. */
+let unaprijed = null;
+export function ucitajUnaprijed() {
+  const id = new URLSearchParams(location.search).get('predavanje');
+  unaprijed ??= ucitajPredavanja(id ? { svjeze: id } : {});
+  return unaprijed;
 }
 
 /**
@@ -724,29 +735,30 @@ function ponudiNovo(pokusaj = 0, proba = false) {
 export async function pokreni(a, ponudi = true) {
   app = a;
   napraviKostur();
-  try { lista = await ucitajPredavanja(); } catch { return; }
+  const q = new URLSearchParams(location.search);
+  const izLinka = q.get('predavanje');
+  try { lista = await ucitajUnaprijed(); } catch { return; }
   let ucitano = Date.now();
   crtajTraku();
   setInterval(tik, 1000);
   /* Povratak iz pozadine: telefon aplikaciju često ne pokreće ispočetka, pa
      bi novo predavanje ostalo nevidljivo dok se ona potpuno ne zatvori.
-     Odbrojavanje u boxu se osvježi odmah; lista najviše jednom u minuti, pa
-     ako je stiglo nešto novo — ponuda kao pri otvaranju. Mali zastoj da
-     dodir na obavijest (koji otvara baš to predavanje) stigne prvi. */
+     Odbrojavanje u boxu se osvježi odmah, lista najviše jednom u 10 s (CDN je
+     drži 5 s), pa ako je stiglo nešto novo — ponuda kao pri otvaranju. Kratak
+     zastoj da dodir na obavijest (koji otvara baš to predavanje) stigne prvi. */
   document.addEventListener('visibilitychange', async () => {
     if (document.visibilityState !== 'visible') return;
     crtajTraku();
-    if (Date.now() - ucitano < 60000) return;
+    if (Date.now() - ucitano < 10000) return;
     ucitano = Date.now();
     try { lista = await ucitajPredavanja(); } catch { return; }
     crtajTraku();
-    setTimeout(() => ponudiNovo(), 1500);
+    setTimeout(() => ponudiNovo(), 400);
   });
   // praćena koja su prošla (ili skinuta) ne treba čuvati ni slati serveru
   const ziva = pracena().filter(id => lista.some(p => p.id === id && !proslo(p)));
   if (ziva.length !== pracena().length) pisi(PRACENA, ziva);
 
-  const q = new URLSearchParams(location.search);
   /* Lokalna proba, i kad je obavijest o novim predavanjima u postavkama
      isključena: ?nova=1 zaboravi viđena i ponudi sva ispočetka;
      ?nova=zadnje glumi korisnika koji je vidio sve osim zadnjeg dodanog. */
@@ -760,17 +772,12 @@ export async function pokreni(a, ponudi = true) {
   }
 
   // došao s push notifikacije o novom predavanju: odmah to predavanje
-  const izLinka = q.get('predavanje');
   if (izLinka) {
     // iz adrese napolje — osvježavanje stranice ga ne otvara ponovo
     q.delete('predavanje');
     history.replaceState(history.state, '', `${location.pathname}${q.size ? `?${q}` : ''}${location.hash}`);
-    let p = lista.find(x => String(x.id) === izLinka);
-    if (!p) {
-      try { lista = await ucitajPredavanja({ svjeze: izLinka }); crtajTraku(); } catch { /* ostaje stara lista */ }
-      p = lista.find(x => String(x.id) === izLinka);
-    }
-    if (p) { setTimeout(() => otvoriPredavanje(p), 600); return; }
+    const p = lista.find(x => String(x.id) === izLinka);
+    if (p) { setTimeout(() => otvoriPredavanje(p), 200); return; }
   }
-  if (ponudi || proba) setTimeout(() => ponudiNovo(0, proba), 1800);
+  if (ponudi || proba) setTimeout(() => ponudiNovo(0, proba), 700);
 }

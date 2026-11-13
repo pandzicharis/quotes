@@ -3183,6 +3183,8 @@ async function start() {
   document.addEventListener('visibilitychange', javiAktivnost);
   osvjeziNotif();
 
+  // modul i lista predavanja kreću odmah, uporedo s ključem za push
+  ucitajModulPredavanja()?.catch(() => {});
   await ucitajPushConfig();
   osvjeziNotif();
   if (stanje.notif && Notification.permission === 'granted') pretplatiPush();
@@ -3218,12 +3220,19 @@ async function start() {
 }
 
 /* Modul predavanja je dodatak: ako se ne učita, aplikacija radi kao i do sada. */
-function pokreniPredavanja(ponudi) {
+let modulPredavanja = null;
+function ucitajModulPredavanja() {
+  if (modulPredavanja) return modulPredavanja;
   const q = new URLSearchParams(location.search).get('predavanja');
   if (q === '1' || q === '0') pisi(LS.predavanja, q === '1');
-  if (!PREDAVANJA && !TEST && cita(LS.predavanja, false) !== true) return;
-  import('./predavanja.js')
-    .then(m => m.pokreni({ otvori, zatvori, postaviPovlacenje, poruka, autor: stanje.podaci.autor.ime, javi: javiDogadjaj }, ponudi))
+  if (!PREDAVANJA && !TEST && cita(LS.predavanja, false) !== true) return null;
+  modulPredavanja = import('./predavanja.js').then(m => { m.ucitajUnaprijed().catch(() => {}); return m; });
+  return modulPredavanja;
+}
+
+function pokreniPredavanja(ponudi) {
+  ucitajModulPredavanja()
+    ?.then(m => m.pokreni({ otvori, zatvori, postaviPovlacenje, poruka, autor: stanje.podaci.autor.ime, javi: javiDogadjaj }, ponudi))
     .catch(() => {});
 }
 

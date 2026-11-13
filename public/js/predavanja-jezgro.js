@@ -171,7 +171,7 @@ async function poziv(metoda, upit = '', { tajna, tijelo } = {}) {
 }
 
 /** Lista predavanja. `sve` (admin) vraća i neobjavljena i sva održana.
-    `svjeze` (id iz notifikacije) zaobilazi CDN keš od 5 minuta — tek dodano
+    `svjeze` (id iz notifikacije) zaobilazi CDN keš od nekoliko sekundi — tek dodano
     predavanje inače još ne bi bilo u listi. Svi koji dodirnu istu
     notifikaciju traže isti URL, pa CDN i ovo drži za njih. */
 export async function ucitajPredavanja({ sve = false, tajna, svjeze } = {}) {

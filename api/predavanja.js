@@ -84,12 +84,13 @@ export default async function handler(req, res) {
       }
       const sve = url.searchParams.get('sve') === '1';
       if (sve && !ovlascenAdmin(req)) return odbijAdmin(res);
-      /* Kratko na CDN-u: novo predavanje mora biti u listi za minut-dva, dok
-         obavijest o njemu još stoji na telefonu (inače ga ni ponuda pri
-         otvaranju aplikacije ne vidi). Bazu i dalje pita najviše jednom u pola minute. */
+      /* Samo 5 s na CDN-u i bez posluživanja zastarjelog: novo predavanje je u
+         aplikaciji odmah po dodavanju (ponuda pri otvaranju, box). CDN i dalje
+         upija navalu kad obavijest ode svima — baza dobije najviše jedan upit
+         u 5 s po regiji. */
       res.setHeader('Cache-Control', sve
         ? 'no-store'
-        : 'public, max-age=0, s-maxage=30, stale-while-revalidate=60');
+        : 'public, max-age=0, s-maxage=5');
       return res.status(200).json({ predavanja: await listaPredavanja(sve) });
     }
 
