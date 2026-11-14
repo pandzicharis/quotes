@@ -26,7 +26,7 @@ shot poruka-dana-objava-zelena 1080 1350 '/_promo/?f=objava'
 shot poruka-dana-objava-bijela 1080 1350 '/_promo/?f=objava&t=bijela'
 shot poruka-dana-story-zelena  1080 1920 '/_promo/?f=story'
 shot poruka-dana-story-bijela  1080 1920 '/_promo/?f=story&t=bijela'
-# predavanja: u telefonu kalendar, predavanja iz public/_promo/predavanja.json
+# predavanja: u telefonu ekran „Nova predavanja“ s plakatima, iz public/_promo/predavanja.json
 shot predavanja-objava-zelena  1080 1350 '/_promo/?f=objava&g=predavanja'
 shot predavanja-objava-bijela  1080 1350 '/_promo/?f=objava&g=predavanja&t=bijela'
 shot predavanja-story-zelena   1080 1920 '/_promo/?f=story&g=predavanja'

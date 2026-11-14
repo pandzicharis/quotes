@@ -84,6 +84,22 @@ function pogled(ime) {
   scrollTo({ top: 0 });
   if (ime === 'citati') ucitajCitate();
   if (ime === 'statistika') ucitajStatistiku();
+  if (ime === 'grafike') ucitajGrafike();
+}
+
+/* Grafike su stranica /grafike, ugrađena tek kad se tab prvi put otvori.
+   Okvir raste sa sadržajem, kao kod statistike — bez skrola unutar skrola. */
+function ucitajGrafike() {
+  const okvir = $('#grafike');
+  if (okvir.src) return;
+  okvir.addEventListener('load', () => {
+    const dok = okvir.contentDocument;
+    if (!dok) return;
+    const visina = () => { okvir.style.height = `${dok.documentElement.scrollHeight}px`; };
+    new ResizeObserver(visina).observe(dok.body);
+    visina();
+  });
+  okvir.src = '/grafike/';
 }
 
 /* Statistika je stranica /analytics, ugrađena tek kad se tab prvi put otvori.

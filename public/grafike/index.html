@@ -74,6 +74,12 @@
   .dugme:active { transform: scale(.97); }
   .dugme { flex: 1; justify-content: center; height: 42px; }
 
+  /* skup grafika pod svojim natpisom, kao sekcije u aplikaciji */
+  .skup + .skup { margin-top: 44px; }
+  .skup__nas { display: flex; align-items: center; gap: 14px; margin: 0 0 18px; }
+  .skup__nas span { font-size: 12px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); white-space: nowrap; }
+  .skup__nas i { flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
+
   footer { margin-top: 34px; text-align: center; font-size: 12px; line-height: 1.7; color: var(--ink-mute); }
   footer a { color: var(--gold); text-decoration: none; }
 </style>
@@ -87,33 +93,24 @@
 <main>
   <header>
     <img id="znak" src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="">
-    <div class="nad">Poruka dana</div>
+    <div class="nad">Ammar Bašić</div>
     <h1>Grafike za objavu</h1>
-    <p>Objava za feed i story za Instagram i Facebook, u zelenoj i bijeloj verziji. Slike su u punoj rezoluciji.</p>
+    <p>Poruka dana i predavanja — objava za feed i story za Instagram i Facebook, u zelenoj i bijeloj verziji. Slike su u punoj rezoluciji.</p>
     <div class="izbor" role="group" aria-label="Verzija">
       <button type="button" data-t="zelena" aria-pressed="true"><i style="background:#163023"></i>Zelena</button>
       <button type="button" data-t="bijela" aria-pressed="false"><i style="background:#F4EEE1"></i>Bijela</button>
     </div>
   </header>
 
-  <div class="mreza">
-    <section class="karta" data-f="objava">
-      <a class="slika" target="_blank" rel="noopener"><img alt="Objava 4:5" width="900" height="1125"></a>
-      <div class="karta__dno">
-        <div class="karta__ime"><b>Objava</b><span>4:5 · 2160 × 2700 px</span></div>
-        <button class="dugme" data-dijeli hidden type="button"><svg viewBox="0 0 24 24"><path d="M12 3v13M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Podijeli</button>
-        <a class="dugme dugme--zlatno" data-preuzmi><svg viewBox="0 0 24 24"><path d="M12 3v12M7.5 11 12 15.5l4.5-4.5M5 20h14"/></svg>Preuzmi</a>
-      </div>
-    </section>
-    <section class="karta" data-f="story">
-      <a class="slika" target="_blank" rel="noopener"><img alt="Story 9:16" width="506" height="900"></a>
-      <div class="karta__dno">
-        <div class="karta__ime"><b>Story</b><span>9:16 · 2160 × 3840 px</span></div>
-        <button class="dugme" data-dijeli hidden type="button"><svg viewBox="0 0 24 24"><path d="M12 3v13M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Podijeli</button>
-        <a class="dugme dugme--zlatno" data-preuzmi><svg viewBox="0 0 24 24"><path d="M12 3v12M7.5 11 12 15.5l4.5-4.5M5 20h14"/></svg>Preuzmi</a>
-      </div>
-    </section>
-  </div>
+  <!-- skupovi grafika; kartice (objava, story) pravi skripta ispod, ista za svaki skup -->
+  <section class="skup" data-g="poruka-dana">
+    <div class="skup__nas"><span>Poruka dana</span><i></i></div>
+    <div class="mreza"></div>
+  </section>
+  <section class="skup" data-g="predavanja">
+    <div class="skup__nas"><span>Predavanja</span><i></i></div>
+    <div class="mreza"></div>
+  </section>
 
   <footer>
     Aplikacija: <a href="/">porukadana.ammarbasic.ba</a>
@@ -122,9 +119,26 @@
 
 <script>
   /* oznaka izvoza — scripts/promo.sh je mijenja, da preglednik ne drži stare slike */
-  const V = '202610132344';
-  const ime = (f, t) => `poruka-dana-${f}-${t}`;
+  const V = '202611141651';
+  // ime fajla: skup (poruka-dana, predavanja) · format · verzija
+  const ime = (k, t) => `${k.closest('.skup').dataset.g}-${k.dataset.f}-${t}`;
   let tema = 'zelena';
+
+  const ikDijeli = '<svg viewBox="0 0 24 24"><path d="M12 3v13M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>';
+  const ikPreuzmi = '<svg viewBox="0 0 24 24"><path d="M12 3v12M7.5 11 12 15.5l4.5-4.5M5 20h14"/></svg>';
+  const karta = (f, naziv, mjere, w, h) => `
+    <section class="karta" data-f="${f}">
+      <a class="slika" target="_blank" rel="noopener"><img alt="${naziv} ${mjere.split(' ')[0]}" width="${w}" height="${h}"></a>
+      <div class="karta__dno">
+        <div class="karta__ime"><b>${naziv}</b><span>${mjere}</span></div>
+        <button class="dugme" data-dijeli hidden type="button">${ikDijeli}Podijeli</button>
+        <a class="dugme dugme--zlatno" data-preuzmi>${ikPreuzmi}Preuzmi</a>
+      </div>
+    </section>`;
+  document.querySelectorAll('.skup .mreza').forEach(m => {
+    m.innerHTML = karta('objava', 'Objava', '4:5 · 2160 × 2700 px', 900, 1125)
+      + karta('story', 'Story', '9:16 · 2160 × 3840 px', 506, 900);
+  });
   try { tema = localStorage.getItem('pd.grafike') === 'bijela' ? 'bijela' : 'zelena'; } catch {}
 
   // Dijeljenje fajla ide pravo u Instagram/WhatsApp na telefonu; gdje toga
@@ -138,7 +152,7 @@
     document.querySelectorAll('.izbor button').forEach(b =>
       b.setAttribute('aria-pressed', String(b.dataset.t === tema)));
     document.querySelectorAll('.karta').forEach(k => {
-      const n = ime(k.dataset.f, tema);
+      const n = ime(k, tema);
       k.querySelector('img').src = `/grafike/${n}.jpg?${V}`;
       k.querySelector('a.slika').href = `/grafike/${n}.png?${V}`;
       const p = k.querySelector('[data-preuzmi]');
@@ -157,7 +171,7 @@
   });
 
   document.querySelectorAll('[data-dijeli]').forEach(b => b.addEventListener('click', async () => {
-    const n = ime(b.closest('.karta').dataset.f, tema);
+    const n = ime(b.closest('.karta'), tema);
     const tekst = b.innerHTML;
     b.textContent = 'Trenutak…';
     try {

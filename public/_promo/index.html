@@ -11,9 +11,9 @@
     /_promo/?f=objava   1080×1350
     /_promo/?f=story    1080×1920
     &t=bijela           dnevna tema aplikacije umjesto noćne
-    &g=predavanja       grafika o predavanjima: u telefonu otvoren kalendar,
-                        predavanja iz predavanja.json (snimak test liste), a
-                        obavijest je podsjetnik dan prije
+    &g=predavanja       grafika o predavanjima: u telefonu ekran „Nova
+                        predavanja“ s plakatima (predavanja.json, prvo je
+                        istaknuto), a obavijest je „Novo predavanje“
 
   Grafika NE crta svoj izgled: boje, slova, pozadina (ambijent i uzorak),
   znak i zlatno dugme dolaze iz /css/app.css, iz iste teme koju aplikacija
@@ -143,8 +143,8 @@
   /* obavijest uža i niže, da ne pokrije datume na listi u telefonu */
   .g-predavanja.objava .obav { top: 800px; width: 500px; }
   .g-predavanja.story h1 { font-size: 104px; }
-  .g-predavanja.story .obav { top: 1392px; left: 120px; width: 560px; }
-  .g-predavanja.story .poziv { top: 1610px; }
+  .g-predavanja.story .obav { top: 1424px; left: 120px; width: 560px; }
+  .g-predavanja.story .poziv { top: 1636px; }
 </style>
 </head>
 <body>
@@ -198,24 +198,26 @@
   const $ = id => document.getElementById(id);
 
   /* Grafika o predavanjima: aplikacija u telefonu radi lokalno (bez /api),
-     pa predavanja čita iz localStorage — tu ide snimak prave liste. Sva su
-     „viđena“ (nema ponude novih preko kalendara), dva se prate (zvjezdica i
-     broj „Planiram ići“), a obavijest je podsjetnik za jedno od njih. */
+     pa predavanja čita iz localStorage — tu ide predavanja.json (prvo je ono
+     koje grafika ističe). Nijedno nije „viđeno“, pa aplikacija sama otvori
+     ekran „Nova predavanja“ s plakatima, a obavijest je ista koju server
+     šalje kad se predavanje doda (sadrzajNovog u api/_lib/obavijesti.js). */
   let predavanja = [];
   if (g === 'predavanja') {
     predavanja = await (await fetch('/_promo/predavanja.json')).json();
-    const pracena = predavanja.slice(-2).map(p => p.id);
     Object.entries({
-      'pd.predavanjaLokalno': predavanja, 'pd.predavanjaVidjena': predavanja.map(p => p.id),
-      'pd.predavanjaPracena': pracena, 'pd.predavanjaObavijesti': true, 'pd.predavanjaGrad': '',
+      'pd.predavanjaLokalno': predavanja, 'pd.predavanjaVidjena': [],
+      'pd.predavanjaPracena': [], 'pd.predavanjaObavijesti': true, 'pd.predavanjaGrad': '',
     }).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
     $('nad').textContent = 'Novo u aplikaciji';
     $('naslov').innerHTML = 'Sva predavanja <em>na jednom mjestu.</em>';
-    $('pod').innerHTML = 'Gdje i kada predaje <b>hafiz Ammar Bašić</b> — s plakatom. Označi „Planiram ići“ i podsjetnik stiže dan prije.';
-    const p = predavanja.find(x => x.id === pracena[0]) || predavanja[0];
+    $('pod').innerHTML = 'Sva predavanja <b>hafiza Ammara Bašića</b>, uz notifikaciju dan prije.';
+    const p = predavanja[0];
+    const MJ = ['januar', 'februar', 'mart', 'april', 'maj', 'juni', 'juli', 'august', 'septembar', 'oktobar', 'novembar', 'decembar'];
+    const [, m, d] = p.datum.split('-').map(Number);
     $('obav-app').textContent = 'Ammar Bašić';
-    $('obav-nas').textContent = `Sutra: ${p.naslov}`;
-    $('obav-tekst').textContent = `U ${p.vrijeme} h${p.vrijeme_opis ? ` (${p.vrijeme_opis})` : ''} · ${[p.mjesto, p.grad].filter(Boolean).join(', ')}`;
+    $('obav-nas').textContent = 'Novo predavanje';
+    $('obav-tekst').textContent = `${p.naslov} — ${d}. ${MJ[m - 1]} u ${p.vrijeme} h${p.vrijeme_opis ? ` (${p.vrijeme_opis})` : ''}${p.grad ? `, ${p.grad}` : ''}`;
   }
 
   // znak u boji teme — isto kao primijeniZnakove() u aplikaciji
@@ -261,13 +263,7 @@
       .razvoj, .toast-hold, .nadogradnja { display: none !important; }
       .hdr { padding-top: 48px !important; } html, body { overflow: hidden !important; }`;
     okvir.contentDocument.head.appendChild(s);
-    // predavanja: kalendar otvoren čim se modul učita (dugme u donjoj traci)
-    if (g === 'predavanja') {
-      const t = setInterval(() => {
-        const b = okvir.contentDocument.querySelector('#nav-predavanja');
-        if (b && okvir.contentDocument.documentElement.classList.contains('ucitano')) { clearInterval(t); b.click(); }
-      }, 100);
-    }
+    // predavanja: ekran „Nova predavanja“ aplikacija otvara sama (ništa nije viđeno)
   });
 
   // današnja poruka — ista koju telefon prikazuje (u grafici o predavanjima obavijest je podsjetnik)

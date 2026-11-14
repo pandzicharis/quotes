@@ -156,6 +156,12 @@ textarea { min-height: 96px; resize: vertical; line-height: 1.55; }
 /* dok statistika ne dobije podatke, okvir je skriven, a preko njega se vrti
    zlatni krug — jedan, isti kao u aplikaciji, bez praznog ekrana i natpisa */
 .statistika-pogled { position: relative; }
+
+/* grafike: ugrađena stranica /grafike, a iznad nje link za novu karticu */
+.grafike { display: block; width: 100%; min-height: 70vh; border: 0; border-radius: 16px; background: transparent; }
+.grafike-veza { display: flex; justify-content: flex-end; margin: 0 0 10px; }
+.grafike-veza a { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--gold); text-decoration: none; }
+.grafike-veza a:hover { text-decoration: underline; }
 .statistika:not(.spremno) { visibility: hidden; }
 .statistika-ucitava { position: absolute; inset: 0 0 auto; height: 60vh; display: grid; place-items: center; }
 .statistika-ucitava[hidden] { display: none; }

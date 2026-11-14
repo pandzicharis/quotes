@@ -1,26 +1,26 @@
 [
  {
-  "id": 2,
-  "naslov": "Učvrstimo naša srca",
+  "id": 1,
+  "naslov": "Halka hadisa",
   "podnaslov": null,
   "organizator": null,
-  "datum": "2026-11-14",
+  "datum": "2026-11-19",
   "vrijeme": "18:30",
-  "vrijeme_opis": "poslije jacija-namaza",
+  "vrijeme_opis": "poslije jacije namaza",
   "zona": "Europe/Sarajevo",
-  "mjesto": "Džemat Blatuša",
-  "adresa": null,
-  "grad": "Zenica",
+  "mjesto": "Tabački mesdžid",
+  "adresa": "Tabaci",
+  "grad": "Sarajevo",
   "drzava": "BA",
-  "opis": null,
+  "opis": "Zajedničko čitanje i tumačenje hadisa Allahovog Poslanika, s.a.v.s.",
   "link": null,
   "stil": "zelena",
   "opcije": {
-   "hidzri": false
+   "hidzri": true
   },
-  "napravljeno": "2026-11-13T13:45:12.630384+00:00",
-  "izmijenjeno": "2026-11-13T13:45:12.630384+00:00",
-  "objavljeno": true
+  "objavljeno": true,
+  "napravljeno": "2026-11-14T15:00:00+00:00",
+  "izmijenjeno": "2026-11-14T15:00:00+00:00"
  },
  {
   "id": 5,

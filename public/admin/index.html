@@ -68,6 +68,7 @@
       <button data-tab="lista" aria-current="true" title="Predavanja"><svg class="ik"><use href="#i-kalendar"/></svg><span>Predavanja</span></button>
       <button data-tab="citati" title="Poruke"><svg class="ik"><use href="#i-navod"/></svg><span>Poruke</span></button>
       <button data-tab="statistika" title="Statistika"><svg class="ik"><use href="#i-grafikon"/></svg><span>Statistika</span></button>
+      <button data-tab="grafike" title="Grafike"><svg class="ik"><use href="#i-plakat"/></svg><span>Grafike</span></button>
     </nav>
     <div class="zaglavlje__desno">
       <span class="znacka" id="rezim" hidden>lokalni režim</span>
@@ -111,6 +112,14 @@
         <button class="tiho opasno" id="citati-ponisti" hidden><svg class="ik"><use href="#i-ponisti"/></svg> Poništi izmjene</button>
       </div>
       <div class="povrsina redovi" id="citati"></div>
+    </section>
+
+    <!-- grafike za mreže: stranica /grafike, ugrađena; preuzimanje i dijeljenje rade i odavde -->
+    <section class="grafike-pogled" data-pogled="grafike" hidden>
+      <div class="grafike-veza">
+        <a href="/grafike/" target="_blank" rel="noopener"><svg class="ik"><use href="#i-link"/></svg> Otvori grafike u novoj kartici</a>
+      </div>
+      <iframe class="grafike" id="grafike" title="Grafike" allow="web-share"></iframe>
     </section>
 
     <!-- statistika: stranica /analytics, ugrađena; šifru uzima iz ovog preglednika -->

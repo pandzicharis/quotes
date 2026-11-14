@@ -46,6 +46,8 @@ api/                        Vercel serverless funkcije
   _lib/push.js              VAPID, izbor poruke, slanje
 
 sql/shema.sql               tabele + RLS, zalijepi u Supabase SQL Editor
+sql/predavanja-prva.sql     prva predavanja pri puštanju u produkciju — bez
+                            obavijesti; korisnici ih vide na ekranu „Nova predavanja“
 scripts/vapid.js            generiše VAPID ključeve
 scripts/prebaci.js          jednokratna seoba starih pretplata iz Redisa
 scripts/promo.sh            izvoz grafika u public/grafike/ (objava 4:5, story 9:16, zelena i bijela)
@@ -305,6 +307,15 @@ ključevi. Ništa odatle ne dira produkciju — ni bazu, ni pretplate korisnika.
   instalirana aplikacija traži prijavu u Vercel.
 - Na test adresi gore stoji oznaka **TEST**, a predavanja su uključena sama
   (bez `?predavanja=1`) — vidi `TEST` u `js/app.js`.
+
+### Puštanje predavanja u produkciju
+
+Prva predavanja ne idu kroz admin, da korisnici ne dobiju niz notifikacija:
+upišu se u [`sql/predavanja-prva.sql`](sql/predavanja-prva.sql) i pokrenu u
+SQL editoru produkcijske baze (poslije `shema.sql`). Tako nemaju započetu
+obavijest, a aplikacija nove verzije ih pri prvom otvaranju sama ponudi na
+ekranu „Nova predavanja“. Svako sljedeće predavanje dodaje se kroz admin i
+uz „Pošalji obavijest“ šalje notifikaciju kao i do sada.
 - Cron na test ne ide: poruka dana se šalje ručno,
   `https://<test adresa>/api/send?secret=<CRON_SECRET>` — samo uređajima
   iz test baze.
