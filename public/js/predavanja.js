@@ -225,7 +225,8 @@ function napraviKostur() {
 
   for (const id of ['m-kalendar', 'm-nova', 'm-predavanje']) {
     const sloj = $(`#${id}`);
-    $$('[data-zatvori]', sloj).forEach(b => b.addEventListener('click', () => app.zatvori(sloj)));
+    $$('[data-zatvori]', sloj).forEach(b => b.addEventListener('click', () =>
+      app.zatvori(sloj, { cijeli: b.classList.contains('sloj__zav') })));
     app.postaviPovlacenje(sloj);
   }
 
@@ -329,7 +330,7 @@ function napraviPostavku() {
     $('#r-pred-dodano')?.addEventListener('click', () => { location.href = '/?nova=zadnje'; });
     $('#r-pred-nova')?.addEventListener('click', () => {
       pisi(VIDJENA, []);
-      $$('.sloj.on').forEach(s => app.zatvori(s));
+      $$('.sloj.on').forEach(s => app.zatvori(s, { cijeli: true }));
       setTimeout(() => ponudiNovo(0, true), 450);
     });
   }

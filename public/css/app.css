@@ -942,6 +942,11 @@ html:not(.ucitano) .app { visibility: hidden; }
     linear-gradient(178deg, rgba(0,0,0,.7) 0%, rgba(0,0,0,.25) 45%, transparent 85%);
 }
 .sloj.izlazi .sloj__zav { animation: fadeVan .26s var(--ease-soft) both; }
+/* drawer preko drawera je isti drawer (vidi prelaz u app.js): gornji nema
+   svoj zastor ni ulazak odozdo, donji je sakriven dok se ne vrati na njega */
+.sloj.sloj--nad > .sloj__zav { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; animation: none; }
+.sloj.sloj--nad .modal { animation: none; }
+.sloj.sloj--ispod .modal { visibility: hidden; }
 @keyframes fadeVan { from { opacity: 1; } to { opacity: 0; } }
 @media (min-width: 600px) {
   .sloj.izlazi .modal { animation: modalVan .22s var(--ease-soft) both; }

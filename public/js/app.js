@@ -1863,6 +1863,42 @@ async function kopirajSliku() {
    kojim je ušao, a spušta se i prstom, za zaglavlje. Na širem ekranu ostaje
    prozor u sredini, pa tamo povlačenja nema. */
 const jeDrawer = () => matchMedia('(max-width: 599px)').matches;
+const SHEET = 'cubic-bezier(.32, .72, 0, 1)';
+
+/* Drawer preko drawera je i dalje JEDAN drawer: novi sloj nema svoj zastor
+   ni ulazak odozdo — sadržaj mu se pretopi preko prethodnog, a gornji rub
+   drawera klizne do nove visine. Prethodni ostaje otvoren ispod, sakriven;
+   „x“, Escape i „nazad“ vraćaju na njega istim prelazom. Povlačenje nadolje
+   i dodir zastora zatvaraju cijeli drawer. */
+const stog = [];                      // otvoreni slojevi, redom otvaranja
+const PRELAZ_MS = 340;
+
+/** Pretapanje s drawera `od` na `ka`. `gore` je onaj koji leži iznad — samo
+    njegova providnost se mijenja, donji ostaje pun. Na telefonu se gornji
+    rub reže (clip-path), pa visina klizi umjesto da skoči. */
+function prelaz(od, ka, gore, gotovo) {
+  const bez = !od || !ka || !document.documentElement.classList.contains('anim')
+    || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (bez) { gotovo(); return; }
+  const r = getComputedStyle(ka).borderTopLeftRadius;
+  const t1 = od.getBoundingClientRect().top, t2 = ka.getBoundingClientRect().top;
+  const rez = px => (jeDrawer() ? `inset(${px}px 0 0 0 round ${r} ${r} 0 0)` : 'inset(0)');
+  const ulaz = ka.animate([
+    { clipPath: rez(Math.max(0, t1 - t2)), opacity: gore === ka ? 0 : 1 },
+    { opacity: 1, offset: .6 },
+    { clipPath: rez(0), opacity: 1 },
+  ], { duration: PRELAZ_MS, easing: SHEET });
+  const izlaz = od.animate([
+    { clipPath: rez(0), opacity: 1 },
+    { opacity: gore === od ? 0 : 1, offset: .7 },
+    { clipPath: rez(Math.max(0, t2 - t1)), opacity: gore === od ? 0 : 1 },
+  ], { duration: PRELAZ_MS, easing: SHEET, fill: 'forwards' });
+  // kraj i kad animacija stane (aplikacija ode u pozadinu usred prelaza)
+  let gotov = false;
+  const kraj = () => { if (gotov) return; gotov = true; gotovo(); izlaz.cancel(); ulaz.cancel(); };
+  ulaz.finished.then(kraj, kraj);
+  setTimeout(kraj, PRELAZ_MS + 120);
+}
 
 function otvori(sloj) {
   // ponovno otvaranje usred izlaska: prekini izlazak
@@ -1872,37 +1908,60 @@ function otvori(sloj) {
   if (m) { m.style.transition = ''; m.style.translate = ''; }
   const zav = $('.sloj__zav', sloj);           // ostaci povlačenja
   if (zav) zav.style.animation = zav.style.transition = zav.style.opacity = '';
+  // već je otvoren drawer: novi sadržaj ide u njega, ne u drugi drawer preko
+  const ispod = sloj.classList.contains('on') ? null : gornjiSloj();
+  if (!stog.includes(sloj)) stog.push(sloj);
   sloj.classList.add('on');
+  if (ispod && ispod !== sloj) {
+    sloj._ispod = ispod;
+    sloj.classList.add('sloj--nad');
+    sloj.style.zIndex = String(100 + stog.length);
+    prelaz($('.modal', ispod), m, m, () => ispod.classList.add('sloj--ispod'));
+  }
   // i html: na iPhoneu skrola on, pa samo body ne drži stranicu ispod drawera
   document.documentElement.style.overflow = document.body.style.overflow = 'hidden';
 }
 
 /* Drawer izlazi krivuljom nativnog sheeta; kad ga je bacio prst, trajanje
-   prati brzinu poteza (vidi postaviPovlacenje). */
-const SHEET = 'cubic-bezier(.32, .72, 0, 1)';
-function zatvori(sloj, { ms = 300, krivulja = SHEET } = {}) {
+   prati brzinu poteza (vidi postaviPovlacenje). `cijeli` zatvara i sve
+   što je u istom draweru ispod — inače se vraća na prethodni sadržaj. */
+function zatvori(sloj, { ms = 300, krivulja = SHEET, cijeli = false } = {}) {
   if (!sloj || !sloj.classList.contains('on') || sloj.classList.contains('izlazi')) return;
   const m = $('.modal', sloj);
+  const ispod = sloj._ispod;
+  const pocisti = () => {
+    sloj.classList.remove('on', 'izlazi', 'sloj--nad', 'sloj--ispod');
+    sloj.style.zIndex = '';
+    sloj._ispod = null;
+    const i = stog.indexOf(sloj);
+    if (i >= 0) stog.splice(i, 1);
+    if (m) { m.style.transition = ''; m.style.translate = ''; }
+    if (!$('.sloj.on')) document.documentElement.style.overflow = document.body.style.overflow = '';
+  };
   sloj.classList.add('izlazi');
+  // nazad: isti drawer, prethodni sadržaj
+  if (ispod && !cijeli && ispod.classList.contains('on') && !ispod.classList.contains('izlazi')) {
+    ispod.classList.remove('sloj--ispod');
+    prelaz(m, $('.modal', ispod), m, pocisti);
+    return;
+  }
+  if (ispod && cijeli) zatvori(ispod, { ms, krivulja, cijeli: true });
   if (m && jeDrawer()) {
     m.style.transition = `translate ${ms}ms ${krivulja}`;
     m.style.translate = '0 105%';
   }
-  sloj._izlaz = setTimeout(() => {
-    sloj.classList.remove('on', 'izlazi');
-    if (m) { m.style.transition = ''; m.style.translate = ''; }
-    if (!$('.sloj.on')) document.documentElement.style.overflow = document.body.style.overflow = '';
-  }, ms);
+  sloj._izlaz = setTimeout(pocisti, ms);
   if (!$('.sloj.on:not(.izlazi)')) resetPocetno();
 }
 
 function zatvoriSve() {
-  $$('.sloj.on').forEach(zatvori);
+  $$('.sloj.on').forEach(s => zatvori(s, { cijeli: true }));
   resetPocetno();                     // potvrda brisanja se ne nosi u sljedeće otvaranje
 }
 
 /** Gornji otvoreni sloj — Escape i „nazad“ zatvaraju samo njega. */
-const gornjiSloj = () => $$('.sloj.on:not(.izlazi)').at(-1);
+const gornjiSloj = () => stog.filter(s => s.classList.contains('on') && !s.classList.contains('izlazi')).at(-1)
+  || $$('.sloj.on:not(.izlazi)').at(-1);
 
 /* Povlačenje drawera nadolje, kao nativni sheet:
    · ručka i zaglavlje vuku uvijek;
@@ -1920,19 +1979,23 @@ function postaviPovlacenje(sloj) {
   const zav = $('.sloj__zav', sloj);
   if (!m) return;
   let y0 = 0, x0 = 0, dy = 0, zadnjiY = 0, vuce = false, odluka = null, skrol = null, tragovi = [];
+  // vidljivi zastor je onaj najdonjeg sloja u istom drawer-u (vidi otvori)
+  const zastor = () => { let s = sloj; while (s._ispod) s = s._ispod; return $('.sloj__zav', s); };
 
   const kreni = (y, x) => { y0 = y; x0 = x; dy = 0; tragovi = [[performance.now(), y]]; };
   const uhvati = () => {
     vuce = true;
     m.style.transition = 'none';
-    if (zav) { zav.style.animation = 'none'; zav.style.transition = 'none'; }
+    const z = zastor();
+    if (z) { z.style.animation = 'none'; z.style.transition = 'none'; }
   };
   const pomjeri = y => {
     const sirovo = y - y0;
     dy = Math.max(0, sirovo);
     // nagore: otpor kao na nativnom sheetu — par piksela, ne više
     m.style.translate = `0 ${sirovo >= 0 ? sirovo : -Math.sqrt(-sirovo) * 2}px`;
-    if (zav) zav.style.opacity = String(Math.max(0, 1 - dy / (m.offsetHeight || 1)));
+    const z = zastor();
+    if (z) z.style.opacity = String(Math.max(0, 1 - dy / (m.offsetHeight || 1)));
     tragovi.push([performance.now(), y]);
     if (tragovi.length > 5) tragovi.shift();
   };
@@ -1948,12 +2011,14 @@ function postaviPovlacenje(sloj) {
     if (dy > Math.min(160, m.offsetHeight * .25) || (dy > 20 && v > .45)) {
       // ostatak puta brzinom kojom je prst krenuo, ali ne brže od 160 ms ni sporije od 320 ms
       const ms = Math.round(Math.min(320, Math.max(160, (m.offsetHeight - dy) / Math.max(v, 1.1))));
-      if (zav) { zav.style.transition = `opacity ${ms}ms`; zav.style.opacity = '0'; }
-      return zatvori(sloj, { ms, krivulja: 'cubic-bezier(.2, .6, .35, 1)' });
+      const z = zastor();
+      if (z) { z.style.transition = `opacity ${ms}ms`; z.style.opacity = '0'; }
+      return zatvori(sloj, { ms, krivulja: 'cubic-bezier(.2, .6, .35, 1)', cijeli: true });
     }
     m.style.transition = `translate .4s ${SHEET}`;
     m.style.translate = '';
-    if (zav) { zav.style.transition = 'opacity .4s'; zav.style.opacity = ''; }
+    const z = zastor();
+    if (z) { z.style.transition = 'opacity .4s'; z.style.opacity = ''; }
   };
 
   m.addEventListener('touchstart', e => {
@@ -3042,8 +3107,7 @@ function slusaci() {
   el.mpFav.addEventListener('click', prebaciDetaljFav);
   $('#mp-dijeli').addEventListener('click', () => {
     if (stanje.detalj) { stanje.datum = stanje.detalj; prikaziDan(false); }
-    zatvoriSve();
-    otvoriDijeljenje();
+    otvoriDijeljenje();                 // u istom draweru — „x“ vraća na poruku
   });
 
   // dijeljenje
@@ -3057,7 +3121,9 @@ function slusaci() {
   });
 
   // modali
-  $$('[data-zatvori]').forEach(b => b.addEventListener('click', () => zatvori(b.closest('.sloj'))));
+  // „x“ vraća na prethodni sadržaj istog drawera; dodir zastora zatvara cijeli
+  $$('[data-zatvori]').forEach(b => b.addEventListener('click', () =>
+    zatvori(b.closest('.sloj'), { cijeli: b.classList.contains('sloj__zav') })));
   $$('.sloj').forEach(postaviPovlacenje);
 
   // uvod
