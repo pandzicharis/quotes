@@ -1,0 +1,94 @@
+[
+ {
+  "id": 2,
+  "naslov": "Učvrstimo naša srca",
+  "podnaslov": null,
+  "organizator": null,
+  "datum": "2026-11-14",
+  "vrijeme": "18:30",
+  "vrijeme_opis": "poslije jacija-namaza",
+  "zona": "Europe/Sarajevo",
+  "mjesto": "Džemat Blatuša",
+  "adresa": null,
+  "grad": "Zenica",
+  "drzava": "BA",
+  "opis": null,
+  "link": null,
+  "stil": "zelena",
+  "opcije": {
+   "hidzri": false
+  },
+  "napravljeno": "2026-11-13T13:45:12.630384+00:00",
+  "izmijenjeno": "2026-11-13T13:45:12.630384+00:00",
+  "objavljeno": true
+ },
+ {
+  "id": 5,
+  "naslov": "Vjera, sloboda, dostojanstvo",
+  "podnaslov": "Tribina",
+  "organizator": "Medžlis IZ Bugojno",
+  "datum": "2026-11-21",
+  "vrijeme": "19:00",
+  "vrijeme_opis": null,
+  "zona": "Europe/Sarajevo",
+  "mjesto": "Sportska dvorana KSC",
+  "adresa": null,
+  "grad": "Bugojno",
+  "drzava": "BA",
+  "opis": null,
+  "link": null,
+  "stil": "zelena",
+  "opcije": {
+   "hidzri": false
+  },
+  "napravljeno": "2026-11-13T16:17:56.900311+00:00",
+  "izmijenjeno": "2026-11-13T16:17:56.900311+00:00",
+  "objavljeno": true
+ },
+ {
+  "id": 6,
+  "naslov": "Večer Kur'ana",
+  "podnaslov": null,
+  "organizator": null,
+  "datum": "2026-11-22",
+  "vrijeme": "18:30",
+  "vrijeme_opis": "Poslije jacije namaza",
+  "zona": "Europe/Sarajevo",
+  "mjesto": "Arnauti",
+  "adresa": null,
+  "grad": "Zenica",
+  "drzava": "BA",
+  "opis": null,
+  "link": null,
+  "stil": "zelena",
+  "opcije": {
+   "hidzri": false
+  },
+  "napravljeno": "2026-11-13T16:19:47.511047+00:00",
+  "izmijenjeno": "2026-11-13T16:19:47.511047+00:00",
+  "objavljeno": true
+ },
+ {
+  "id": 7,
+  "naslov": "Šehidski mevlud",
+  "podnaslov": null,
+  "organizator": null,
+  "datum": "2026-11-27",
+  "vrijeme": "19:00",
+  "vrijeme_opis": "Poslije jacije namaza",
+  "zona": "Europe/Sarajevo",
+  "mjesto": "Turija",
+  "adresa": null,
+  "grad": "Bihać",
+  "drzava": "BA",
+  "opis": null,
+  "link": null,
+  "stil": "zelena",
+  "opcije": {
+   "hidzri": false
+  },
+  "napravljeno": "2026-11-13T16:20:25.536744+00:00",
+  "izmijenjeno": "2026-11-13T17:56:59.75+00:00",
+  "objavljeno": true
+ }
+]

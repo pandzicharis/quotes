@@ -11,6 +11,9 @@
     /_promo/?f=objava   1080×1350
     /_promo/?f=story    1080×1920
     &t=bijela           dnevna tema aplikacije umjesto noćne
+    &g=predavanja       grafika o predavanjima: u telefonu otvoren kalendar,
+                        predavanja iz predavanja.json (snimak test liste), a
+                        obavijest je podsjetnik dan prije
 
   Grafika NE crta svoj izgled: boje, slova, pozadina (ambijent i uzorak),
   znak i zlatno dugme dolaze iz /css/app.css, iz iste teme koju aplikacija
@@ -133,6 +136,15 @@
   .story .obav { left: 104px; top: 1150px; width: 540px; rotate: -3deg; }
   .story .sjaj { left: 190px; top: 660px; width: 700px; height: 900px; }
   .story .poziv { left: 0; right: 0; top: 1490px; text-align: center; }
+
+  /* ---------- grafika o predavanjima: duži naslov, nešto sitniji ---------- */
+  .g-predavanja.objava h1 { font-size: 90px; }
+  .g-predavanja.objava .tekst { width: 540px; }
+  /* obavijest uža i niže, da ne pokrije datume na listi u telefonu */
+  .g-predavanja.objava .obav { top: 800px; width: 500px; }
+  .g-predavanja.story h1 { font-size: 104px; }
+  .g-predavanja.story .obav { top: 1392px; left: 120px; width: 560px; }
+  .g-predavanja.story .poziv { top: 1610px; }
 </style>
 </head>
 <body>
@@ -150,9 +162,9 @@
 <img class="logo" id="logo" src="/assets/brand/ammar_basic_logo_w_1.png" alt="Ammar Bašić">
 
 <div class="tekst">
-  <div class="nad">Poruka dana</div>
-  <h1>Riječi koje <em>bude srce.</em></h1>
-  <p class="pod">Svaki dan po jedna poruka iz knjiga <b>hafiza Ammara Bašića</b>, na tvom telefonu.</p>
+  <div class="nad" id="nad">Poruka dana</div>
+  <h1 id="naslov">Riječi koje <em>bude srce.</em></h1>
+  <p class="pod" id="pod">Svaki dan po jedna poruka iz knjiga <b>hafiza Ammara Bašića</b>, na tvom telefonu.</p>
 </div>
 
 <div class="tel-drzac" id="tel"></div>
@@ -160,8 +172,8 @@
 <div class="obav">
   <img src="/assets/icons/apple-touch-icon.png" alt="">
   <div>
-    <div class="obav__vrh"><b>Poruka dana</b><span>sada</span></div>
-    <b class="obav__nas">Nova poruka dana</b>
+    <div class="obav__vrh"><b id="obav-app">Poruka dana</b><span>sada</span></div>
+    <b class="obav__nas" id="obav-nas">Nova poruka dana</b>
     <p id="obav-tekst"></p>
   </div>
 </div>
@@ -180,8 +192,31 @@
 <script type="module">
   const q = new URLSearchParams(location.search);
   const f = q.get('f') === 'story' ? 'story' : 'objava';
+  const g = q.get('g') === 'predavanja' ? 'predavanja' : 'poruka';
   const tema = document.documentElement.dataset.tema;
-  document.body.classList.add(f);
+  document.body.classList.add(f, `g-${g}`);
+  const $ = id => document.getElementById(id);
+
+  /* Grafika o predavanjima: aplikacija u telefonu radi lokalno (bez /api),
+     pa predavanja čita iz localStorage — tu ide snimak prave liste. Sva su
+     „viđena“ (nema ponude novih preko kalendara), dva se prate (zvjezdica i
+     broj „Planiram ići“), a obavijest je podsjetnik za jedno od njih. */
+  let predavanja = [];
+  if (g === 'predavanja') {
+    predavanja = await (await fetch('/_promo/predavanja.json')).json();
+    const pracena = predavanja.slice(-2).map(p => p.id);
+    Object.entries({
+      'pd.predavanjaLokalno': predavanja, 'pd.predavanjaVidjena': predavanja.map(p => p.id),
+      'pd.predavanjaPracena': pracena, 'pd.predavanjaObavijesti': true, 'pd.predavanjaGrad': '',
+    }).forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)));
+    $('nad').textContent = 'Novo u aplikaciji';
+    $('naslov').innerHTML = 'Sva predavanja <em>na jednom mjestu.</em>';
+    $('pod').innerHTML = 'Gdje i kada predaje <b>hafiz Ammar Bašić</b> — s plakatom. Označi „Planiram ići“ i podsjetnik stiže dan prije.';
+    const p = predavanja.find(x => x.id === pracena[0]) || predavanja[0];
+    $('obav-app').textContent = 'Ammar Bašić';
+    $('obav-nas').textContent = `Sutra: ${p.naslov}`;
+    $('obav-tekst').textContent = `U ${p.vrijeme} h${p.vrijeme_opis ? ` (${p.vrijeme_opis})` : ''} · ${[p.mjesto, p.grad].filter(Boolean).join(', ')}`;
+  }
 
   // znak u boji teme — isto kao primijeniZnakove() u aplikaciji
   document.getElementById('logo').src = `/assets/brand/ammar_basic_logo_${tema === 'svijetla' ? 'b' : 'w'}_1.png`;
@@ -206,7 +241,7 @@
       <div class="kt__rub" style="border-radius:68em;padding:3.5em">
         <div class="kt__okvir" style="border-radius:64.5em;padding:11em">
           <div class="kt__ekran" style="width:402em;height:874em;border-radius:54em">
-            <iframe src="/" title="" scrolling="no"></iframe>
+            <iframe src="${g === 'predavanja' ? '/?predavanja=1' : '/'}" title="" scrolling="no"></iframe>
             <div class="kt-status kt-status--ios"><span class="kd-t" style="font-size:17em;font-weight:600">9:41</span>
               <span class="kt-status__ik">${sig}${wifi}${bat}</span></div>
             <i class="kt__otok"><i></i></i><i class="kt__staklo"></i>
@@ -226,14 +261,23 @@
       .razvoj, .toast-hold, .nadogradnja { display: none !important; }
       .hdr { padding-top: 48px !important; } html, body { overflow: hidden !important; }`;
     okvir.contentDocument.head.appendChild(s);
+    // predavanja: kalendar otvoren čim se modul učita (dugme u donjoj traci)
+    if (g === 'predavanja') {
+      const t = setInterval(() => {
+        const b = okvir.contentDocument.querySelector('#nav-predavanja');
+        if (b && okvir.contentDocument.documentElement.classList.contains('ucitano')) { clearInterval(t); b.click(); }
+      }, 100);
+    }
   });
 
-  // današnja poruka — ista koju telefon prikazuje
-  const podaci = await (await fetch('/data/poruke.json')).json();
-  const dan = Math.floor(Date.UTC(...(d => [d.getFullYear(), d.getMonth(), d.getDate()])(new Date())) / 86400000);
-  const p = podaci.poruke[((dan % podaci.poruke.length) + podaci.poruke.length) % podaci.poruke.length];
-  const recenica = p.tekst.match(/^.*?[.!?](\s|$)/)?.[0].trim() || p.tekst;
-  document.getElementById('obav-tekst').textContent = recenica.length > 120 ? recenica.slice(0, 117) + '…' : recenica;
+  // današnja poruka — ista koju telefon prikazuje (u grafici o predavanjima obavijest je podsjetnik)
+  if (g === 'poruka') {
+    const podaci = await (await fetch('/data/poruke.json')).json();
+    const dan = Math.floor(Date.UTC(...(d => [d.getFullYear(), d.getMonth(), d.getDate()])(new Date())) / 86400000);
+    const p = podaci.poruke[((dan % podaci.poruke.length) + podaci.poruke.length) % podaci.poruke.length];
+    const recenica = p.tekst.match(/^.*?[.!?](\s|$)/)?.[0].trim() || p.tekst;
+    document.getElementById('obav-tekst').textContent = recenica.length > 120 ? recenica.slice(0, 117) + '…' : recenica;
+  }
 </script>
 </body>
 </html>
