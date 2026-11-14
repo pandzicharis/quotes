@@ -24,8 +24,20 @@ import {
    ostatak (i sve što padne) dostavi cron kroz /api/send?nadoknadi=1. Rok je
    kratak i zato što posljednje slanje pred rok može trajati još ~25 s, a sve
    mora stati u maxDuration od 60 s. */
+/** 'YYYY-MM-DDTHH:MM' sada, u zoni predavanja. */
+function sadaUZoni(zona) {
+  const d = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: zona || 'Europe/Sarajevo', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date()).map(x => [x.type, x.value]));
+  return `${d.year}-${d.month}-${d.day}T${d.hour}:${d.minute}`;
+}
+/* Predavanje čiji je početak prošao aplikacija ne prikazuje, a cron ga
+   briše — za njega nema ni dodavanja ni obavijesti „Novo“. */
+const vecPoceo = p => `${p.datum}T${p.vrijeme}` < sadaUZoni(p.zona);
+
 async function obavijesti(p) {
-  if (process.env.PREDAVANJA_PUSH !== '1' || !vapidSpreman() || !p.objavljeno) return null;
+  if (process.env.PREDAVANJA_PUSH !== '1' || !vapidSpreman() || !p.objavljeno || vecPoceo(p)) return null;
   postaviVapid();
   const r = await obavijestiONovom(p, { rokMs: 15_000 });
   return r.kasnije ? { kasnije: r.kasnije } : { poslano: r.poslano, palo: r.palo };
@@ -105,6 +117,9 @@ export default async function handler(req, res) {
       const p = ocisti(tijelo);
       if (p.greska) return res.status(400).json(p);
       const novo = req.method === 'POST';
+      if (novo && vecPoceo(p)) {
+        return res.status(400).json({ greska: 'Datum i vrijeme su već prošli — takvo predavanje se u aplikaciji ne vidi. Provjeri datum.' });
+      }
       const red = novo ? await dodajPredavanje(p) : await izmijeniPredavanje(id, p);
       if (!red) return res.status(404).json({ greska: 'Predavanje ne postoji' });
       /* Obavijest ide samo za novo predavanje, i samo kad je admin traži

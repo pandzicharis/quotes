@@ -154,7 +154,9 @@ export async function nadoknadiPredavanja(opcije) {
   };
 
   if (DANJU(sadaU('Europe/Sarajevo').sat)) {
-    const nova = await predavanjaUObavjestavanju().catch(() => []);
+    // predavanje koje je već počelo ne javlja se kao novo (aplikacija ga i ne prikazuje)
+    const nova = (await predavanjaUObavjestavanju().catch(() => []))
+      .filter(p => `${p.datum}T${p.vrijeme}` >= `${sadaU(p.zona).dan}T${String(sadaU(p.zona).sat).padStart(2, '0')}:00`);
     for (const p of nova) await probaj(`novo:${p.id}`, () => dostavi(`novo:${p.id}`, { zaPredavanja: true }, sadrzajNovog(p), opcije, 'nadoknada', p.naslov));
   }
 

@@ -287,7 +287,20 @@ function izForme() {
     objavljeno: urediId ? urediObjavljeno : true, obavijest: !urediId && forma.obavijest.checked };
 }
 
+/* „Poništi“ vraća formu kakva je bila pri otvaranju: novo — prazna, izmjena —
+   podaci kakvi su sačuvani. Modal ostaje otvoren. */
+let pocetno = {};
+$('#ponisti-formu').addEventListener('click', () => { uFormu(pocetno); obavijest('Izmjene su poništene'); });
+
+/** Lista ponovo sa servera — poslije čuvanja, sakrivanja i brisanja, da admin
+    vidi tačno ono što je u bazi (i ono što je u međuvremenu dodao neko drugi). */
+async function osvjeziListu() {
+  try { lista = await ucitajPredavanja({ sve: true, tajna }); } catch { /* ostaje lokalno ažurirana */ }
+  crtajSve();
+}
+
 function uFormu(p = {}) {
+  pocetno = p;
   urediId = p.id || null;
   urediKljuc = p.kljuc || null;
   urediObjavljeno = p.objavljeno !== false;
@@ -369,6 +382,7 @@ forma.addEventListener('submit', async e => {
       : push.kasnije ? ' · obavijest kreće najkasnije za sat'
       : ` · obavijest otišla na ${push.poslano} uređaja`;
     obavijest(`${bilo ? 'Izmjene su sačuvane' : 'Predavanje je objavljeno'}${poslano}`);
+    osvjeziListu();
   } catch (err) {
     obavijest(err.message, true);
   } finally {
@@ -391,6 +405,7 @@ $('#sakrij').addEventListener('click', async () => {
     crtajSve();
     modal.close();
     obavijest(p.objavljeno === false ? 'Predavanje je sakriveno — u aplikaciji se ne vidi' : 'Predavanje je opet vidljivo u aplikaciji');
+    osvjeziListu();
   } catch (err) { obavijest(err.message, true); }
   finally { b.disabled = false; }
 });
@@ -404,6 +419,7 @@ $('#obrisi').addEventListener('click', async () => {
     crtajSve();
     modal.close();
     obavijest('Predavanje je obrisano');
+    osvjeziListu();
   } catch (err) { obavijest(err.message, true); }
 });
 

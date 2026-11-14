@@ -134,7 +134,6 @@
           </div>
         </div>
         <button class="tiho opasno ikona-dugme" id="obrisi" hidden title="Obriši predavanje" aria-label="Obriši predavanje"><svg class="ik"><use href="#i-kanta"/></svg></button>
-        <button class="zlatno" id="sacuvaj" data-sacuvaj form="forma"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj</button>
         <button class="tiho ikona-dugme glava__x" id="uredi-zatvori" title="Zatvori" aria-label="Zatvori"><svg class="ik"><use href="#i-x"/></svg></button>
       </header>
 
@@ -213,7 +212,11 @@
           </div>
         </aside>
       </div>
-      <div class="um__dno"><button class="zlatno" data-sacuvaj form="forma"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj predavanje</button></div>
+      <!-- radnje lijevo, ispod forme: sačuvaj, a pored vraćanje forme kakva je bila pri otvaranju -->
+      <div class="um__dno">
+        <button class="zlatno" data-sacuvaj form="forma"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj predavanje</button>
+        <button type="button" class="tiho" id="ponisti-formu"><svg class="ik"><use href="#i-ponisti"/></svg> Poništi</button>
+      </div>
 </dialog>
 
 <!-- ===== PORUKA ===== -->

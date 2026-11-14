@@ -219,8 +219,13 @@ body:has(dialog[open]) { overflow: hidden; }
 .dijalog.dijalog--uredi { width: min(1240px, calc(100% - 48px)); height: min(940px, calc(100% - 48px)); max-height: none; }
 .dijalog--uredi[open] { display: flex; flex-direction: column; }
 .um__glava { flex: none; }
-.um__glava #sacuvaj { height: 36px; padding: 0 20px; }
-.um__dno, .rucka { display: none; }
+/* radnje ispod forme, lijevo: Sačuvaj pa Poništi */
+.um__dno {
+  flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 20px;
+  border-top: 1px solid var(--line-soft); background: var(--bg-2);
+}
+.um__dno button { height: 40px; padding: 0 20px; }
+.rucka { display: none; }
 .uredi { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 430px); }
 .uredi > #forma { overflow: auto; scrollbar-width: thin; }
 .uredi > .dizajner { overflow: auto; border-left: 1px solid var(--line-soft); background: var(--surface); }
@@ -435,9 +440,9 @@ svg.ik--okvir { width: 15px; height: 15px; fill: none; stroke: currentColor; str
   .izvoz__pregled canvas { max-height: 38vh; }
   /* uređivanje: sheet do vrha, uz tračak pozadine iznad — kao iOS */
   .dijalog.dijalog--uredi { width: 100%; height: calc(100% - 10px - env(safe-area-inset-top)); max-height: none; border-radius: 22px 22px 0 0; }
-  .um__glava #sacuvaj { display: none; }
-  .um__dno { display: block; flex: none; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line-soft); background: var(--bg-2); }
-  .um__dno button { width: 100%; padding: 13px; font-size: 15px; }
+  .um__dno { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .um__dno button { height: auto; padding: 13px 18px; font-size: 15px; }
+  .um__dno [data-sacuvaj] { flex: 1; }
   /* ručka kao na drawerima u aplikaciji — za nju i zaglavlje drawer se spušta prstom */
   /* hvataljka leži na traci zaglavlja: traka se podvuče pod nju (kao u aplikaciji) */
   .rucka { display: block; position: relative; z-index: 2; flex: none; height: 22px; touch-action: none; }
