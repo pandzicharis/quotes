@@ -43,8 +43,15 @@ const ROK_PORUKE_MS = 170_000;
 /* Poruka dana stiže u 10 h po Sarajevu, svaki dan. Nadoknada se zove i
    ranije (7 h — zbog podsjetnika u zonama gdje je tada veče, npr.
    Australija), ali poruku dana prije 10 h ne šalje. „Novo predavanje“ ide
-   odmah iz admina. Ručni /api/send i ?svima=1 šalju kad se pozovu. */
-const SAT_PORUKE = 10;
+   odmah iz admina. Ručni /api/send i ?svima=1 šalju kad se pozovu.
+
+   Na testu (Vercel Preview) nema tog praga: poruka dana ide pri prvom
+   pozivu u danu, kad god ga cron zakaže — vrijeme se bira na cron-job.org.
+   Varijabla SAT_PORUKE u Vercelu može prag promijeniti u bilo kojem
+   okruženju (0 = bez praga). */
+const SAT_PORUKE = process.env.SAT_PORUKE
+  ? Number(process.env.SAT_PORUKE)
+  : process.env.VERCEL_ENV === 'preview' ? 0 : 10;
 const satUSarajevu = (d = new Date()) => Number(new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Sarajevo', hour: '2-digit', hourCycle: 'h23',
 }).format(d));

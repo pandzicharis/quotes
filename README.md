@@ -164,7 +164,10 @@ raspored:   0 7-21 * * *
 ```
 
 Poruka dana kreće u **10 h po Sarajevu**: poziv u 10 h pošalje je svima, a
-pozivi u 7, 8 i 9 h nje ne diraju. Obavijest „Novo predavanje“ ide odmah kad
+pozivi u 7, 8 i 9 h nje ne diraju. **Na testu** (Vercel Preview) tog praga
+nema — poruka dana ide pri prvom pozivu u danu, kad god je posao zakazan na
+cron-job.org. Varijabla `SAT_PORUKE` u Vercelu mijenja prag u bilo kojem
+okruženju (`0` = bez praga). Obavijest „Novo predavanje“ ide odmah kad
 se predavanje doda u adminu (u bilo koje doba), a podsjetnik onima koji
 planiraju ići — dan prije u 19 h po vremenu mjesta. U 7–9 h ide samo podsjetnik za
 zone gdje je tada veče (npr. Australija). Svaki poziv od 11 h dalje šalje je samo
