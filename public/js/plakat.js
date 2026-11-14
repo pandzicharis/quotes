@@ -56,8 +56,18 @@ const ZASTAVA = { zelena: .38, krem: .32 };
 
 const FONTOVI = [
   `700 40px ${DISPLAY}`, `400 40px ${SERIF}`, `500 40px ${SERIF}`,
-  `italic 400 40px ${SERIF}`, `700 40px ${SANS}`,
+  `italic 400 40px ${SERIF}`, `400 40px ${SANS}`, `500 40px ${SANS}`, `700 40px ${SANS}`,
 ];
+
+/* Podaci (datum, sat, mjesto) pišu se istim fontom kao oznake iznad njih,
+   velikim slovima i malo razmaknuto — kao u detaljima u aplikaciji. Razmak
+   važi i za mjerenje, pa lomljenje redova ostaje tačno. */
+const verzal = t => (t || '').toLocaleUpperCase('bs');
+function saRazmakom(c, razmak, fn) {
+  c.save();
+  c.letterSpacing = `${razmak}px`;
+  try { return fn(); } finally { c.restore(); }
+}
 
 /**
  * Fotografija u pozadini, desno: odsječena desnim rubom, utopljena eliptičnom
@@ -423,7 +433,7 @@ export async function nacrtajPlakat(cv, p, { format = 'objava', stil, autor = 'H
   const U = W * 0.012 * rast * gust;
   const F = Object.fromEntries(Object.entries({
     nad: 0.023, ime: 0.022, naslov: 0.088, podnaslov: 0.04,
-    iNad: 0.0185, iDatum: 0.054, iVr: 0.045, iPod: 0.03, link: 0.0215,
+    iNad: 0.0185, iDatum: 0.044, iVr: 0.037, iPod: 0.027, link: 0.0215,
   }).map(([k, v]) => [k, W * v * tip * (k.startsWith('i') ? gust : 1)]));
 
   podloga(c, W, H, s);
@@ -440,28 +450,30 @@ export async function nacrtajPlakat(cv, p, { format = 'objava', stil, autor = 'H
   const [g, mj, d] = (p.datum || '2000-01-01').split('-').map(Number);
   const hDat = op.hidzri ? hidzriDatum(p.datum) : '';
   const lokacija = [p.adresa, p.mjesto ? p.grad : ''].filter(Boolean).join(', ');
+  // vrijednosti velikim slovima, samo „h“ iza sata ostaje malo
   const stavke = [
-    { ik: 'kalendar', nad: 'DATUM', vr: `${d}. ${MJESECI[mj - 1]} ${g}.`, font: `700 ${F.iDatum}px ${DISPLAY}`, boja: s.gold,
+    { ik: 'kalendar', nad: 'DATUM', vr: verzal(`${d}. ${MJESECI[mj - 1]} ${g}.`), font: `700 ${F.iDatum}px ${SANS}`, boja: s.gold,
       pod: hDat ? [hDat] : [] },
-    { ik: 'sat', nad: 'DAN I VRIJEME', vr: `${danUSedmici(p.datum)}${p.vrijeme ? ` · ${p.vrijeme} h` : ''}`, font: `500 ${F.iVr}px ${SERIF}`, boja: s.ink,
+    { ik: 'sat', nad: 'DAN I VRIJEME', vr: `${verzal(danUSedmici(p.datum))}${p.vrijeme ? ` · ${p.vrijeme} h` : ''}`, font: `700 ${F.iVr}px ${SANS}`, boja: s.ink,
       pod: p.vrijeme_opis ? [p.vrijeme_opis] : [] },   // vrijeme je lokalno, bez preračunavanja
-    { ik: 'mjesto', nad: 'LOKACIJA', vr: p.mjesto || p.grad || '—', font: `500 ${F.iVr}px ${SERIF}`, boja: s.ink,
+    { ik: 'mjesto', nad: 'LOKACIJA', vr: verzal(p.mjesto || p.grad || '—'), font: `700 ${F.iVr}px ${SANS}`, boja: s.ink,
       pod: lokacija ? [lokacija] : [], drzava: vani },
-    ...(p.organizator ? [{ ik: 'ljudi', nad: 'ORGANIZATOR', vr: p.organizator, font: `500 ${F.iVr * .9}px ${SERIF}`, boja: s.ink, pod: [] }] : []),
+    ...(p.organizator ? [{ ik: 'ljudi', nad: 'ORGANIZATOR', vr: verzal(p.organizator), font: `700 ${F.iVr * .9}px ${SANS}`, boja: s.ink, pod: [] }] : []),
   ];
   const ikV = F.iNad * 1.7;                   // ikonica u redu s oznakom
   const xT = x0, wT = sirina;
-  const vlh = F.iVr * 1.2, podLh = F.iPod * 1.35;
+  const vlh = F.iVr * 1.25, podLh = F.iPod * 1.4;
+  const razV = W * 0.0018;                    // razmak slova u vrijednostima
   for (const k of stavke) {
     c.font = k.font;
     // vrijednost u najviše dva reda — dugo se ne krnji, nego se slog smanji
-    k.vrRedovi = lomiRavno(c, k.vr, wT);
+    k.vrRedovi = saRazmakom(c, razV, () => lomiRavno(c, k.vr, wT));
     while (k.vrRedovi.length > 2 && parseFloat(k.font.match(/[\d.]+px/)[0]) > F.iVr * .7) {
       k.font = k.font.replace(/[\d.]+px/, m => `${parseFloat(m) * .94}px`);
       c.font = k.font;
-      k.vrRedovi = lomiRavno(c, k.vr, wT);
+      k.vrRedovi = saRazmakom(c, razV, () => lomiRavno(c, k.vr, wT));
     }
-    c.font = `italic 400 ${F.iPod}px ${SERIF}`;
+    c.font = `400 ${F.iPod}px ${SANS}`;
     k.podRedovi = k.pod.flatMap(t => lomiRavno(c, t, wT)).slice(0, 2);
     const visT = F.iNad + U * 1.3 + k.vrRedovi.length * vlh
       + (k.podRedovi.length ? U * .6 + k.podRedovi.length * podLh : 0)
@@ -534,12 +546,12 @@ export async function nacrtajPlakat(cv, p, { format = 'objava', stil, autor = 'H
     yy += F.iNad + U * 1.3;
     c.fillStyle = k.boja;
     c.font = k.font;
-    k.vrRedovi.forEach((r, j) => c.fillText(r, xT, yy + vlh * (j + .5)));
+    k.vrRedovi.forEach((r, j) => razmaknuto(c, r, xT, yy + vlh * (j + .5), razV));
     yy += k.vrRedovi.length * vlh;
     if (k.podRedovi.length) {
       yy += U * .6;
       c.fillStyle = blijedo(s, .66);
-      c.font = `italic 400 ${F.iPod}px ${SERIF}`;
+      c.font = `400 ${F.iPod}px ${SANS}`;
       k.podRedovi.forEach((r, j) => c.fillText(r, xT, yy + podLh * (j + .5)));
       yy += k.podRedovi.length * podLh;
     }
@@ -582,7 +594,8 @@ export async function nacrtajRaspored(cv, lista, {
 } = {}) {
   const f = PLAKAT_FORMATI.find(x => x.id === format) || PLAKAT_FORMATI[1];
   const s = stilPlakata(stil);
-  const drzave = [...new Set(lista.map(p => p.drzava).filter(Boolean))];
+  // zastava samo van BiH — domaća predavanja su većina, njima ne treba
+  const drzave = [...new Set(lista.map(p => p.drzava).filter(d => d && d !== 'BA'))];
 
   await Promise.all(FONTOVI.map(x => document.fonts?.load(x).catch(() => {})));
   const [znak, foto, mreze, ...slike] = await Promise.all([
@@ -600,7 +613,7 @@ export async function nacrtajRaspored(cv, lista, {
   const U = W * 0.012 * rast * (odnos < 1.5 ? .8 : 1);
   const F = Object.fromEntries(Object.entries({
     nad: 0.023, ime: 0.022, naslov: 0.078, podnaslov: 0.036, link: 0.0215,
-    dan: 0.066, mj: 0.0165, grad: 0.044, mjesto: 0.028,
+    dan: 0.066, mj: 0.0165, grad: 0.036, mjesto: 0.025,
   }).map(([k, v]) => [k, W * v * tip]));
 
   podloga(c, W, H, s);
@@ -631,15 +644,13 @@ export async function nacrtajRaspored(cv, lista, {
      u dvije kolone ide tek kad bi jedna bila presitna za čitanje. --- */
   const n = lista.length;
   const prostor = dno - z.dno - U * 4 - visGlave - lk.vis - U * 1.5;
-  const dijeloviReda = p => {
-    const dan = danUSedmici(p.datum);
-    return [dan.charAt(0).toUpperCase() + dan.slice(1), p.vrijeme ? `${p.vrijeme} h` : '', p.vrijeme_opis, p.grad ? p.mjesto : '']
-      .filter(Boolean);
-  };
+  // dan i mjesto velikim slovima, kao na plakatu; opis vremena ostaje malim
+  const dijeloviReda = p => [verzal(danUSedmici(p.datum)), p.vrijeme ? `${p.vrijeme} h` : '', p.vrijeme_opis, p.grad ? verzal(p.mjesto) : '']
+    .filter(Boolean);
   const slozi = (k, kol) => {
     const kolW = kol === 1 ? sirina : (sirina - U * 4) / 2;
     const fd = F.dan * k, fmj = F.mjesto * k, dw = fd * 1.3;   // dw: kolona datuma
-    c.font = `italic 400 ${fmj}px ${SERIF}`;
+    c.font = `500 ${fmj}px ${SANS}`;
     const wt = kolW - dw - U * 2.8 * k;
     const opisi = lista.map(p => {
       const r = lomiDijelove(c, dijeloviReda(p), wt);
@@ -723,7 +734,7 @@ export async function nacrtajRaspored(cv, lista, {
       c.fillText(String(d), xd, topL + bh + (hL - bh) / 2 + (mb.actualBoundingBoxAscent - mb.actualBoundingBoxDescent) / 2);
       c.textAlign = 'left';
 
-      // grad, pa zastava (i država van BiH, ako stane) u istom redu, ispod dan, sat i mjesto
+      // grad, pa van BiH zastava (i država, ako stane) u istom redu, ispod dan, sat i mjesto
       const hR = fg * 1.15 + U * .5 * k + fmj * 1.3 * o.length;
       const xt = x + dw + U * 2.8 * k, wt = x + kolW - xt, topR = yc - hR / 2;
       const y1 = topR + fg * 1.15 / 2;
@@ -731,16 +742,16 @@ export async function nacrtajRaspored(cv, lista, {
       const zh = fm * 1.3, zwd = zh * 1.5, zRaz = U * 1.3 * k;
       const wg = wt - (zImg ? zRaz + zwd : 0);     // zastavi se uvijek ostavi mjesta
       let fgg = fg;
-      c.font = `500 ${fgg}px ${SERIF}`;
-      const grad = p.grad || p.mjesto || '—';
-      while (c.measureText(grad).width > wg && fgg > fg * .75) { fgg *= .95; c.font = `500 ${fgg}px ${SERIF}`; }
+      c.font = `700 ${fgg}px ${SANS}`;
+      const grad = verzal(p.grad || p.mjesto || '—');
+      while (c.measureText(grad).width > wg && fgg > fg * .75) { fgg *= .95; c.font = `700 ${fgg}px ${SANS}`; }
       const tg = skrati(c, grad, wg);
       c.fillStyle = s.ink;
       c.fillText(tg, xt, y1);
       if (zImg) {
         let xz = xt + c.measureText(tg).width + zRaz;
         c.font = `700 ${fm}px ${SANS}`;
-        const ime = p.drzava === 'BA' ? '' : imeZemlje(p.drzava).toUpperCase();   // za BiH dovoljna je zastava
+        const ime = imeZemlje(p.drzava).toUpperCase();   // zastava je samo van BiH
         c.save();
         c.beginPath();
         c.roundRect ? c.roundRect(xz, y1 - zh / 2, zwd, zh, zh * .18) : c.rect(xz, y1 - zh / 2, zwd, zh);
@@ -754,7 +765,7 @@ export async function nacrtajRaspored(cv, lista, {
         }
       }
       c.fillStyle = blijedo(s, .72);
-      c.font = `italic 400 ${fmj}px ${SERIF}`;
+      c.font = `500 ${fmj}px ${SANS}`;
       o.forEach((r, j) => c.fillText(r, xt, topR + fg * 1.15 + U * .5 * k + fmj * 1.3 * (j + .5)));
     });
     if (red.length) linija(x, y + red.length * rh, x + kolW, y + red.length * rh, .22);

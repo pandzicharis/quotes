@@ -4,9 +4,11 @@
 
      /api/send?nadoknadi=1   poruka dana samo onima koji današnju još nemaju,
                              pa obavijesti o predavanjima i podsjetnici. Cron
-                             ga zove svaki sat preko dana (7–21 h): prvi poziv
-                             pošalje svima, ostali dostave ono što je palo ili
-                             nije stiglo na red — dok ne stigne do svakoga.
+                             ga zove svaki sat preko dana (7–21 h). Poruka dana
+                             kreće tek u 10 h po Sarajevu: poziv u 10 h pošalje
+                             svima, kasniji dostave ono što je palo ili nije
+                             stiglo na red. Pozivi u 7, 8 i 9 h šalju samo
+                             obavijesti o predavanjima.
      /api/send               poruka dana onima koji je danas još nisu dobili
                              (stari dnevni cron može ostati uz nadoknadu, bez
                              duplikata). Bez dnevnika isporuka — svima, kao ranije.
@@ -37,6 +39,14 @@ import { nadoknadiPredavanja, zapisiSlanje } from './_lib/obavijesti.js';
 const ROK_MS = 200_000;
 /* Poruka dana ide prva i dobija najveći dio vremena; predavanja dijele ostatak. */
 const ROK_PORUKE_MS = 170_000;
+
+/* Poruka dana stiže u 10 h po Sarajevu, svaki dan. Nadoknada se zove i
+   ranije (7 h — zbog podsjetnika u zonama gdje je tada veče), ali poruku
+   dana prije 10 h ne šalje. Ručni /api/send i ?svima=1 šalju kad se pozovu. */
+const SAT_PORUKE = 10;
+const satUSarajevu = (d = new Date()) => Number(new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/Sarajevo', hour: '2-digit', hourCycle: 'h23',
+}).format(d));
 
 /* Jedan kratak zastoj baze ili CDN-a ne smije oboriti cijeli dan: bez
    poruka i pretplata ne ide niko, pa svaki ulazni korak ima drugi pokušaj. */
@@ -89,16 +99,21 @@ async function posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik, req }) {
      Nadoknada bez dnevnika ne zna kome je već poslano — tada ne šalje nikome,
      da niko ne dobije istu poruku na svaki poziv; obično slanje tada ide
      svima, kao ranije. */
-  let ukupno = 0, dobilo = 0, pretplate = null;
-  if (dnevnik && !svima) {
-    try { ({ ukupno, dobilo, ostali: pretplate } = await jos(() => kojiNemaju(kljuc))); }
-    catch (e) {
-      if (nadoknadi) return [503, { greska: `Nadoknada ne može pročitati dnevnik isporuka: ${e.message}` }];
+  // prije 10 h nadoknada ne dira poruku dana — ni ne čita ko ju je dobio
+  const porukaDanas = !nadoknadi || satUSarajevu() >= SAT_PORUKE;
+  let ukupno = 0, dobilo = 0, pretplate = [];
+  if (porukaDanas) {
+    pretplate = null;
+    if (dnevnik && !svima) {
+      try { ({ ukupno, dobilo, ostali: pretplate } = await jos(() => kojiNemaju(kljuc))); }
+      catch (e) {
+        if (nadoknadi) return [503, { greska: `Nadoknada ne može pročitati dnevnik isporuka: ${e.message}` }];
+      }
     }
-  }
-  if (!pretplate) {
-    pretplate = (await jos(() => svePretplate())) || [];
-    ukupno = pretplate.length;
+    if (!pretplate) {
+      pretplate = (await jos(() => svePretplate())) || [];
+      ukupno = pretplate.length;
+    }
   }
 
   // poruke se učitavaju tek kad ima kome slati
@@ -163,6 +178,7 @@ async function posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik, req }) {
       : {}),
     ...(Object.keys(r.greske).length ? { greske: r.greske } : {}),
     ...(predavanja ? { predavanja } : {}),
-    ...(ukupno ? {} : { napomena: 'Nema ni jedne pretplate u bazi — uređaji nisu registrovani' }),
+    ...(!porukaDanas ? { napomena: `Poruka dana kreće u ${SAT_PORUKE} h — ovaj poziv šalje samo obavijesti o predavanjima` }
+      : ukupno ? {} : { napomena: 'Nema ni jedne pretplate u bazi — uređaji nisu registrovani' }),
   }];
 }

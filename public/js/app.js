@@ -592,6 +592,8 @@ function osvjeziBrojSacuvanih() {
   const n = stanje.sacuvano.length;
   el.brojSac.hidden = n === 0;
   el.brojSac.textContent = n > 99 ? '99+' : String(n);
+  const nav = $('#nav-broj-sac');                     // isti broj i u donjoj traci
+  if (nav) { nav.hidden = n === 0; nav.textContent = el.brojSac.textContent; }
   el.btnSacuvano.title = n ? `Sačuvane poruke — ${brojTekst(n)}` : 'Sačuvane poruke';
   el.sacBroj.hidden = n === 0;
   el.sacBroj.textContent = brojTekst(n);
@@ -1200,7 +1202,7 @@ const iosSheetDijeli = () => `
     <i class="ios-sheet__ruc"></i>
     <div class="ios-sheet__zag">
       <img src="${IKONA_APP}" alt="" width="30" height="30">
-      <span class="ios-sheet__ime"><b>Poruka dana</b><span>${esc(location.host)}</span></span>
+      <span class="ios-sheet__ime"><b>Ammar Bašić</b><span>${esc(location.host)}</span></span>
       <span class="ios-sheet__opcije">Opcije ›</span>
     </div>
     <div class="ios-apps">
@@ -1228,7 +1230,7 @@ const iosSheetPotvrda = () => `
     </div>
     <div class="ios-potvrda__telo">
       <img src="${IKONA_APP}" alt="" width="42" height="42">
-      <span class="ios-potvrda__polje"><b>Poruka dana</b><span>${esc(location.host)}</span></span>
+      <span class="ios-potvrda__polje"><b>Ammar Bašić</b><span>${esc(location.host)}</span></span>
     </div>
     <p class="ios-potvrda__nota">Na početni ekran dodat će se ikona za brz pristup ovoj stranici.</p>
   </div>
@@ -1278,7 +1280,7 @@ const andDijalog = () => `
   <div class="and-dijalog">
     <div class="and-dijalog__vrh">
       <img src="${IKONA_APP}" alt="" width="38" height="38">
-      <span class="and-dijalog__ime"><b>Instaliraj aplikaciju</b><span>Poruka dana</span></span>
+      <span class="and-dijalog__ime"><b>Instaliraj aplikaciju</b><span>Ammar Bašić</span></span>
     </div>
     <div class="and-dijalog__dug">
       <span class="and-dijalog__tiho">Otkaži</span>
@@ -1295,7 +1297,7 @@ const pocetniEkran = () => `
   <div class="pocetni">
     <i></i><i></i><i></i><i></i>
     <img src="${IKONA_APP}" alt="" width="34" height="34"><i></i><i></i><i></i>
-    <b>Poruka dana</b>
+    <b>Ammar Bašić</b>
   </div>`;
 
 const dugmeKopiraj = () =>
@@ -2499,9 +2501,9 @@ async function crtajKorakNotif() {
 
   if (d === 'denied') {
     const putanja = o.iOS
-      ? 'Postavke → Notifikacije → <b>Poruka dana</b> → uključi <b>Dozvoli obavijesti</b>'
+      ? 'Postavke → Notifikacije → <b>Ammar Bašić</b> (ili <b>Poruka dana</b>) → uključi <b>Dozvoli obavijesti</b>'
       : o.android
-        ? 'Postavke → Aplikacije → <b>Poruka dana</b> → Notifikacije → uključi'
+        ? 'Postavke → Aplikacije → <b>Ammar Bašić</b> (ili <b>Poruka dana</b>) → Notifikacije → uključi'
         : 'Klikni katanac lijevo od adrese → Notifikacije → <b>Dozvoli</b>';
     el.uvodSadrzaj.innerHTML = `
       ${stanjePazi('Notifikacije su blokirane')}
@@ -2966,9 +2968,11 @@ function slusaci() {
 
   // stranice
   el.btnSacuvano.addEventListener('click', otvoriSacuvano);
+  $('#nav-sacuvano').addEventListener('click', otvoriSacuvano);
 
   // postavke
   $('#btn-postavke').addEventListener('click', () => otvori(el.mPostavke));
+  $('#nav-postavke').addEventListener('click', () => otvori(el.mPostavke));
   $('#r-auto').addEventListener('click', prebaciAuto);
   $('#seg-tema').addEventListener('click', e => {
     const b = e.target.closest('button');
@@ -3211,8 +3215,13 @@ async function start() {
   } else {
     uvodIde = false;
   }
+  /* Predavanja su dio početnog ekrana: zavjesa učitavanja čeka i njih, pa se
+     sve pokaže odjednom, bez boxa koji naknadno iskoči. Najviše 3 s — spora
+     mreža ne smije zadržati poruku dana; box tada stiže čim lista dođe. Uvod
+     je preko svega, pa uz njega nema čekanja. */
+  const predavanja = pokreniPredavanja(!uvodIde);
+  if (!uvodIde && predavanja) await Promise.race([predavanja, new Promise(r => setTimeout(r, 3000))]);
   pokazi();
-  pokreniPredavanja(!uvodIde);
 
   // Kad uvoda ima, pozdrav ide iz zavrsiUvod(); ovdje samo za onog ko ga je
   // već prošao pa se aplikaciji vraća prvi put nakon toga.
@@ -3230,8 +3239,9 @@ function ucitajModulPredavanja() {
   return modulPredavanja;
 }
 
+/** Vraća obećanje koje se ispuni kad je box predavanja nacrtan (ili null). */
 function pokreniPredavanja(ponudi) {
-  ucitajModulPredavanja()
+  return ucitajModulPredavanja()
     ?.then(m => m.pokreni({ otvori, zatvori, postaviPovlacenje, poruka, autor: stanje.podaci.autor.ime, javi: javiDogadjaj }, ponudi))
     .catch(() => {});
 }

@@ -82,6 +82,11 @@
   .tabela tr.danas td { background: color-mix(in srgb, var(--gold) 7%, transparent); }
   .tabela tr.danas td:first-child b { color: var(--gold); }
   .prazno { padding: 18px 16px; font-size: 13.5px; color: var(--ink-mute); }
+  /* učitavanje: isti zlatni krug kao pri otvaranju aplikacije (app.css) */
+  .ucitava { display: grid; place-items: center; min-height: 40vh; }
+  /* app.css gasi animacije dok `html` nema klasu `anim` — ova stranica je ne
+     dobija, pa se i krug na „Osvježi“ izuzima, kao i .ucitavanje__krug */
+  html:not(.anim) .osvjezi.vrti svg { animation: vrti .8s linear infinite !important; }
 
   .prijava { max-width: 360px; margin: 40px auto; display: grid; gap: 12px; text-align: center; }
   .prijava input { height: 46px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
@@ -123,7 +128,7 @@
     <div><div class="nad">Pregled</div><h1>Statistika</h1></div>
     <button class="osvjezi" id="osvjezi" type="button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>Osvježi</button>
   </header>
-  <div id="sadrzaj"></div>
+  <div id="sadrzaj"><div class="ucitava" role="status" aria-label="Učitavam"><span class="ucitavanje__krug"></span></div></div>
 </main>
 
 <script type="module">
@@ -341,7 +346,7 @@ function prijava(poruka = '') {
 async function pokreni() {
   const dugme = $('#osvjezi');
   if (!dugme.hidden) { dugme.classList.add('vrti'); dugme.disabled = true; }
-  else $('#sadrzaj').innerHTML = '<div class="prazno" style="text-align:center">Učitavam…</div>';
+  else $('#sadrzaj').innerHTML = '<div class="ucitava" role="status" aria-label="Učitavam"><span class="ucitavanje__krug"></span></div>';
   try {
     const d = await ucitaj();
     $('#osvjezi').hidden = false;

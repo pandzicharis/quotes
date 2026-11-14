@@ -161,7 +161,9 @@ zaglavlje:  x-cron-secret: <CRON_SECRET>
 raspored:   0 7-21 * * *
 ```
 
-Prvi poziv u danu pošalje poruku dana svima. Svaki sljedeći šalje je samo
+Poruka dana kreće u **10 h po Sarajevu**: poziv u 10 h pošalje je svima, a
+pozivi u 7, 8 i 9 h nje ne diraju — šalju samo obavijesti o predavanjima
+(podsjetnik za zone gdje je tada veče). Svaki poziv od 11 h dalje šalje je samo
 uređajima koji je još nisu dobili: onima kod kojih je push servis pao,
 onima koji nisu stigli na red prije isteka vremena, i novim pretplatama.
 Ko je šta dobio piše u tabeli `isporuke`, pa niko ne dobije istu poruku

@@ -153,6 +153,19 @@ textarea { min-height: 96px; resize: vertical; line-height: 1.55; }
 
 /* statistika: okvir bez ruba, visinu mu daje admin.js prema sadržaju */
 .statistika { display: block; width: 100%; min-height: 60vh; border: 0; background: transparent; color-scheme: dark; }
+/* dok statistika ne dobije podatke, okvir je skriven, a preko njega se vrti
+   zlatni krug — jedan, isti kao u aplikaciji, bez praznog ekrana i natpisa */
+.statistika-pogled { position: relative; }
+.statistika:not(.spremno) { visibility: hidden; }
+.statistika-ucitava { position: absolute; inset: 0 0 auto; height: 60vh; display: grid; place-items: center; }
+.statistika-ucitava[hidden] { display: none; }
+.krug-ucitava {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--gold) 25%, transparent); border-top-color: var(--gold);
+  animation: krug-vrti .8s linear infinite;
+}
+@keyframes krug-vrti { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .krug-ucitava { animation: none; opacity: .55; } }
 
 /* zaglavlje stranice */
 .glava { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }

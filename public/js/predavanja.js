@@ -89,10 +89,14 @@ function prebaciPracenje(p) {
 /** Koliko nadolazećih predavanja korisnik prati. */
 const brojPracenih = () => sljedeca().filter(p => prati(p.id)).length;
 
-function osvjeziZvjezdice() {
+/** Broj „Planiram ići“ — na tabu u kalendaru i uz ikonicu kalendara. */
+function osvjeziBrojPracenih() {
   const n = brojPracenih();
-  const broj = $('#kal-broj');
-  if (broj) { broj.textContent = n; broj.hidden = !n; }
+  for (const broj of $$('#kal-broj, [data-broj-pracenih]')) { broj.textContent = n; broj.hidden = !n; }
+}
+
+function osvjeziZvjezdice() {
+  osvjeziBrojPracenih();
   for (const b of $$('[data-prati]')) {
     const da = prati(Number(b.dataset.prati));
     b.setAttribute('aria-pressed', String(da));
@@ -141,7 +145,9 @@ function napraviKostur() {
       <rect x="4" y="3.5" width="6.8" height="8.5" rx="1.6"/><rect x="13.2" y="3.5" width="6.8" height="8.5" rx="1.6"/><rect x="4" y="14.5" width="6.8" height="6" rx="1.6"/><rect x="13.2" y="14.5" width="6.8" height="6" rx="1.6"/>
     </symbol>`);
 
+  // box se crta tek kad stil stigne — da se ni na trenutak ne vidi neuređen
   const css = document.createElement('link');
+  const stil = new Promise(r => { css.onload = css.onerror = r; });
   css.rel = 'stylesheet'; css.href = '/css/predavanja.css';
   document.head.append(css);
 
@@ -228,9 +234,14 @@ function napraviKostur() {
   }
 
   // ulazi: ikonica u zaglavlju → kalendar; box ispod poruke → nadolazeća i ona na koja korisnik planira ići
+  // uz ikonicu broj predavanja na koja korisnik planira ići, kao uz Sačuvane
   $('#btn-postavke')?.insertAdjacentHTML('beforebegin',
-    '<button class="pilula pilula--ikona" id="btn-predavanja" aria-label="Kalendar predavanja" title="Kalendar predavanja"><svg><use href="#i-kalendar"/></svg></button>');
+    '<button class="pilula pilula--ikona" id="btn-predavanja" aria-label="Kalendar predavanja" title="Kalendar predavanja"><svg><use href="#i-kalendar"/></svg><i class="pilula__broj" data-broj-pracenih hidden></i></button>');
   $('#btn-predavanja')?.addEventListener('click', () => otvoriKalendar());
+  $('#nav-postavke')?.insertAdjacentHTML('beforebegin', `<button class="donja__btn" id="nav-predavanja">
+      <span class="donja__ik"><svg><use href="#i-kalendar"/></svg><i class="donja__broj" data-broj-pracenih hidden></i></span>
+      <span>Kalendar</span></button>`);
+  $('#nav-predavanja')?.addEventListener('click', () => otvoriKalendar());
   // poruka je u fokusu — predavanja dolaze tek ispod nje
   $('#karta')?.insertAdjacentHTML('afterend', `
     <section class="pred-box" id="pred-box" aria-label="Predavanja" hidden>
@@ -292,6 +303,7 @@ function napraviKostur() {
   $('#nova-kalendar').addEventListener('click', () => { app.zatvori($('#m-nova')); otvoriKalendar(); });
 
   napraviPostavku();
+  return stil;
 }
 
 /* ================= POSTAVKE: obavijest o novom predavanju ================= */
@@ -343,26 +355,50 @@ function napraviPostavku() {
 const mjeriloZa = sirinaCss => Math.min(1, Math.max(.25, Math.ceil(sirinaCss * (devicePixelRatio || 1)) / 1080));
 
 /* ================= BOX ISPOD PORUKE: sljedeće predavanje ================= */
-/* Red je složen kao „Iz knjige“ na kartici: list s datumom umjesto korice,
-   nadnaslov, naslov, sat i mjesto, i strelica. Ispod njega, u istom boxu,
-   ona na koja korisnik planira ići. */
+/* Red je složen kao ulaznica: gore list s datumom, dan i naslov; ispod tanke
+   linije gdje i kada, i „Detalji“. List ostaje svoje veličine, koliko god
+   redova bilo ispod. Niže, u istom boxu, ona na koja korisnik planira ići. */
 function crtajTraku() {
+  osvjeziBrojPracenih();     // i pri otvaranju i kad neko predavanje prođe
   const sub = $('#pred-sub');
   if (!sub) return;
   const p = sljedeca()[0];
   $('#pred-box').hidden = !p;
   if (!p) return;
-  const [, m, d] = p.datum.split('-').map(Number);
   sub.innerHTML = `
-    <span class="pred-sub__list"><small>${MJESECI_KRATKO[m - 1]}</small><b>${d}</b></span>
-    <span class="pred-sub__tekst">
-      <small>${esc(danUSedmici(p.datum))} · ${zaDana(danaDo(p))}</small>
-      <b>${esc(p.naslov)}</b>
-      <span class="pred-meta">${p.grad ? `${ikona('i-mjesto')}${esc(p.grad)}` : ''}${ikona('i-sat')}${esc(p.vrijeme)}</span>
+    <span class="pred-sub__glava">
+      ${listKalendara(p)}
+      <span class="pred-sub__tekst">
+        <small>${esc(danUSedmici(p.datum))} · ${zaDana(danaDo(p))}</small>
+        <b>${esc(p.naslov)}</b>
+      </span>
     </span>
-    <span class="izvor__cta">Detalji<svg aria-hidden="true"><use href="#i-strelica"/></svg></span>`;
+    <span class="pred-sub__dno">
+      <span class="pred-sub__gdje">${satIMjesto(p)}</span>
+      <span class="pred-sub__cta">Detalji<svg><use href="#i-strelica"/></svg></span>
+    </span>`;
   crtajMoja();
 }
+
+/** List kalendara: mjesec u zlatnoj traci, ispod krupan dan. */
+const listKalendara = p => {
+  const [, m, d] = p.datum.split('-').map(Number);
+  return `<span class="pred-sub__list"><small>${esc(MJESECI_KRATKO[m - 1])}</small><b>${d}</b></span>`;
+};
+
+/* Dva reda, isto u boxu i u „Planiram ići“, kao u detaljima predavanja:
+   gdje (džemat ili dvorana) sa zastavom, pa sat i grad. Bez naziva mjesta
+   prvi red je grad. Dugo ime ide u drugi red, a sat i zastava ostaju cijeli. */
+const satIMjesto = p => {
+  const naziv = p.mjesto || p.grad;
+  const grad = p.mjesto ? p.grad : '';
+  // zastava je u tekstu: kad se dug naziv prelomi, ide za zadnjom riječju, ne ostaje na kraju reda
+  const gdje = naziv ? `<span class="pred-meta pred-meta--gdje">${ikona('i-mjesto')}<span>${esc(naziv)}${zastavica(p.drzava)}</span></span>` : '';
+  const kad = p.vrijeme || grad ? `<span class="pred-meta">${
+    p.vrijeme ? `${ikona('i-sat')}<span class="pred-meta__sat">${esc(p.vrijeme)}</span>` : ''}${
+    grad ? `<span class="pred-meta__grad">${p.vrijeme ? '· ' : ''}${esc(grad)}</span>` : ''}</span>` : '';
+  return gdje + kad;
+};
 
 /* ---- PLANIRAM IĆI: red kartica, drugi dio boxa ----
    Samo kad korisnik nešto prati. Kartica po predavanju: datum i dan, naslov,
@@ -385,17 +421,16 @@ function crtajMoja() {
   if (!moja.length) return;
   el.innerHTML = `
     <div class="pred-box__glava"><span>Planiram ići <b>${moja.length}</b></span></div>
-    <div class="pred-moja__red">${moja.map(p => {
-      const [, m, d] = p.datum.split('-').map(Number);
-      return `<button class="pred-moja__karta" data-pred="${p.id}">
-        <span class="pred-sub__list"><small>${esc(MJESECI_KRATKO[m - 1])}</small><b>${d}</b></span>
-        <span class="pred-moja__tekst">
-          <small>${esc(danUSedmici(p.datum))}</small>
-          <b>${esc(p.naslov)}</b>
-          <span class="pred-meta">${p.vrijeme ? `${ikona('i-sat')}${esc(p.vrijeme)}` : ''}${p.grad || p.mjesto ? `${ikona('i-mjesto')}<span>${esc(p.grad || p.mjesto)}</span>` : ''}</span>
+    <div class="pred-moja__red">${moja.map(p => `<button class="pred-moja__karta" data-pred="${p.id}">
+        <span class="pred-sub__glava">
+          ${listKalendara(p)}
+          <span class="pred-moja__tekst">
+            <small>${esc(danUSedmici(p.datum))}</small>
+            <b>${esc(p.naslov)}</b>
+          </span>
         </span>
-      </button>`;
-    }).join('')}</div>`;
+        <span class="pred-moja__dno">${satIMjesto(p)}</span>
+      </button>`).join('')}</div>`;
 
 }
 
@@ -442,9 +477,9 @@ function otvoriPredavanje(p) {
       <li><svg><use href="#i-kalendar"/></svg><div>
         <b>${esc(danUSedmici(p.datum))}, ${esc(punDatumP(p.datum))}</b>
         ${hDat ? `<span>${esc(hDat)}</span>` : ''}</div></li>
-      <li><svg><use href="#i-sat"/></svg><div><b>${esc(p.vrijeme)} h</b>${p.vrijeme_opis ? `<span>${esc(p.vrijeme_opis)}</span>` : ''}</div></li>
+      <li><svg><use href="#i-sat"/></svg><div><b>${esc(p.vrijeme)}<small> h</small></b>${p.vrijeme_opis ? `<span>${esc(p.vrijeme_opis)}</span>` : ''}</div></li>
       ${p.mjesto || p.grad ? `<li><svg><use href="#i-mjesto"/></svg><div>
-        <b>${esc(p.mjesto || p.grad)}</b>
+        <b>${esc(p.mjesto || p.grad)}${zastavica(p.drzava)}</b>
         ${adresa ? `<span>${esc(adresa)}</span>` : ''}</div></li>` : ''}
       ${p.organizator ? `<li><svg><use href="#i-korisnik"/></svg><div>
         <b>${esc(p.organizator)}</b><span>Organizator</span></div></li>` : ''}
@@ -638,8 +673,8 @@ function crtajPlakateKalendara() {
   })();
 }
 
-/* sitna zastava iza lokacije — ISO kod je uvijek dva slova, sve drugo se preskače */
-const zastavica = iso => (/^[A-Z]{2}$/.test(iso || '')
+/* sitna zastava iza lokacije — samo van BiH; ISO kod je uvijek dva slova, sve drugo se preskače */
+const zastavica = iso => (/^[A-Z]{2}$/.test(iso || '') && iso !== 'BA'
   ? `<img class="pred-zastava" src="/assets/zastave/${iso.toLowerCase()}.png" alt="" loading="lazy">` : '');
 
 function redKalendara(p) {
@@ -649,7 +684,7 @@ function redKalendara(p) {
     <span class="kal-red__dan pred-sub__list"><small>${dan}</small><b>${d}</b></span>
     <span class="kal-red__tekst">
       <b>${esc(p.naslov)}<svg class="kal-red__zvj" aria-label="Planiraš ići"><use href="#i-zvijezda-f"/></svg></b>
-      <span class="pred-meta">${ikona('i-sat')}${esc(p.vrijeme)}${ikona('i-mjesto')}<span>${esc([p.mjesto, gradDrzava(p)].filter(Boolean).join(', '))}</span>${zastavica(p.drzava)}</span>
+      <span class="kal-red__gdje">${satIMjesto(p)}</span>
     </span>
     <svg class="kal-red__str" aria-hidden="true"><use href="#i-strelica"/></svg>
   </button>`;
@@ -734,10 +769,10 @@ export function ucitajUnaprijed() {
  */
 export async function pokreni(a, ponudi = true) {
   app = a;
-  napraviKostur();
+  const stil = napraviKostur();
   const q = new URLSearchParams(location.search);
   const izLinka = q.get('predavanje');
-  try { lista = await ucitajUnaprijed(); } catch { return; }
+  try { [lista] = await Promise.all([ucitajUnaprijed(), stil]); } catch { return; }
   let ucitano = Date.now();
   crtajTraku();
   setInterval(tik, 1000);

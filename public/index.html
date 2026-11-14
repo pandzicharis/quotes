@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Poruka dana · Ammar Bašić</title>
+<title>Ammar Bašić</title>
 <meta name="description" content="Svaki dan po jedna poruka iz knjiga hafiza Ammara Bašića.">
 <meta name="theme-color" content="#0B1711">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Poruka dana">
+<meta name="apple-mobile-web-app-title" content="Ammar Bašić">
 <meta property="og:title" content="Poruka dana · Ammar Bašić">
 <meta property="og:description" content="Riječi koje bude i učvršćuju srce — svaki dan po jedna poruka.">
 <meta property="og:image" content="/assets/icons/icon-1024.png">
@@ -293,9 +293,9 @@
         </article>
 
         <section class="sek">
-          <div class="sek__nas"><h2>Knjige autora</h2><i></i>
+          <div class="sek__nas"><h2>Knjige</h2><i></i>
             <a class="sek__link" id="link-knjige" target="_blank" rel="noopener">Naruči</a></div>
-          <div class="traka" id="traka" tabindex="0" role="region" aria-label="Knjige autora">
+          <div class="traka" id="traka" tabindex="0" role="region" aria-label="Knjige">
             <div class="traka__vrpca"></div>
           </div>
         </section>
@@ -304,6 +304,18 @@
 
     </div>
   </main>
+
+  <!-- ===== DONJA TRAKA (telefon) ===== -->
+  <!-- Na telefonu radnje iz zaglavlja silaze ovdje, palcu na dohvat. Kalendar
+       ubacuje modul predavanja, između Sačuvanih i Postavki. -->
+  <nav class="donja" id="donja" aria-label="Meni">
+    <button class="donja__btn" id="nav-sacuvano">
+      <span class="donja__ik"><svg><use href="#i-zvijezda-f"/></svg><i class="donja__broj" id="nav-broj-sac" hidden></i></span>
+      <span>Sačuvane</span></button>
+    <button class="donja__btn" id="nav-postavke">
+      <span class="donja__ik"><svg><use href="#i-postavke"/></svg></span>
+      <span>Postavke</span></button>
+  </nav>
 </div>
 
 <!-- ===== POSTAVKE ===== -->

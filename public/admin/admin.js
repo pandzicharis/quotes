@@ -92,12 +92,20 @@ function pogled(ime) {
 function ucitajStatistiku() {
   const okvir = $('#statistika');
   if (okvir.src) return;
+  /* Krug admina stoji dok stranica ne dobije podatke (ili ne zatraži šifru),
+     pa se okvir pokaže gotov — bez drugog kruga u njemu. */
+  const pokazi = () => { $('#statistika-ucitava').hidden = true; okvir.classList.add('spremno'); };
+  setTimeout(pokazi, 15000);   // ako stranica zapne, bar se vidi šta je stalo
   okvir.addEventListener('load', () => {
     const dok = okvir.contentDocument;
-    if (!dok) return;
+    if (!dok) { pokazi(); return; }
     const visina = () => { okvir.style.height = `${dok.documentElement.scrollHeight}px`; };
     new ResizeObserver(visina).observe(dok.body);
     visina();
+    const gotovo = () => !dok.querySelector('#sadrzaj .ucitava');
+    if (gotovo()) { pokazi(); return; }
+    const mo = new MutationObserver(() => { if (gotovo()) { mo.disconnect(); pokazi(); } });
+    mo.observe(dok.body, { childList: true, subtree: true });
   });
   okvir.src = '/analytics/';
 }
@@ -159,7 +167,7 @@ function redPredavanja(p) {
   const d = Number(p.datum.slice(8));
   return `<div class="pred-red" data-uredi="${p.id}">
       <div class="pred-red__datum"><small>${danUSedmici(p.datum).slice(0, 3)}</small><b>${d}</b></div>
-      <div><b>${esc(p.naslov)}</b><span class="sitno">${ikona('i-sat')}${esc(p.vrijeme)} ${ikona('i-mjesto')}<span>${esc([p.grad || p.mjesto, p.drzava !== 'BA' ? imeZemlje(p.drzava) : ''].filter(Boolean).join(', '))}</span>${zastavica(p.drzava)}</span></div>
+      <div><b>${esc(p.naslov)}</b><span class="sitno">${ikona('i-sat')}${esc(p.vrijeme)} ${ikona('i-mjesto')}<span>${esc([p.grad || p.mjesto, p.drzava !== 'BA' ? imeZemlje(p.drzava) : ''].filter(Boolean).join(', '))}</span>${(p.drzava || 'BA') !== 'BA' ? zastavica(p.drzava) : ''}</span></div>
       <div class="red">
         ${p.objavljeno === false ? '<span class="oznaka">Skriveno</span>' : ''}
         ${p.kljuc ? `<button class="tiho ikona-dugme" data-link="${p.id}" title="Kopiraj link — plakat za dijeljenje"><svg class="ik"><use href="#i-link"/></svg></button>` : ''}
