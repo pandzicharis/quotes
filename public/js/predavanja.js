@@ -242,7 +242,7 @@ function napraviKostur() {
   // poruka je u fokusu — predavanja dolaze tek ispod nje
   $('#karta')?.insertAdjacentHTML('afterend', `
     <section class="pred-box" id="pred-box" aria-label="Predavanja" hidden>
-      <div class="pred-box__glava"><span>Nadolazeća predavanja</span></div>
+      <div class="pred-box__glava"><span>Nadolazeća predavanja <b id="pred-broj-sva"></b></span></div>
       <button class="pred-sub" id="pred-sub"></button>
       <div class="pred-moja" id="pred-moja" hidden></div>
     </section>`);
@@ -358,9 +358,11 @@ function crtajTraku() {
   osvjeziBrojPracenih();     // i pri otvaranju i kad neko predavanje prođe
   const sub = $('#pred-sub');
   if (!sub) return;
-  const p = sljedeca()[0];
+  const sva = sljedeca();
+  const p = sva[0];
   $('#pred-box').hidden = !p;
   if (!p) return;
+  $('#pred-broj-sva').textContent = sva.length;      // koliko ih je ukupno, kao uz „Planiram ići“
   sub.innerHTML = `
     <span class="pred-sub__glava">
       ${listKalendara(p)}

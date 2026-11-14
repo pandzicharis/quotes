@@ -131,8 +131,8 @@
   flex: none; width: 272px; display: flex; flex-direction: column; padding: 14px; border-radius: 14px; cursor: pointer;
   text-align: left; font: inherit; color: var(--ink); scroll-snap-align: start;
   /* mala kartica poruke: boje teme, zlatni sjaj odozgo i odozdo desno,
-     zlatni rub i tekstura motiva */
-  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+     zlatni rub (jasno vidljiv) i tekstura motiva */
+  border: 1.5px solid color-mix(in srgb, var(--gold) 58%, transparent);
   background:
     radial-gradient(120% 70% at 50% -12%, color-mix(in srgb, var(--gold) 17%, transparent) 0%, transparent 62%),
     radial-gradient(95% 55% at 105% 100%, color-mix(in srgb, var(--gold) 12%, transparent) 0%, transparent 60%),
