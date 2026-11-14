@@ -2033,11 +2033,15 @@ function otvoriPoruku(d) {
   const p = porukaZa(d), k = knjigaPo(p.knjiga);
   const h = hidzri(d);
 
-  // datum je u zaglavlju drawera, kao naslov na ostalim
-  $('#mp-nad').textContent = `Poruka dana · ${naziviDana(d)}`;
-  $('#mp-datum').textContent = punDatum(d);
+  // dan, datum pa hidžretski datum jedan ispod drugog, kao na kartici poruke
+  $('#mp-nad').textContent = 'Ammar Bašić';
+  $('#mp-datum').textContent = 'Poruka dana';
   el.mpSadrzaj.innerHTML = `
-    ${h ? `<div class="mp__hidzri">${h}</div>` : ''}
+    <div class="mp__vrh">
+      <div class="karta__dan"><span>${esc(naziviDana(d))}</span></div>
+      <div class="karta__datum">${punDatum(d)}</div>
+      ${h ? `<div class="mp__hidzri">${h}</div>` : ''}
+    </div>
     <div class="razdjelnik razdjelnik--znak" aria-hidden="true"><i></i>
       <img class="razdjelnik__znak" data-znak src="/assets/brand/ammar_basic_logo_w_m_1.png" alt="" width="40" height="40">
     <i></i></div>

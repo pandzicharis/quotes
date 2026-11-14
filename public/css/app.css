@@ -1178,6 +1178,9 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 .prazno p { color: var(--ink-mute); font-size: 12.5px; margin: 0 auto; max-width: 270px; line-height: 1.6; }
 
 /* detalj poruke */
+/* vrh pregleda: dan, datum i hidžretski datum — isti slog kao na kartici */
+.mp__vrh { text-align: center; }
+.mp__vrh .karta__datum { margin-top: 8px; }
 .mp__hidzri { font-family: var(--serif); font-style: italic; color: var(--ink-soft);
   font-size: 15px; text-align: center; margin-top: 5px; }
 .mp__tekst { font-family: var(--serif); font-size: 20.5px; line-height: 1.64;
