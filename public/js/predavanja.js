@@ -186,12 +186,8 @@ function napraviKostur() {
           <button class="icon-btn" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
         </div>
         <div class="modal__telo">
-          <p class="nova-uvod" id="nova-uvod"></p>
           <div class="nova-karusel" id="nova-karusel"></div>
           <div class="nova-tacke" id="nova-tacke" aria-hidden="true"></div>
-        </div>
-        <div class="modal__pod">
-          <button class="btn btn--obris btn--puni" id="nova-kalendar"><svg><use href="#i-kalendar"/></svg> Svi termini u kalendaru</button>
         </div>
       </div>
     </div>
@@ -300,7 +296,6 @@ function napraviKostur() {
   });
   // tačke ispod prate karticu koja je u sredini
   $('#nova-karusel').addEventListener('scroll', e => osvjeziTackice(e.currentTarget), { passive: true });
-  $('#nova-kalendar').addEventListener('click', () => { app.zatvori($('#m-nova')); otvoriKalendar(); });
 
   napraviPostavku();
   return stil;
@@ -619,8 +614,8 @@ const kalPlakati = new Map();       // `${id}:${stil}:${izmijenjeno}` → URL sl
 const kljucPlakata = p => `${p.id}:${p.stil || 'zelena'}:${p.izmijenjeno || ''}`;
 let kalPotez = 0;
 
-/** Kartica s plakatom — u vrtuljku novih predavanja i u kalendaru. U
-    kalendaru ispod piše i puni dan, sat i mjesto. */
+/** Kartica s plakatom — u vrtuljku novih predavanja i u kalendaru. Ispod
+    plakata dan, naslov, pa mjesto održavanja i sat s gradom, kao u boxu. */
 function kartaPlakata(p, kalendar = false) {
   const [, m, d] = p.datum.split('-').map(Number);
   const url = kalendar ? kalPlakati.get(kljucPlakata(p)) : '';
@@ -628,9 +623,9 @@ function kartaPlakata(p, kalendar = false) {
     <figure class="nova-karta__plakat"><img alt="Plakat: ${esc(p.naslov)}"${url ? ` src="${url}"` : ''}></figure>
     <div class="nova-karta__dno">
       <div class="nova-karta__tekst">
-        <small>${esc(kalendar ? danUSedmici(p.datum) : danUSedmici(p.datum).slice(0, 3))} · ${d}. ${esc(MJESECI[m - 1])}</small>
+        <small>${esc(danUSedmici(p.datum))} · ${d}. ${esc(MJESECI[m - 1])}</small>
         <b>${esc(p.naslov)}</b>
-        <span class="pred-meta">${ikona('i-sat')}${esc(p.vrijeme)}${p.grad ? `${ikona('i-mjesto')}<span>${esc(p.grad)}</span>${zastavica(p.drzava)}` : ''}</span>
+        <span class="nova-karta__gdje">${satIMjesto(p)}</span>
       </div>
       <button class="nova-karta__prati" data-prati="${p.id}" aria-pressed="${prati(p.id)}" aria-label="Planiram ići"><svg><use href="#${prati(p.id) ? 'i-zvijezda-f' : 'i-zvijezda'}"/></svg></button>
     </div>
@@ -706,10 +701,9 @@ async function otvoriKalendar(prikaz = 'sva') {
 let novaUrl = [];
 
 function crtajNova(nova) {
-  const n = nova.length, jedno = n % 10 === 1 && n % 100 !== 11;
-  const nekoliko = [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100);
-  $('#nova-uvod').innerHTML = `Od tvoje zadnje posjete ${nekoliko ? 'dodana su' : 'dodano je'}
-    <b>${n} ${jedno ? 'predavanje' : 'predavanja'}</b>.`;
+  const n = nova.length;
+  // samo plakati — naslov drawera već kaže da su predavanja nova
+  $('#nova-nas').textContent = n === 1 ? 'Novo predavanje' : 'Nova predavanja';
   novaUrl.forEach(u => URL.revokeObjectURL(u));
   novaUrl = [];
   $('#nova-karusel').innerHTML = nova.map(p => kartaPlakata(p)).join('');
