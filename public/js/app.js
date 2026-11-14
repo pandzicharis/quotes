@@ -1873,7 +1873,8 @@ function otvori(sloj) {
   const zav = $('.sloj__zav', sloj);           // ostaci povlačenja
   if (zav) zav.style.animation = zav.style.transition = zav.style.opacity = '';
   sloj.classList.add('on');
-  document.body.style.overflow = 'hidden';
+  // i html: na iPhoneu skrola on, pa samo body ne drži stranicu ispod drawera
+  document.documentElement.style.overflow = document.body.style.overflow = 'hidden';
 }
 
 /* Drawer izlazi krivuljom nativnog sheeta; kad ga je bacio prst, trajanje
@@ -1890,7 +1891,7 @@ function zatvori(sloj, { ms = 300, krivulja = SHEET } = {}) {
   sloj._izlaz = setTimeout(() => {
     sloj.classList.remove('on', 'izlazi');
     if (m) { m.style.transition = ''; m.style.translate = ''; }
-    if (!$('.sloj.on')) document.body.style.overflow = '';
+    if (!$('.sloj.on')) document.documentElement.style.overflow = document.body.style.overflow = '';
   }, ms);
   if (!$('.sloj.on:not(.izlazi)')) resetPocetno();
 }
@@ -1961,7 +1962,8 @@ function postaviPovlacenje(sloj) {
     if (e.target.closest('input, textarea, select')) { odluka = 'ne'; return; }
     kreni(e.touches[0].clientY, e.touches[0].clientX);
     zadnjiY = e.touches[0].clientY;
-    // najbliži element između dodira i drawera koji stvarno skrola
+    // najbliži element između dodira i drawera koji stvarno skrola uspravno
+    // (vrtuljak plakata ima overflow-y: hidden, pa se preskače)
     skrol = null;
     for (let n = e.target; n && n !== m; n = n.parentElement) {
       if (n.scrollHeight > n.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(n).overflowY)) { skrol = n; break; }
@@ -1969,6 +1971,8 @@ function postaviPovlacenje(sloj) {
   }, { passive: true });
   m.addEventListener('touchmove', e => {
     if (odluka === 'ne') return;
+    // uspravan potez po dijelu koji ne skrola: ne smije pomjeriti stranicu ispod
+    if (odluka === 'blok') { if (e.cancelable) e.preventDefault(); return; }
     const t = e.touches[0];
     const nadolje = t.clientY > zadnjiY;
     zadnjiY = t.clientY;
@@ -1984,7 +1988,8 @@ function postaviPovlacenje(sloj) {
       if (Math.abs(ddy) < 6 && Math.abs(ddx) < 6) return;
       const uspravno = Math.abs(ddy) > Math.abs(ddx);
       odluka = ddy > 0 && uspravno && (!skrol || skrol.scrollTop <= 0) ? 'da'
-        : uspravno && skrol ? 'skrol' : 'ne';
+        : uspravno && skrol ? 'skrol' : uspravno ? 'blok' : 'ne';
+      if (odluka === 'blok' && e.cancelable) e.preventDefault();
       if (odluka !== 'da') return;
       kreni(t.clientY, t.clientX);              // od ove tačke, da drawer ne skoči
       uhvati();
@@ -1992,6 +1997,8 @@ function postaviPovlacenje(sloj) {
     if (e.cancelable) e.preventDefault();
     pomjeri(t.clientY);
   }, { passive: false });
+  // prevlačenje po zastoru iza drawera ne skrola stranicu ispod
+  zav?.addEventListener('touchmove', e => { if (e.cancelable) e.preventDefault(); }, { passive: false });
   const krajDodira = () => { if (odluka === 'da') pusti(); odluka = null; };
   m.addEventListener('touchend', krajDodira);
   m.addEventListener('touchcancel', krajDodira);

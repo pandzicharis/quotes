@@ -111,7 +111,10 @@
 /* ---------- 2. RESET ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; }
+/* Bez „odbijanja“ na kraju skrola. Na iPhoneu skrola `html`, ne `body`, pa
+   samo pravilo na body nije bilo dovoljno: stranica bi se na kraju povukla, a
+   s njom i donja traka — izgledalo je kao da se traka diže. */
+html { -webkit-text-size-adjust: 100%; overscroll-behavior-y: none; }
 body {
   font-family: var(--sans);
   background: var(--bg);
@@ -214,13 +217,13 @@ html:not(.ucitano) .app { visibility: hidden; }
   max-width: var(--maxw); margin: 0 auto; width: 100%;
   display: flex; align-items: center; gap: 9px;
 }
-.hdr__mark { width: 36px; height: 36px; flex: none; }
+.hdr__mark { width: 34px; height: 34px; flex: none; }
 
 /* povratak na poruke — tih, tekstualni, bez okvira */
 .nazad {
   display: inline-flex; align-items: center; gap: 7px; flex: none;
   margin-left: -4px; padding: 6px 4px; color: var(--ink-soft);
-  font-size: 11px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700;
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700;
   transition: color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
 .nazad svg { width: 14px; height: 14px; flex: none; }
@@ -230,11 +233,11 @@ html:not(.ucitano) .app { visibility: hidden; }
 .nazad:active { transform: translateX(-2px); }
 .hdr__ime { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .hdr__title {
-  font-family: var(--serif); font-size: 15.5px; font-weight: 500;
+  font-family: var(--serif); font-size: 14px; font-weight: 500;
   letter-spacing: .22em; text-transform: uppercase; line-height: 1; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.hdr__sub { font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase;
+.hdr__sub { font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
   color: var(--gold); font-weight: 600; line-height: 1; white-space: nowrap; }
 .hdr__spacer { flex: 1; }
 
@@ -256,11 +259,11 @@ html:not(.ucitano) .app { visibility: hidden; }
   padding: 7px 13px; border-radius: 999px;
   border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 70%, transparent);
   color: var(--ink-soft);
-  font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700;
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700;
   white-space: nowrap;
   transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
-.pilula svg { width: 16px; height: 16px; flex: none; }
+.pilula svg { width: 15px; height: 15px; flex: none; }
 .pilula--zlatna svg { color: var(--gold); }
 @media (hover: hover) {
   .pilula:hover { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
@@ -268,11 +271,11 @@ html:not(.ucitano) .app { visibility: hidden; }
 .pilula:active { transform: scale(.96); }
 .pilula__kratko { display: none; }
 .pilula--ikona { position: relative; padding: 8px; width: 38px; height: 36px; justify-content: center; }
-.pilula--ikona svg { width: 18px; height: 18px; }
+.pilula--ikona svg { width: 16px; height: 16px; }
 .pilula__broj {
-  display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
+  display: grid; place-items: center; min-width: 17px; height: 17px; padding: 0 5px;
   border-radius: 999px; background: var(--gold); color: var(--na-zlatu);
-  font-size: 10.5px; font-style: normal; font-weight: 700; letter-spacing: 0;
+  font-size: 9.5px; font-style: normal; font-weight: 700; letter-spacing: 0;
 }
 /* uz ikonicu (kalendar) broj sjedi na uglu, ne pomjera ikonicu */
 .pilula--ikona .pilula__broj { position: absolute; top: -6px; right: -6px; box-shadow: 0 0 0 2px var(--bg); }
@@ -281,9 +284,9 @@ html:not(.ucitano) .app { visibility: hidden; }
   .pilula__kratko { display: inline; }
 }
 @media (max-width: 460px) {
-  .hdr__title { font-size: 14.5px; letter-spacing: .18em; }
-  .hdr__sub { font-size: 10px; letter-spacing: .16em; }
-  .hdr__mark { width: 34px; height: 34px; }
+  .hdr__title { font-size: 13px; letter-spacing: .18em; }
+  .hdr__sub { font-size: 9px; letter-spacing: .16em; }
+  .hdr__mark { width: 31px; height: 31px; }
 }
 
 /* ---------- 4a. DONJA TRAKA (telefon) ----------
@@ -292,19 +295,19 @@ html:not(.ucitano) .app { visibility: hidden; }
 .donja { display: none; }
 .donja__btn {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
-  height: 56px; border-radius: 14px; color: var(--ink-soft);
-  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  height: 54px; border-radius: 14px; color: var(--ink-soft);
+  font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   -webkit-tap-highlight-color: transparent;
   transition: color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
 .donja__btn:active { transform: scale(.94); }
 .donja__ik { position: relative; display: grid; place-items: center; color: var(--gold); }
-.donja__ik svg { width: 24px; height: 24px; --ik-sw: 1.8; }
+.donja__ik svg { width: 22px; height: 22px; --ik-sw: 1.8; }
 .donja__broj {
   position: absolute; top: -6px; left: calc(100% - 8px);
-  display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px;
+  display: grid; place-items: center; min-width: 17px; height: 17px; padding: 0 5px;
   border-radius: 999px; background: var(--gold); color: var(--na-zlatu); box-shadow: 0 0 0 2px var(--bg);
-  font-size: 10.5px; font-style: normal; font-weight: 700; letter-spacing: 0;
+  font-size: 9.5px; font-style: normal; font-weight: 700; letter-spacing: 0;
 }
 @media (hover: hover) {
   .donja__btn:hover { color: var(--ink); }
@@ -547,14 +550,14 @@ html:not(.ucitano) .app { visibility: hidden; }
 /* dan u sedmici — bez okvira, samo krupna verzalna riječ */
 .karta__dan {
   display: inline-flex; align-items: center; gap: 9px;
-  font-size: clamp(12.5px, 3.4vw, 14px); letter-spacing: .3em; text-transform: uppercase;
+  font-size: clamp(11px, 3vw, 12.5px); letter-spacing: .32em; text-transform: uppercase;
   color: var(--gold); font-weight: 700; line-height: 1;
   animation: rise .55s var(--ease) both;
 }
 .karta__dan span { transform: translateX(.17em); }   /* letter-spacing ostavlja rep desno */
 
 .karta__datum {
-  font-family: var(--serif); font-size: clamp(23.5px, 6.2vw, 28px); font-weight: 600;
+  font-family: var(--serif); font-size: clamp(21px, 5.4vw, 26px); font-weight: 600;
   line-height: 1.18; margin-top: 10px; letter-spacing: -.012em;
   background: linear-gradient(100deg, var(--ink) 18%, color-mix(in srgb, var(--gold) 62%, var(--ink)) 100%);
   -webkit-background-clip: text; background-clip: text;
@@ -562,7 +565,7 @@ html:not(.ucitano) .app { visibility: hidden; }
   animation: rise .55s .05s var(--ease) both;
 }
 .karta__hidzri { font-family: var(--serif); font-style: italic; color: var(--ink-soft);
-  font-size: clamp(15.5px, 4.2vw, 17px); animation: rise .55s .1s var(--ease) both; }
+  font-size: clamp(13.5px, 3.7vw, 15.5px); animation: rise .55s .1s var(--ease) both; }
 
 /* hidžretski datum u sredini, „Danas“ uz desni rub — bez novog reda na
    kartici, pa se ništa ne pomjera kad se „Danas“ pojavi ili nestane */
@@ -585,7 +588,7 @@ html:not(.ucitano) .app { visibility: hidden; }
 .citat {
   position: relative; width: 100%; max-width: 40ch; margin-inline: auto;
   padding-inline: clamp(18px, 5vw, 30px);
-  font-size: clamp(20.5px, 5.4vw, 25px);
+  font-size: clamp(19px, 4.9vw, 24px);
   /* duge riječi na uskom ekranu se prelome umjesto da ostave rupu u redu;
      limit drži kratke riječi cijelim */
   -webkit-hyphens: auto; hyphens: auto;
@@ -612,9 +615,9 @@ html:not(.ucitano) .app { visibility: hidden; }
   margin: 0; text-align: center; text-wrap: pretty; color: var(--ink);
 }
 /* duže poruke dobiju širi stupac i sitniji slog — kraće ostaju krupne */
-.karta[data-duzina="srednje"]  .citat { font-size: clamp(18.5px, 4.85vw, 22px); max-width: 42ch; }
-.karta[data-duzina="dugo"]     .citat { font-size: clamp(17px, 4.4vw, 20px);    max-width: 46ch; }
-.karta[data-duzina="vrlodugo"] .citat { font-size: clamp(16px, 4.1vw, 18.5px);  max-width: 50ch; }
+.karta[data-duzina="srednje"]  .citat { font-size: clamp(17px, 4.3vw, 21px);   max-width: 42ch; }
+.karta[data-duzina="dugo"]     .citat { font-size: clamp(15.5px, 3.9vw, 19px); max-width: 46ch; }
+.karta[data-duzina="vrlodugo"] .citat { font-size: clamp(14.5px, 3.5vw, 17.5px); max-width: 50ch; }
 .karta[data-duzina="dugo"]     .karta__tekst,
 .karta[data-duzina="vrlodugo"] .karta__tekst { line-height: 1.7; }
 .karta[data-duzina="dugo"]     .navod { font-size: 2.6em; opacity: .18; }
@@ -639,15 +642,16 @@ html:not(.ucitano) .app { visibility: hidden; }
 }
 .izvor:active { opacity: .66; }
 
-/* poziv na akciju: natpis pa strelica, na kraju reda */
+/* poziv na akciju: natpis pa strelica, na kraju reda. Iste mjere kao
+   „Detalji“ u boxu predavanja (.pred-sub__cta) — mijenjaš jedno, mijenjaj oba. */
 .izvor__cta {
-  flex: none; display: inline-flex; align-items: center; gap: 7px;
-  padding: 9px 13px 9px 15px; border-radius: 999px;
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 10px 0 12px; border-radius: 999px; line-height: 1;
   background: linear-gradient(115deg,
     color-mix(in srgb, var(--gold) 16%, transparent),
     color-mix(in srgb, var(--gold) 4%, transparent));
   border: 1px solid color-mix(in srgb, var(--gold) 22%, transparent);
-  color: var(--gold); font-size: 10.5px; letter-spacing: .16em;
+  color: var(--gold); font-size: 9.5px; letter-spacing: .16em;
   text-transform: uppercase; font-weight: 700; white-space: nowrap;
   transition: transform var(--t-fast) var(--ease-back), border-color var(--t-fast);
 }
@@ -655,7 +659,7 @@ html:not(.ucitano) .app { visibility: hidden; }
   .izvor:hover .izvor__cta { transform: translateX(2px);
     border-color: color-mix(in srgb, var(--gold) 45%, transparent); }
 }
-.izvor__cta svg { width: 14px; height: 14px; flex: none; }
+.izvor__cta svg { width: 12px; height: 12px; flex: none; }
 .izvor__cta-kratko { display: none; }
 
 .izvor__cover {
@@ -668,13 +672,13 @@ html:not(.ucitano) .app { visibility: hidden; }
   .izvor:hover .izvor__cover { transform: translateY(-2px) rotate(-1.2deg); }
 }
 .izvor__tekst { flex: 1; min-width: 0; }
-.izvor__nad { display: block; font-size: 11px; letter-spacing: .18em; text-transform: uppercase;
+.izvor__nad { display: block; font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
   color: var(--ink-soft); font-weight: 700; margin-bottom: 6px; }
-.izvor__naslov { display: -webkit-box; font-family: var(--serif); font-size: 20px; font-weight: 500;
+.izvor__naslov { display: -webkit-box; font-family: var(--serif); font-size: 18.5px; font-weight: 500;
   line-height: 1.26; color: var(--ink); overflow: hidden;
   -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; }
 .izvor__tema {
-  display: -webkit-box; font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  display: -webkit-box; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
   color: var(--gold); font-weight: 700; margin-top: 6px; line-height: 1.45;
   -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
@@ -695,7 +699,7 @@ html:not(.ucitano) .app { visibility: hidden; }
 .akcija {
   position: relative; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; gap: 7px;
-  padding: 15px 4px 13px; color: var(--ink-soft);
+  padding: 14px 4px 12px; color: var(--ink-soft);
   transition: color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
 .akcija::after {
@@ -712,10 +716,10 @@ html:not(.ucitano) .app { visibility: hidden; }
 /* Debljinu linije NE diramo odavde: `<symbol>` nosi vlastiti `stroke-width`,
    a njegova djeca nasljeđuju njega, ne vanjski `<svg>` — pravilo bi ovdje
    tiho bilo bez efekta. Deblje se postavlja na samom simbolu u index.html. */
-.akcija svg { width: 23px; height: 23px; transition: transform var(--t) var(--ease-back); position: relative; z-index: 1; }
+.akcija svg { width: 21px; height: 21px; transition: transform var(--t) var(--ease-back); position: relative; z-index: 1; }
 /* Natpis prati boju dugmeta (hover, `aria-pressed`) — otud `opacity`, a ne
    svoja boja: fiksna boja bi ostala siva i kad ikonica pozlati. */
-.akcija span { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
+.akcija span { font-size: 9.5px; letter-spacing: .15em; text-transform: uppercase; font-weight: 700;
   opacity: .8; position: relative; z-index: 1; }
 @media (hover: hover) {
   .akcija:hover { color: var(--gold); }
@@ -750,7 +754,7 @@ html:not(.ucitano) .app { visibility: hidden; }
   padding: 3px 9px; border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
   color: var(--gold); font-weight: 700; line-height: 1.3;
-  font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap;
+  font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap;
   animation: rise .34s var(--ease) both;
   transition: background var(--t-fast), border-color var(--t-fast),
               transform var(--t-fast) var(--ease-back);
@@ -775,9 +779,9 @@ html:not(.ucitano) .app { visibility: hidden; }
   color: var(--gold); opacity: 0; transform: scale(.82);
   transition: opacity .16s var(--ease-soft), transform .16s var(--ease-soft);
 }
-.potez__strana svg { width: 24px; height: 24px; }
+.potez__strana svg { width: 22px; height: 22px; }
 .potez__strana i {
-  font-style: normal; font-size: 10px; letter-spacing: .16em;
+  font-style: normal; font-size: 9px; letter-spacing: .16em;
   text-transform: uppercase; font-weight: 700; white-space: nowrap;
 }
 .karta[data-smjer="ranije"]  .potez__strana--l,
@@ -798,10 +802,10 @@ html:not(.ucitano) .app { visibility: hidden; }
 /* ---------- 8. SEKCIJE ---------- */
 .sek { margin-top: clamp(30px, 8vw, 46px); }
 .sek__nas { display: flex; align-items: center; gap: 13px; margin-bottom: 16px; }
-.sek__nas h2 { font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; margin: 0; white-space: nowrap; }
+.sek__nas h2 { font-size: 10.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; margin: 0; white-space: nowrap; }
 .sek__nas i { flex: 1; height: 1px;
   background: linear-gradient(90deg, var(--line), color-mix(in srgb, var(--gold) 28%, transparent), transparent); }
-.sek__link { font-size: 11px; font-weight: 700; color: var(--gold);
+.sek__link { font-size: 9.5px; font-weight: 700; color: var(--gold);
   letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; }
 
 /* ---------- 9. TRAKA KNJIGA ---------- */
@@ -838,9 +842,9 @@ html:not(.ucitano) .app { visibility: hidden; }
     box-shadow: 0 22px 40px -18px rgba(0,0,0,.8), 0 0 0 1px color-mix(in srgb, var(--gold) 40%, transparent);
   }
 }
-.knjiga b { display: block; font-family: var(--serif); font-size: 15px; font-weight: 500;
+.knjiga b { display: block; font-family: var(--serif); font-size: 13.5px; font-weight: 500;
   margin-top: 11px; line-height: 1.3; }
-.knjiga span { display: block; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+.knjiga span { display: block; font-size: 9.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
   color: var(--ink-mute); margin-top: 4px; line-height: 1.35; }
 .traka.vuce .knjiga img { pointer-events: none; }
 
@@ -861,15 +865,15 @@ html:not(.ucitano) .app { visibility: hidden; }
               background var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
 .veza__ikona { flex: none; display: grid; place-items: center; color: var(--gold); }
-.veza__ikona svg { width: 18px; height: 18px; }
+.veza__ikona svg { width: 16px; height: 16px; }
 .veza__ime {
   display: inline-flex; align-items: center; gap: 4px; min-width: 0;
-  font-size: 12px; font-weight: 600; letter-spacing: .01em;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .01em;
 }
 .veza__ime b {
   font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.veza__ovjera { width: 15px; height: 15px; flex: none; color: var(--gold); --kvaka: var(--na-zlatu); }
+.veza__ovjera { width: 14px; height: 14px; flex: none; color: var(--gold); --kvaka: var(--na-zlatu); }
 @media (hover: hover) {
   .veza:hover {
     color: var(--ink); transform: translateY(-1px);
@@ -887,7 +891,7 @@ html:not(.ucitano) .app { visibility: hidden; }
 @media (max-width: 460px) {
   .prati { gap: 5px; }
   .veza { flex-direction: column; gap: 6px; padding: 10px 4px; }
-  .veza__ime { font-size: 10.5px; }
+  .veza__ime { font-size: 9.5px; }
 }
 
 /* ---------- 10. MODALI ---------- */
@@ -944,7 +948,7 @@ html:not(.ucitano) .app { visibility: hidden; }
 }
 @keyframes modalVan { to { opacity: 0; scale: .97; } }
 .modal__broj {
-  flex: none; font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  flex: none; font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
   color: var(--gold); padding: 6px 10px 5px; border-radius: 999px;
   border: 1px solid var(--line); background: color-mix(in srgb, var(--gold) 7%, transparent);
 }
@@ -961,26 +965,26 @@ html:not(.ucitano) .app { visibility: hidden; }
 }
 .modal__naslov { flex: 1; min-width: 0; }
 .modal__naslov small {
-  display: block; font-size: 11.5px; font-weight: 700; line-height: 1; letter-spacing: .18em; text-transform: uppercase;
+  display: block; font-size: 10.5px; font-weight: 700; line-height: 1; letter-spacing: .18em; text-transform: uppercase;
   color: var(--gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .modal__nas h3 {
-  font-family: var(--serif); font-size: 24px; font-weight: 600; line-height: 1.1; margin: 4px 0 0; color: var(--ink);
+  font-family: var(--serif); font-size: 22px; font-weight: 600; line-height: 1.1; margin: 4px 0 0; color: var(--ink);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .modal__ikona {
-  flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: var(--gold);
+  flex: none; width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; color: var(--gold);
   border: 1px solid color-mix(in srgb, var(--gold) 60%, transparent);
   background: radial-gradient(circle, color-mix(in srgb, var(--gold) 24%, transparent), transparent 70%);
 }
-.modal__ikona svg { width: 19px; height: 19px; }
+.modal__ikona svg { width: 18px; height: 18px; }
 .modal__nas [data-zatvori] {
-  width: 40px; height: 40px; color: color-mix(in srgb, var(--ink) 90%, transparent);
+  width: 38px; height: 38px; color: color-mix(in srgb, var(--ink) 90%, transparent);
   border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
   background: color-mix(in srgb, var(--ink) 8%, transparent);
 }
-.modal__nas [data-zatvori] svg { width: 17px; height: 17px; --ik-sw: 2.4; }
+.modal__nas [data-zatvori] svg { width: 16px; height: 16px; --ik-sw: 2.4; }
 @media (hover: hover) {
   .modal__nas [data-zatvori]:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 12%, transparent); }
 }
@@ -1022,7 +1026,7 @@ html:not(.ucitano) .app { visibility: hidden; }
 /* ---------- 11. REDOVI ---------- */
 .grupa { margin-top: 22px; }
 .grupa--prva { margin-top: 0; }
-.grupa__nas { font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+.grupa__nas { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-soft); font-weight: 700; margin: 0 4px 10px; }
 
 .red {
@@ -1038,18 +1042,18 @@ html:not(.ucitano) .app { visibility: hidden; }
 .red--vrh { align-items: flex-start; }
 .red__portret { width: 48px; height: 72px; flex: none; object-fit: cover;
   border-radius: 5px; box-shadow: 0 0 0 1px var(--line); }
-.red__ikona { width: 36px; height: 36px; flex: none; display: grid; place-items: center;
+.red__ikona { width: 33px; height: 33px; flex: none; display: grid; place-items: center;
   border-radius: 10px; background: color-mix(in srgb, var(--gold) 11%, transparent); color: var(--gold); }
-.red__ikona svg { width: 18px; height: 18px; }
+.red__ikona svg { width: 16px; height: 16px; }
 .red__telo { flex: 1; min-width: 0; }
-.red__telo b { display: block; font-size: 15.5px; font-weight: 600; }
-.red__telo span { display: block; font-size: 13px; color: var(--ink-mute); margin-top: 3px; line-height: 1.45; }
+.red__telo b { display: block; font-size: 14px; font-weight: 600; }
+.red__telo span { display: block; font-size: 11.5px; color: var(--ink-mute); margin-top: 3px; line-height: 1.45; }
 .red__kraj { flex: none; color: var(--ink-mute); display: flex; align-items: center; }
-.red__kraj svg { width: 16px; height: 16px; }
+.red__kraj svg { width: 15px; height: 15px; }
 .red__vise { display: inline-flex !important; align-items: center; gap: 6px;
   margin-top: 9px !important; color: var(--gold) !important;
-  font-size: 11px !important; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; }
-.red__vise svg { width: 13px; height: 13px; }
+  font-size: 10px !important; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; }
+.red__vise svg { width: 12px; height: 12px; }
 .red[aria-disabled="true"] { opacity: .4; pointer-events: none; }
 
 /* red koji briše podatke: prigušen dok ne bude dodirnut, crven u potvrdi */
@@ -1061,9 +1065,9 @@ html:not(.ucitano) .app { visibility: hidden; }
 .red--pazi[data-potvrda] .red__telo b { color: #E3866A; }
 .red--pazi[data-potvrda] .red__ikona { color: #E3866A; background: color-mix(in srgb, #D9704F 16%, transparent); }
 
-.napomena { font-size: 12.5px; color: var(--ink-mute); line-height: 1.55; margin: 8px 5px 0; }
+.napomena { font-size: 11px; color: var(--ink-mute); line-height: 1.55; margin: 8px 5px 0; }
 .napomena--sredina { text-align: center; margin: 22px auto 0; max-width: 300px; }
-.verzija { font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase;
+.verzija { font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase;
   color: var(--ink-mute); text-align: center; margin: 22px 0 0; font-weight: 600; }
 
 .prekidac { width: 42px; height: 25px; border-radius: 999px; background: var(--line-soft);
@@ -1083,11 +1087,11 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 .segment { display: inline-flex; gap: 3px; padding: 3px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--bg-2); }
 .segment button {
-  min-width: 38px; height: 30px; padding: 0 11px; border-radius: 999px;
+  min-width: 36px; height: 28px; padding: 0 10px; border-radius: 999px;
   color: var(--ink-mute); display: grid; place-items: center;
   transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
-.segment button svg { width: 16px; height: 16px; }
+.segment button svg { width: 15px; height: 15px; }
 .segment button:active { transform: scale(.94); }
 .segment button.on { background: var(--gold); color: var(--na-zlatu); }
 
@@ -1146,37 +1150,37 @@ input.mini:focus { outline: none; border-color: var(--gold); }
   transition: transform var(--t-fast) var(--ease);
 }
 .stavka__glavno:active { transform: scale(.99); }
-.stavka__dat { flex: none; width: 44px; text-align: center; padding-top: 2px; }
-.stavka__dat b { display: block; font-family: var(--serif); font-size: 23px; line-height: 1; font-weight: 500; }
-.stavka__dat span { display: block; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+.stavka__dat { flex: none; width: 42px; text-align: center; padding-top: 2px; }
+.stavka__dat b { display: block; font-family: var(--serif); font-size: 21px; line-height: 1; font-weight: 500; }
+.stavka__dat span { display: block; font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase;
   color: var(--ink-soft); margin-top: 5px; font-weight: 700; }
 .stavka__telo { min-width: 0; flex: 1; }
 .stavka__tekst {
-  font-family: var(--serif); font-size: 16.5px; line-height: 1.55; margin: 0; color: var(--ink);
+  font-family: var(--serif); font-size: 15px; line-height: 1.55; margin: 0; color: var(--ink);
   display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
-.stavka__meta { display: block; margin-top: 8px; font-size: 10.5px; letter-spacing: .12em;
+.stavka__meta { display: block; margin-top: 8px; font-size: 9.5px; letter-spacing: .12em;
   text-transform: uppercase; color: var(--gold); font-weight: 700; }
 .stavka__ukloni {
   flex: none; width: 42px; display: grid; place-items: center; color: var(--gold);
   border-radius: 0 var(--r-md) var(--r-md) 0;
   transition: color var(--t-fast), transform var(--t-fast) var(--ease-back);
 }
-.stavka__ukloni svg { width: 18px; height: 18px; }
+.stavka__ukloni svg { width: 17px; height: 17px; }
 @media (hover: hover) {
   .stavka__ukloni:hover { color: var(--ink-mute); }
 }
 .stavka__ukloni:active { transform: scale(.86); }
 
 .prazno { text-align: center; padding: 50px 20px; }
-.prazno svg { width: 32px; height: 32px; color: var(--gold); opacity: .5; margin: 0 auto 14px; }
-.prazno h3 { font-family: var(--serif); font-size: 19.5px; font-weight: 500; margin: 0 0 7px; }
-.prazno p { color: var(--ink-mute); font-size: 14px; margin: 0 auto; max-width: 270px; line-height: 1.6; }
+.prazno svg { width: 30px; height: 30px; color: var(--gold); opacity: .5; margin: 0 auto 14px; }
+.prazno h3 { font-family: var(--serif); font-size: 17.5px; font-weight: 500; margin: 0 0 7px; }
+.prazno p { color: var(--ink-mute); font-size: 12.5px; margin: 0 auto; max-width: 270px; line-height: 1.6; }
 
 /* detalj poruke */
 .mp__hidzri { font-family: var(--serif); font-style: italic; color: var(--ink-soft);
-  font-size: 16.5px; text-align: center; margin-top: 5px; }
-.mp__tekst { font-family: var(--serif); font-size: 22px; line-height: 1.64;
+  font-size: 15px; text-align: center; margin-top: 5px; }
+.mp__tekst { font-family: var(--serif); font-size: 20.5px; line-height: 1.64;
   text-align: center; margin: 20px 0 6px; text-wrap: pretty; }
 .mp__izvor {
   display: flex; align-items: center; gap: 14px;
@@ -1195,11 +1199,11 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 /* dugmad */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 9px;
-  padding: 14px 20px; border-radius: 999px; font-size: 13.5px; font-weight: 700;
+  padding: 13px 20px; border-radius: 999px; font-size: 12px; font-weight: 700;
   letter-spacing: .08em; text-transform: uppercase; white-space: nowrap;
   transition: transform var(--t-fast) var(--ease-back), opacity var(--t-fast);
 }
-.btn svg { width: 17px; height: 17px; flex: none; }
+.btn svg { width: 15px; height: 15px; flex: none; }
 .btn:active { transform: scale(.97); }
 .btn--zlatno { background: linear-gradient(135deg, var(--brand-gold-l), var(--brand-gold)); color: #11221A; }
 .btn--obris { border: 1px solid var(--line); color: var(--ink); background: var(--surface); }
@@ -1209,17 +1213,17 @@ input.mini:focus { outline: none; border-color: var(--gold); }
 .koraci { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
 .korak { display: flex; gap: 12px; align-items: flex-start; }
 .korak__br {
-  flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
   background: color-mix(in srgb, var(--gold) 13%, transparent); color: var(--gold);
-  font-size: 12px; font-weight: 700; margin-top: 1px;
+  font-size: 10.5px; font-weight: 700; margin-top: 1px;
 }
-.korak p { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--ink-soft); }
+.korak p { margin: 0; font-size: 13px; line-height: 1.6; color: var(--ink-soft); }
 .korak b { color: var(--ink); font-weight: 600; }
 
 /* ---------- 13. DIJELJENJE ---------- */
 .dijeli { display: grid; gap: 20px; }
 .dijeli__grupa { display: grid; gap: 10px; }
-.dijeli__nas { font-size: 12px; letter-spacing: .18em; text-transform: uppercase;
+.dijeli__nas { font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase;
   color: var(--ink-soft); font-weight: 700; }
 
 .pregled { display: flex; justify-content: center; }
@@ -1240,9 +1244,9 @@ input.mini:focus { outline: none; border-color: var(--gold); }
               transform var(--t-fast) var(--ease-back);
 }
 .d-btn__vizual { display: grid; place-items: center; height: 32px; }
-.d-btn__ime { font-size: 11px; font-weight: 700; letter-spacing: .1em;
+.d-btn__ime { font-size: 10px; font-weight: 700; letter-spacing: .1em;
   text-transform: uppercase; line-height: 1.15; text-align: center; }
-.d-btn__ime small { display: block; font-size: 10px; font-weight: 600;
+.d-btn__ime small { display: block; font-size: 9px; font-weight: 600;
   letter-spacing: .08em; opacity: .6; margin-top: 3px; }
 @media (hover: hover) {
   .d-btn:hover { border-color: color-mix(in srgb, var(--gold) 34%, transparent); }
@@ -1272,13 +1276,13 @@ input.mini:focus { outline: none; border-color: var(--gold); }
   .toast-hold { bottom: calc(88px + env(safe-area-inset-bottom)); }
 }
 .toast {
-  display: flex; align-items: center; gap: 10px; padding: 11px 18px; border-radius: 999px;
+  display: flex; align-items: center; gap: 10px; padding: 10px 17px; border-radius: 999px;
   background: var(--surface-2); border: 1px solid var(--line); color: var(--ink);
-  font-size: 13.5px; font-weight: 600; box-shadow: var(--shadow); max-width: min(92vw, 400px);
+  font-size: 12.5px; font-weight: 600; box-shadow: var(--shadow); max-width: min(92vw, 400px);
   animation: toastIn .38s var(--ease) both;
 }
 .toast.out { animation: toastOut .28s var(--ease-soft) forwards; }
-.toast svg { width: 16px; height: 16px; color: var(--gold); flex: none; }
+.toast svg { width: 15px; height: 15px; color: var(--gold); flex: none; }
 @keyframes toastIn  { from { opacity: 0; transform: translateY(14px) scale(.95); } to { opacity: 1; transform: none; } }
 @keyframes toastOut { to { opacity: 0; transform: translateY(-6px) scale(.97); } }
 
@@ -1339,7 +1343,7 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
   width: 100%; max-width: 52px; aspect-ratio: 4 / 3; border-radius: 7px;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
 }
-.tema-opcija__ime { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.tema-opcija__ime { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .tema-opcija:active { transform: scale(.96); }
 .tema-opcija[aria-pressed="true"] {
   color: var(--gold); border-color: color-mix(in srgb, var(--gold) 52%, transparent);
@@ -1367,8 +1371,8 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
    (17.5px red − 20px krug) / 2 = −1.25px. Jednoredni koraci izgledaju isto
    kao prije, viševrsni se poravnaju. */
 .koraci--uvod .korak { gap: 9px; align-items: flex-start; }
-.koraci--uvod .korak p { margin: 0; font-size: 14px; line-height: 1.4; text-align: left; }
-.koraci--uvod .korak__br { width: 22px; height: 22px; font-size: 11px; margin-top: -1.2px; }
+.koraci--uvod .korak p { margin: 0; font-size: 13px; line-height: 1.4; text-align: left; }
+.koraci--uvod .korak__br { width: 21px; height: 21px; font-size: 10px; margin-top: -1.4px; }
 .korak__ik {
   display: inline-grid; place-items: center; vertical-align: -3px;
   width: 15px; height: 15px; color: var(--gold);
@@ -1382,7 +1386,7 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
 /* tiha druga akcija ispod glavnog dugmeta */
 .uvod__preskoci {
   display: block; margin: 14px auto 0; padding: 4px 8px;
-  font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
+  font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
   color: var(--ink-mute); transition: color var(--t-fast);
 }
 @media (hover: hover) {
@@ -1393,14 +1397,14 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
 .red[data-zakljucan] .prekidac { opacity: .4; }
 .red[data-zakljucan] .red__ikona { color: var(--ink-mute);
   background: color-mix(in srgb, var(--ink-mute) 14%, transparent); }
-.uvod__nota { font-size: 13.5px !important; color: var(--ink-mute) !important;
+.uvod__nota { font-size: 12.5px !important; color: var(--ink-mute) !important;
   line-height: 1.6; margin: 0 auto 18px !important; }
 .uvod__stanje {
   display: inline-flex; align-items: center; gap: 8px; margin: 0 auto;
   padding: 10px 17px; border-radius: 999px;
-  font-size: 11px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
 }
-.uvod__stanje svg { width: 15px; height: 15px; }
+.uvod__stanje svg { width: 14px; height: 14px; }
 .uvod__stanje--ok { color: var(--gold);
   border: 1px solid color-mix(in srgb, var(--gold) 40%, transparent);
   background: color-mix(in srgb, var(--gold) 9%, transparent); }
@@ -1431,11 +1435,11 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
   border-radius: 9px; color: var(--gold);
   background: color-mix(in srgb, var(--gold) 14%, transparent);
 }
-.nadogradnja__ik svg { width: 17px; height: 17px; }
+.nadogradnja__ik svg { width: 16px; height: 16px; }
 .nadogradnja__telo { flex: 1; min-width: 0; }
-.nadogradnja__telo b { display: block; font-size: 15px; font-weight: 600; }
-.nadogradnja__telo span { display: block; font-size: 12.5px; color: var(--ink-mute); margin-top: 2px; line-height: 1.45; }
-.nadogradnja__btn { padding: 11px 16px; font-size: 12px; }
+.nadogradnja__telo b { display: block; font-size: 13.5px; font-weight: 600; }
+.nadogradnja__telo span { display: block; font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; line-height: 1.45; }
+.nadogradnja__btn { padding: 10px 16px; font-size: 11px; }
 .nadogradnja__x { width: 30px; height: 30px; flex: none; }
 .nadogradnja__x svg { width: 14px; height: 14px; }
 
@@ -1530,11 +1534,11 @@ html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-
 
 .vodic__scena { display: grid; place-items: center; padding: 6px 0 2px; }
 .vodic__tekst { text-align: center; }
-.vodic__brojac { font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+.vodic__brojac { font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
   font-weight: 700; color: var(--gold); }
-.vodic__naslov { display: block; font-family: var(--serif); font-size: 21px;
+.vodic__naslov { display: block; font-family: var(--serif); font-size: 19px;
   font-weight: 500; margin-top: 7px; line-height: 1.25; }
-.vodic__opis { margin: 8px auto 0; max-width: 310px; font-size: 14.5px;
+.vodic__opis { margin: 8px auto 0; max-width: 310px; font-size: 13px;
   line-height: 1.6; color: var(--ink-soft); }
 .vodic__opis b { color: var(--ink); font-weight: 600; }
 .vodic__opis .korak__ik { vertical-align: -3px; }
@@ -1801,7 +1805,7 @@ html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-
   display: inline-flex; align-items: center; gap: 10px;
   margin: 22px auto 0; padding: 10px 20px; border-radius: 999px;
   border: 1px solid var(--line); color: var(--ink-soft);
-  font-size: 11.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
   transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
 }
 .uvod__kako svg { width: 9px; height: 10px; fill: var(--gold); }
@@ -1819,10 +1823,10 @@ html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-
   background: linear-gradient(to right, transparent, color-mix(in srgb, var(--gold) 55%, transparent), transparent); }
 .uvod__blok--instal .koraci--uvod { margin: 0 auto; gap: 16px; max-width: 300px; }
 .uvod__blok--instal .korak { gap: 14px; align-items: center; }
-.uvod__blok--instal .korak p { font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); }
+.uvod__blok--instal .korak p { font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
 .uvod__blok--instal .korak b { font-weight: 500; color: var(--ink); }
 .uvod__blok--instal .korak__br {
-  width: 28px; height: 28px; margin: 0; font-size: 12px; font-weight: 600;
+  width: 26px; height: 26px; margin: 0; font-size: 10.5px; font-weight: 600;
   background: none; border: 1px solid color-mix(in srgb, var(--gold) 25%, transparent);
   color: color-mix(in srgb, var(--gold) 85%, transparent);
 }
@@ -1850,13 +1854,12 @@ html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-
 /* uži ekrani: poglavlje i naslov knjige ne smiju pojesti karticu */
 @media (max-width: 520px) {
   .izvor { gap: 12px; }
-  .izvor__cover { width: 52px; height: 78px; }
-  .izvor__naslov { font-size: 18px; -webkit-line-clamp: 1; line-clamp: 1; }
+  .izvor__cover { width: 50px; height: 75px; }
+  .izvor__naslov { font-size: 16.5px; -webkit-line-clamp: 1; line-clamp: 1; }
   .izvor__tema {
-    font-size: 11px; letter-spacing: .08em; margin-top: 5px; line-height: 1.35;
+    font-size: 9.5px; letter-spacing: .08em; margin-top: 5px; line-height: 1.35;
     -webkit-line-clamp: 1; line-clamp: 1;
   }
-  .izvor__cta { padding: 8px 12px 8px 13px; }
   .izvor__cta-tekst { display: none; }
   .izvor__cta-kratko { display: inline; }
   .potez__strana i { display: none; }
@@ -1864,7 +1867,9 @@ html[data-razvoj][data-nadogradnja] .toast-hold { bottom: calc(150px + env(safe-
 }
 @media (max-width: 380px) {
   .izvor__tema { display: none; }
-  .izvor__cta { padding: 7px 10px 7px 11px; }
+}
+@media (max-width: 360px) {
+  .izvor__cta { gap: 4px; padding: 0 8px 0 10px; letter-spacing: .1em; }   /* kao „Detalji“ u boxu */
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
