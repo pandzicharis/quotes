@@ -162,9 +162,9 @@ raspored:   0 7-21 * * *
 ```
 
 Poruka dana kreće u **10 h po Sarajevu**: poziv u 10 h pošalje je svima, a
-pozivi u 7, 8 i 9 h nje ne diraju. Obavijest „Novo predavanje“ isto ide tek
-od 10 h (dodano preko noći stiže u 10 h), a podsjetnik onima koji planiraju
-ići — dan prije u 19 h po vremenu mjesta. U 7–9 h ide samo podsjetnik za
+pozivi u 7, 8 i 9 h nje ne diraju. Obavijest „Novo predavanje“ ide odmah kad
+se predavanje doda u adminu (u bilo koje doba), a podsjetnik onima koji
+planiraju ići — dan prije u 19 h po vremenu mjesta. U 7–9 h ide samo podsjetnik za
 zone gdje je tada veče (npr. Australija). Svaki poziv od 11 h dalje šalje je samo
 uređajima koji je još nisu dobili: onima kod kojih je push servis pao,
 onima koji nisu stigli na red prije isteka vremena, i novim pretplatama.

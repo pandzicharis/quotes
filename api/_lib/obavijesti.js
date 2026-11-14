@@ -83,14 +83,12 @@ export async function dostavi(kljuc, filter, sadrzaj, opcije = {}, nacin = 'nado
 
 /** „Novo predavanje“ svima koji ga nisu isključili, iz admina. Prvo se
     zabilježi da je obavijest krenula — i ako ovaj poziv padne, cron je
-    dovršava. Od 22 do 10 h po Sarajevu i dok traje drugo slanje ne šalje se
-    odavde: vraća `{ kasnije: 'jutro' | 'uskoro' }`, a cron je pošalje u 10 h,
-    odnosno pri sljedećem pozivu (najkasnije za sat). */
+    dovršava. Šalje se odmah, u bilo koje doba — samo dok traje drugo slanje
+    vraća `{ kasnije: 'uskoro' }`, a cron je pošalje pri sljedećem pozivu
+    (najkasnije za sat). */
 export async function obavijestiONovom(p, opcije) {
   let oznaceno = true;
   try { await oznaciObavijest(p.id); } catch { oznaceno = false; /* šema još nije dopunjena */ }
-  // bez oznake cron ne zna za ovu obavijest — tada ide odmah, i noću, kao ranije
-  if (oznaceno && !ZA_NOVO(sadaU('Europe/Sarajevo').sat)) return { kasnije: 'jutro' };
   let brava = null;                                     // null — bez dnevnika, šalje se bez brave
   try { brava = await uzmiBravu('slanje'); } catch { /* bez dnevnika */ }
   if (brava === false) {
@@ -113,12 +111,9 @@ function sadaU(zona) {
 }
 const sutra = dan => new Date(Date.parse(`${dan}T12:00:00Z`) + 86400000).toISOString().slice(0, 10);
 
-/* Obavijesti o predavanjima ne bude nikoga noću, ma kad cron zvao: šalju se
-   samo između 7 i 22 h po vremenu mjesta (za „novo“ — po Sarajevu). */
+/* Podsjetnik ne budi nikoga noću: kad tamošnjih 19 h cron ne dočeka, ide
+   samo između 7 i 22 h po vremenu mjesta. („Novo“ ide odmah po dodavanju.) */
 const DANJU = sat => sat >= 7 && sat < 22;
-/* „Novo predavanje“ po Sarajevu tek od 10 h, kad i poruka dana — ujutro u
-   7 h ne stiže ništa. Dodano preko noći ide u 10 h. */
-const ZA_NOVO = sat => sat >= 10 && sat < 22;
 
 /** Koliko je sada sati u zoni, u minutama od ponoći. */
 function minuteU(zona) {
@@ -156,12 +151,11 @@ export async function nadoknadiPredavanja(opcije) {
     try { izv.push(await fn()); } catch (e) { izv.push({ kljuc: opis, greska: e.message }); }
   };
 
-  if (ZA_NOVO(sadaU('Europe/Sarajevo').sat)) {
-    // predavanje koje je već počelo ne javlja se kao novo (aplikacija ga i ne prikazuje)
-    const nova = (await predavanjaUObavjestavanju().catch(() => []))
-      .filter(p => `${p.datum}T${p.vrijeme}` >= `${sadaU(p.zona).dan}T${String(sadaU(p.zona).sat).padStart(2, '0')}:00`);
-    for (const p of nova) await probaj(`novo:${p.id}`, () => dostavi(`novo:${p.id}`, { zaPredavanja: true }, sadrzajNovog(p), opcije, 'nadoknada', p.naslov));
-  }
+  // „novo“ ide odmah iz admina; ovdje se samo dostavi onima do kojih nije stiglo.
+  // Predavanje koje je već počelo ne javlja se kao novo (aplikacija ga i ne prikazuje).
+  const nova = (await predavanjaUObavjestavanju().catch(() => []))
+    .filter(p => `${p.datum}T${p.vrijeme}` >= `${sadaU(p.zona).dan}T${String(sadaU(p.zona).sat).padStart(2, '0')}:00`);
+  for (const p of nova) await probaj(`novo:${p.id}`, () => dostavi(`novo:${p.id}`, { zaPredavanja: true }, sadrzajNovog(p), opcije, 'nadoknada', p.naslov));
 
   for (const p of await predavanjaUskoro().catch(() => [])) {
     const s = sadaU(p.zona);
