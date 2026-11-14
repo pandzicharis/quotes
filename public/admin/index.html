@@ -200,9 +200,6 @@
               <button type="button" data-stil="krem"><i class="uzorak" style="--a:#F7F1E2;--b:#E6D9BC;--z:#8E6C28">“</i><span>Krem</span></button>
             </div>
           </div>
-          <div class="dizajner__preuzmi">
-            <button class="zlatno" id="preuzmi"><svg class="ik"><use href="#i-preuzmi"/></svg> Preuzmi izabrani plakat</button>
-          </div>
           <div class="dizajner__link" id="link-blok" hidden>
             <span class="dizajner__nas"><svg class="ik"><use href="#i-link"/></svg> Plakat za dijeljenje</span>
             <div class="link-polje">
@@ -212,10 +209,16 @@
           </div>
         </aside>
       </div>
-      <!-- radnje lijevo, ispod forme: sačuvaj, a pored vraćanje forme kakva je bila pri otvaranju -->
+      <!-- podnožje podijeljeno kao i kolone iznad: lijevo radnje forme (sačuvaj,
+           poništi), desno radnja plakata (preuzmi) -->
       <div class="um__dno">
-        <button class="zlatno" data-sacuvaj form="forma"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj predavanje</button>
-        <button type="button" class="tiho" id="ponisti-formu"><svg class="ik"><use href="#i-ponisti"/></svg> Poništi</button>
+        <div class="um__dno-lijevo">
+          <button class="zlatno" data-sacuvaj form="forma"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj predavanje</button>
+          <button type="button" class="tiho" id="ponisti-formu"><svg class="ik"><use href="#i-ponisti"/></svg> Poništi</button>
+        </div>
+        <div class="um__dno-desno">
+          <button type="button" class="zlatno" id="preuzmi"><svg class="ik"><use href="#i-preuzmi"/></svg> Preuzmi izabrani plakat</button>
+        </div>
       </div>
 </dialog>
 

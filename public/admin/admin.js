@@ -378,7 +378,7 @@ forma.addEventListener('submit', async e => {
     crtajSve();
     modal.close();                                       // prvo zatvori — poruka onda ide preko liste
     const poslano = !push ? ''
-      : push.kasnije === 'jutro' ? ' · obavijest kreće ujutro u 7 h'
+      : push.kasnije === 'jutro' ? ' · obavijest kreće u 10 h'
       : push.kasnije ? ' · obavijest kreće najkasnije za sat'
       : ` · obavijest otišla na ${push.poslano} uređaja`;
     obavijest(`${bilo ? 'Izmjene su sačuvane' : 'Predavanje je objavljeno'}${poslano}`);

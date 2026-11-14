@@ -219,11 +219,15 @@ body:has(dialog[open]) { overflow: hidden; }
 .dijalog.dijalog--uredi { width: min(1240px, calc(100% - 48px)); height: min(940px, calc(100% - 48px)); max-height: none; }
 .dijalog--uredi[open] { display: flex; flex-direction: column; }
 .um__glava { flex: none; }
-/* radnje ispod forme, lijevo: Sačuvaj pa Poništi */
+/* Podnožje u istim kolonama kao forma i dizajner iznad, s istom crtom
+   između: lijevo Sačuvaj i Poništi, desno Preuzmi plakat. */
 .um__dno {
-  flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 20px;
+  flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 430px);
   border-top: 1px solid var(--line-soft); background: var(--bg-2);
 }
+.um__dno-lijevo, .um__dno-desno { display: flex; align-items: center; gap: 10px; padding: 12px 20px; }
+.um__dno-desno { border-left: 1px solid var(--line-soft); background: var(--surface); }
+.um__dno-desno button { flex: 1; justify-content: center; }
 .um__dno button { height: 40px; padding: 0 20px; }
 .rucka { display: none; }
 .uredi { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 430px); }
@@ -321,6 +325,10 @@ body:has(dialog[open]) { overflow: hidden; }
   .uredi[data-dio="podaci"] .dizajner { display: none; }
   .uredi[data-dio="plakat"] #forma { display: none; }
   .dizajner canvas { max-width: 460px; margin: 0 auto; }
+  /* jedna kolona: Preuzmi plakat samo na kartici Plakat, iznad Sačuvaj */
+  .um__dno { grid-template-columns: minmax(0, 1fr); }
+  .um__dno-desno { order: -1; border-left: 0; border-bottom: 1px solid var(--line-soft); }
+  .uredi[data-dio="podaci"] ~ .um__dno .um__dno-desno { display: none; }
 }
 
 /* ---------- izvoz: dijalog ---------- */
@@ -440,7 +448,8 @@ svg.ik--okvir { width: 15px; height: 15px; fill: none; stroke: currentColor; str
   .izvoz__pregled canvas { max-height: 38vh; }
   /* uređivanje: sheet do vrha, uz tračak pozadine iznad — kao iOS */
   .dijalog.dijalog--uredi { width: 100%; height: calc(100% - 10px - env(safe-area-inset-top)); max-height: none; border-radius: 22px 22px 0 0; }
-  .um__dno { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .um__dno-lijevo, .um__dno-desno { padding: 10px 16px; }
+  .um__dno-lijevo { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
   .um__dno button { height: auto; padding: 13px 18px; font-size: 15px; }
   .um__dno [data-sacuvaj] { flex: 1; }
   /* ručka kao na drawerima u aplikaciji — za nju i zaglavlje drawer se spušta prstom */
