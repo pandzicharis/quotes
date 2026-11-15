@@ -215,7 +215,6 @@
     const p = predavanja[0];
     const MJ = ['januar', 'februar', 'mart', 'april', 'maj', 'juni', 'juli', 'august', 'septembar', 'oktobar', 'novembar', 'decembar'];
     const [, m, d] = p.datum.split('-').map(Number);
-    $('obav-app').textContent = 'Ammar Bašić';
     $('obav-nas').textContent = 'Novo predavanje';
     $('obav-tekst').textContent = `${p.naslov} — ${d}. ${MJ[m - 1]} u ${p.vrijeme} h${p.vrijeme_opis ? ` (${p.vrijeme_opis})` : ''}${p.grad ? `, ${p.grad}` : ''}`;
   }

@@ -1202,7 +1202,7 @@ const iosSheetDijeli = () => `
     <i class="ios-sheet__ruc"></i>
     <div class="ios-sheet__zag">
       <img src="${IKONA_APP}" alt="" width="30" height="30">
-      <span class="ios-sheet__ime"><b>Ammar Bašić</b><span>${esc(location.host)}</span></span>
+      <span class="ios-sheet__ime"><b>Poruka dana</b><span>${esc(location.host)}</span></span>
       <span class="ios-sheet__opcije">Opcije ›</span>
     </div>
     <div class="ios-apps">
@@ -1230,7 +1230,7 @@ const iosSheetPotvrda = () => `
     </div>
     <div class="ios-potvrda__telo">
       <img src="${IKONA_APP}" alt="" width="42" height="42">
-      <span class="ios-potvrda__polje"><b>Ammar Bašić</b><span>${esc(location.host)}</span></span>
+      <span class="ios-potvrda__polje"><b>Poruka dana</b><span>${esc(location.host)}</span></span>
     </div>
     <p class="ios-potvrda__nota">Na početni ekran dodat će se ikona za brz pristup ovoj stranici.</p>
   </div>
@@ -1280,7 +1280,7 @@ const andDijalog = () => `
   <div class="and-dijalog">
     <div class="and-dijalog__vrh">
       <img src="${IKONA_APP}" alt="" width="38" height="38">
-      <span class="and-dijalog__ime"><b>Instaliraj aplikaciju</b><span>Ammar Bašić</span></span>
+      <span class="and-dijalog__ime"><b>Instaliraj aplikaciju</b><span>Poruka dana</span></span>
     </div>
     <div class="and-dijalog__dug">
       <span class="and-dijalog__tiho">Otkaži</span>
@@ -1297,7 +1297,7 @@ const pocetniEkran = () => `
   <div class="pocetni">
     <i></i><i></i><i></i><i></i>
     <img src="${IKONA_APP}" alt="" width="34" height="34"><i></i><i></i><i></i>
-    <b>Ammar Bašić</b>
+    <b>Poruka dana</b>
   </div>`;
 
 const dugmeKopiraj = () =>
@@ -2577,9 +2577,9 @@ async function crtajKorakNotif() {
 
   if (d === 'denied') {
     const putanja = o.iOS
-      ? 'Postavke → Notifikacije → <b>Ammar Bašić</b> (ili <b>Poruka dana</b>) → uključi <b>Dozvoli obavijesti</b>'
+      ? 'Postavke → Notifikacije → <b>Poruka dana</b> → uključi <b>Dozvoli obavijesti</b>'
       : o.android
-        ? 'Postavke → Aplikacije → <b>Ammar Bašić</b> (ili <b>Poruka dana</b>) → Notifikacije → uključi'
+        ? 'Postavke → Aplikacije → <b>Poruka dana</b> → Notifikacije → uključi'
         : 'Klikni katanac lijevo od adrese → Notifikacije → <b>Dozvoli</b>';
     el.uvodSadrzaj.innerHTML = `
       ${stanjePazi('Notifikacije su blokirane')}

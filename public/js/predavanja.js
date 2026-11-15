@@ -159,7 +159,7 @@ function napraviKostur() {
         <i class="modal__rucka" aria-hidden="true"></i>
         <div class="modal__nas">
           <span class="modal__ikona"><svg><use href="#i-kalendar"/></svg></span>
-          <div class="modal__naslov"><small>Ammar Bašić</small><h3>Predavanja</h3></div>
+          <div class="modal__naslov"><small>Poruka dana</small><h3>Predavanja</h3></div>
           <div class="kal-pogled" id="kal-pogled" role="group" aria-label="Izgled">
             <button type="button" data-pogled="lista" aria-pressed="true" aria-label="Lista" title="Lista"><svg><use href="#i-lista"/></svg></button>
             <button type="button" data-pogled="plakati" aria-pressed="false" aria-label="Plakati" title="Plakati"><svg><use href="#i-mreza"/></svg></button>
@@ -182,7 +182,7 @@ function napraviKostur() {
         <i class="modal__rucka" aria-hidden="true"></i>
         <div class="modal__nas">
           <span class="modal__ikona"><svg><use href="#i-kalendar"/></svg></span>
-          <div class="modal__naslov"><small>Ammar Bašić</small><h3 id="nova-nas">Nova predavanja</h3></div>
+          <div class="modal__naslov"><small>Poruka dana</small><h3 id="nova-nas">Nova predavanja</h3></div>
           <button class="icon-btn" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
         </div>
         <div class="modal__telo">
