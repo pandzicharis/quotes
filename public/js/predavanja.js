@@ -791,10 +791,10 @@ export async function pokreni(a, ponudi = true) {
   const ziva = pracena().filter(id => lista.some(p => p.id === id && !proslo(p)));
   if (ziva.length !== pracena().length) pisi(PRACENA, ziva);
 
-  /* Lokalna proba, i kad je obavijest o novim predavanjima u postavkama
-     isključena: ?nova=1 zaboravi viđena i ponudi sva ispočetka;
+  /* Proba lokalno i na testu, i kad je obavijest o novim predavanjima u
+     postavkama isključena: ?nova=1 zaboravi viđena i ponudi sva ispočetka;
      ?nova=zadnje glumi korisnika koji je vidio sve osim zadnjeg dodanog. */
-  const proba = radiLokalno() && q.has('nova');
+  const proba = (radiLokalno() || /-git-test-/.test(location.hostname)) && q.has('nova');
   if (proba) {
     const dolaze = sljedeca();
     const zadnje = dolaze.reduce((a, p) => (!a || p.id > a.id ? p : a), null);   // id raste sa svakim dodanim

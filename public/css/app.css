@@ -1423,8 +1423,11 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
    dok je korisnik već zaglibio u tekst, pa traka u toku dokumenta ostane
    iznad ekrana i nikad se ne vidi. Ostale fiksne stvari (toast, razvojna
    traka) se pomjeraju iznad nje. */
+/* Traka je ispred modala i drawera (.sloj = 100): nova verzija ne smije
+   ostati sakrivena iza „Nova predavanja“ ili postavki. Leži preko njih i
+   ništa ne pomjera; zato je u index.html van .app (koja ima svoj z-index). */
 .nadogradnja {
-  position: fixed; z-index: 90; left: 0; right: 0;      /* ispod modala (.sloj = 100) */
+  position: fixed; z-index: 120; left: 0; right: 0;
   bottom: calc(14px + env(safe-area-inset-bottom));
   padding: 0 var(--pad);
   animation: nadogradnjaUlaz .42s var(--ease) both;

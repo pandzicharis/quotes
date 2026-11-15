@@ -3080,6 +3080,12 @@ function slusaci() {
     if (nudjenoIzdanje) pisi(LS.nvOdbijeno, nudjenoIzdanje);
     poruka('Nova verzija čeka u postavkama', 'i-preuzmi');
   });
+  /* Proba na testu i lokalno: ?proba=nadogradnja pokaže traku bez prave
+     nadogradnje (Instaliraj samo osvježi stranicu). Uz ?nova=1 iskoči i
+     „Nova predavanja“, pa se vidi da je traka ispred drawera. */
+  if ((TEST || RAZVOJ) && new URLSearchParams(location.search).get('proba') === 'nadogradnja') {
+    setTimeout(() => pokaziNadogradnju(), 1200);
+  }
 
   // razvojna traka: dan lijevo/desno (isto rade strelice i swipe)
   if (RAZVOJ) {

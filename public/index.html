@@ -187,6 +187,20 @@
   </div>
 </section>
 
+<!-- ===== NOVA VERZIJA (service worker čeka na aktivaciju) =====
+     Van .app (koja ima svoj z-index), da traka može stati ispred drawera. -->
+<div class="nadogradnja" id="nadogradnja" hidden>
+  <div class="nadogradnja__inner">
+    <span class="nadogradnja__ik"><svg><use href="#i-preuzmi"/></svg></span>
+    <div class="nadogradnja__telo">
+      <b>Nova verzija je spremna</b>
+      <span id="nadogradnja-opis">Instaliraj je da dobiješ najnovije poruke i popravke.</span>
+    </div>
+    <button class="btn btn--zlatno nadogradnja__btn" id="nv-instaliraj">Instaliraj</button>
+    <button class="icon-btn nadogradnja__x" id="nv-kasnije" aria-label="Kasnije"><svg><use href="#i-x"/></svg></button>
+  </div>
+</div>
+
 <!-- ===== APLIKACIJA ===== -->
 <div class="app">
 
@@ -208,19 +222,6 @@
         <svg><use href="#i-postavke"/></svg></button>
     </div>
   </header>
-
-  <!-- ===== NOVA VERZIJA (service worker čeka na aktivaciju) ===== -->
-  <div class="nadogradnja" id="nadogradnja" hidden>
-    <div class="nadogradnja__inner">
-      <span class="nadogradnja__ik"><svg><use href="#i-preuzmi"/></svg></span>
-      <div class="nadogradnja__telo">
-        <b>Nova verzija je spremna</b>
-        <span id="nadogradnja-opis">Instaliraj je da dobiješ najnovije poruke i popravke.</span>
-      </div>
-      <button class="btn btn--zlatno nadogradnja__btn" id="nv-instaliraj">Instaliraj</button>
-      <button class="icon-btn nadogradnja__x" id="nv-kasnije" aria-label="Kasnije"><svg><use href="#i-x"/></svg></button>
-    </div>
-  </div>
 
   <main class="main">
     <div class="wrap">
