@@ -1451,8 +1451,6 @@ html:not(.anim) .ucitavanje__krug { animation: vrti .8s linear infinite !importa
 .nadogradnja__telo b { display: block; font-size: 13.5px; font-weight: 600; }
 .nadogradnja__telo span { display: block; font-size: 11.5px; color: var(--ink-mute); margin-top: 2px; line-height: 1.45; }
 .nadogradnja__btn { padding: 10px 16px; font-size: 11px; }
-.nadogradnja__x { width: 30px; height: 30px; flex: none; }
-.nadogradnja__x svg { width: 14px; height: 14px; }
 
 /* ---------- 17. RAZVOJNA TRAKA ----------
    Vidi se samo na localhostu (<html data-razvoj>): pomjeranje dana

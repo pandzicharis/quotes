@@ -2764,7 +2764,8 @@ async function ponudiAkoJeNovoIzdanje(reg) {
   }
 
   nudjenoIzdanje = novoIzd;
-  pokaziNadogradnju(Boolean(novoIzd) && cita(LS.nvOdbijeno, null) === novoIzd);
+  // traka se više ne odlaže („Kasnije“ je uklonjen) — i ranije odloženo izdanje se nudi
+  pokaziNadogradnju();
 }
 
 function postaviServiceWorker() {
@@ -2993,7 +2994,7 @@ function vezi() {
     rPonoviUvod: $('#r-ponovi-uvod'),
     rNadogradnja: $('#r-nadogradnja'),
     nadogradnja: $('#nadogradnja'), nadogradnjaOpis: $('#nadogradnja-opis'),
-    nvInstaliraj: $('#nv-instaliraj'), nvKasnije: $('#nv-kasnije'),
+    nvInstaliraj: $('#nv-instaliraj'),
     rReset: $('#r-reset'), rResetNas: $('#r-reset-nas'),
     rResetOpis: $('#r-reset-opis'), resetNapomena: $('#reset-napomena'),
     razvoj: $('#razvoj'), rzInfo: $('#rz-info'),
@@ -3075,11 +3076,7 @@ function slusaci() {
   // nadogradnja: traka na dnu i red u postavkama vode na isto
   el.nvInstaliraj.addEventListener('click', instalirajNadogradnju);
   el.rNadogradnja.addEventListener('click', () => { zatvoriSve(); instalirajNadogradnju(); });
-  el.nvKasnije.addEventListener('click', () => {
-    sakrijNadogradnju();
-    if (nudjenoIzdanje) pisi(LS.nvOdbijeno, nudjenoIzdanje);
-    poruka('Nova verzija čeka u postavkama', 'i-preuzmi');
-  });
+  // traka nema „Kasnije“: stoji dok se nova verzija ne instalira
   /* Proba na testu i lokalno: ?proba=nadogradnja pokaže traku bez prave
      nadogradnje (Instaliraj samo osvježi stranicu). Uz ?nova=1 iskoči i
      „Nova predavanja“, pa se vidi da je traka ispred drawera. */
