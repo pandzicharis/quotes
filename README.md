@@ -168,13 +168,14 @@ raspored:   0 7-21 * * *
 
 ```
 Poruka dana:  GET https://<domen>/api/send?nadoknadi=1    0-3 10 * * *  (10:00, nadoknada do 10:03)
-Predavanja:   GET https://<domen>/api/send?predavanja=1   5 7-21 * * *  (svaki sat, u :05)
+Predavanja:   GET https://<domen>/api/send?predavanja=1   0 7-9,11-21 * * *  (u puni sat, bez 10 h)
 ```
 
 `?predavanja=1` šalje **samo** obavijesti o predavanjima — podsjetnik dan
 prije onima koji su označili „Planiram ići“ i dovršetak „Novo predavanje“ —
-i poruku dana nikad ne dira. Minuta 5 da se ne sudari s porukom dana (dva
-slanja nikad ne idu istovremeno). Svaki sat je namjerno: podsjetnik izlazi u 19 h
+i poruku dana nikad ne dira. Bez 10 h: dva slanja nikad ne idu istovremeno,
+pa bi se u 10:00 sudarila s porukom dana — a poziv poruke dana
+(`?nadoknadi=1`) u 10 h ionako odradi i predavanja. Svaki sat je namjerno: podsjetnik izlazi u 19 h
 po vremenu mjesta predavanja (London je sat iza Sarajeva, Australija deset
 sati ispred), a dnevnik isporuka pazi da ga niko ne dobije dvaput.
 
