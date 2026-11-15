@@ -175,7 +175,7 @@ Predavanja:   GET https://<domen>/api/send?predavanja=1   0 7-9,11-21 * * *  (u 
 prije onima koji su označili „Planiram ići“ i dovršetak „Novo predavanje“ —
 i poruku dana nikad ne dira. Bez 10 h: dva slanja nikad ne idu istovremeno,
 pa bi se u 10:00 sudarila s porukom dana — a poziv poruke dana
-(`?nadoknadi=1`) u 10 h ionako odradi i predavanja. Svaki sat je namjerno: podsjetnik izlazi u 19 h
+(`?nadoknadi=1`) u 10 h ionako odradi i predavanja. Svaki sat je namjerno: podsjetnik izlazi u 20 h
 po vremenu mjesta predavanja (London je sat iza Sarajeva, Australija deset
 sati ispred), a dnevnik isporuka pazi da ga niko ne dobije dvaput.
 
@@ -184,12 +184,12 @@ pozivi u 7, 8 i 9 h nje ne diraju. Test radi isto, s istim pragom. Varijabla
 `SAT_PORUKE` u Vercelu mijenja prag u bilo kojem okruženju (`0` = bez praga).
 
 **Simulacija na testu:** na test adresi (Vercel Preview) poziv može glumiti
-vrijeme — `&sat=7` i `&dan=YYYY-MM-DD` — pa se cijeli dan (7 h, 10 h, 19 h…)
+vrijeme — `&sat=7` i `&dan=YYYY-MM-DD` — pa se cijeli dan (7 h, 10 h, 20 h…)
 provjeri za par minuta, s pravim obavijestima na test uređajima. Skripta
 `scripts/simulacija-test.sh` prođe sve korake redom. U produkciji se ovi
 parametri ne čitaju. Obavijest „Novo predavanje“ ide odmah kad
 se predavanje doda u adminu (u bilo koje doba), a podsjetnik onima koji
-planiraju ići — dan prije u 19 h po vremenu mjesta. U 7–9 h ide samo podsjetnik za
+planiraju ići — dan prije u 20 h po vremenu mjesta. U 7–9 h ide samo podsjetnik za
 zone gdje je tada veče (npr. Australija). Svaki poziv od 11 h dalje šalje je samo
 uređajima koji je još nisu dobili: onima kod kojih je push servis pao,
 onima koji nisu stigli na red prije isteka vremena, i novim pretplatama.
@@ -201,9 +201,10 @@ do svih.
 
 Uz `PREDAVANJA_PUSH=1` isti poziv dovršava i obavijesti „Novo predavanje“
 (dva dana od objave, između 7 i 22 h po Sarajevu) i šalje **podsjetnik dan
-prije u 19 h** po vremenu mjesta, onima koji planiraju ići. Za BiH i Evropu
-to je poziv u 19 h; za Zaljev, Maleziju i Australiju njihovih 19 h pada u
-naše prijepodne. Gdje je tamošnjih 19 h kod nas noć (Amerika), podsjetnik
+prije u 20 h** po vremenu mjesta, onima koji planiraju ići. Za BiH i Evropu
+to je poziv u 20 h (London u 21 h po našem); za Zaljev, Maleziju i Australiju
+njihovih 20 h pada u naše popodne ili prijepodne. Gdje je tamošnjih 20 h kod
+nas noć (Amerika), podsjetnik
 ide dan prije čim se kod njih razdani. Obavijest o novom predavanju kreće
 samo kad je u adminu uključen prekidač „Pošalji obavijest“; bez njega je
 predavanje samo vidljivo u aplikaciji.

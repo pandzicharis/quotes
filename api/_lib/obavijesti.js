@@ -112,7 +112,7 @@ function sadaU(zona, sada = new Date()) {
 }
 const sutra = dan => new Date(Date.parse(`${dan}T12:00:00Z`) + 86400000).toISOString().slice(0, 10);
 
-/* Podsjetnik ne budi nikoga noću: kad tamošnjih 19 h cron ne dočeka, ide
+/* Podsjetnik ne budi nikoga noću: kad tamošnjih 20 h cron ne dočeka, ide
    samo između 7 i 22 h po vremenu mjesta. („Novo“ ide odmah po dodavanju.) */
 const DANJU = sat => sat >= 7 && sat < 22;
 
@@ -124,16 +124,17 @@ function minuteU(zona, sada = new Date()) {
   return Number(d.hour) * 60 + Number(d.minute);
 }
 
-/* Podsjetnik ide dan prije, navečer: od 19 h po vremenu mjesta. Cron zove
-   svaki sat od 7 do 21 h po Sarajevu, pa za BiH i Evropu stiže tačno u 19 h,
-   a za Zaljev, Maleziju i Australiju u njihovih 19 h (kod nas prijepodne).
-   Gdje je tamošnjih 19 h kod nas noć (Amerika), to veče cron nikad ne
-   dočeka — tamo podsjetnik ide dan prije čim se kod njih razdani. */
-const VECE = 19;
+/* Podsjetnik ide dan prije, navečer: od 20 h po vremenu mjesta. Cron zove
+   svaki sat od 7 do 21 h po Sarajevu, pa za BiH i Evropu stiže tačno u 20 h
+   (London u 20 h svoga, kod nas 21 h), a za Zaljev, Maleziju i Australiju u
+   njihovih 20 h (kod nas popodne ili prijepodne). Gdje je tamošnjih 20 h kod
+   nas noć (Amerika), to veče cron nikad ne dočeka — tamo podsjetnik ide dan
+   prije čim se kod njih razdani. */
+const VECE = 20;
 function vrijemeZaPodsjetnik(zona, sat, sada = new Date()) {
   // razlika zone prema Sarajevu u minutama, -12 h … +12 h
   const razlika = ((minuteU(zona, sada) - minuteU('Europe/Sarajevo', sada) + 720 + 1440) % 1440) - 720;
-  const nasih = ((VECE * 60 - razlika) % 1440 + 1440) % 1440;     // tamošnjih 19 h po Sarajevu
+  const nasih = ((VECE * 60 - razlika) % 1440 + 1440) % 1440;     // tamošnjih 20 h po Sarajevu
   const docekaVece = nasih >= 7 * 60 && nasih <= 21 * 60;
   return docekaVece ? sat >= VECE && sat < 22 : DANJU(sat);
 }

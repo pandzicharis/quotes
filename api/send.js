@@ -59,7 +59,7 @@ const satUSarajevu = (d = new Date()) => Number(new Intl.DateTimeFormat('en-GB',
 }).format(d));
 
 /* SIMULACIJA — samo na testu (Vercel Preview). `&sat=7` i `&dan=YYYY-MM-DD`
-   glume vrijeme poziva, da se cijeli dan (7 h, 10 h, 19 h…) provjeri za par
+   glume vrijeme poziva, da se cijeli dan (7 h, 10 h, 20 h…) provjeri za par
    minuta, s pravim obavijestima na test uređajima. U produkciji
    (VERCEL_ENV=production) se ovi parametri ne čitaju uopšte. */
 const SIMULACIJA = process.env.VERCEL_ENV === 'preview';

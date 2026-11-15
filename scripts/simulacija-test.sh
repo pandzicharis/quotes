@@ -2,13 +2,13 @@
 # Simulacija jednog dana na TESTU — isti pozivi kao cron, ali s glumljenim
 # vremenom (&sat=, &dan=; radi samo na test adresi, vidi api/send.js).
 # Za par minuta provjeri: poruka dana ne ide prije 10 h, posao za predavanja
-# je nikad ne šalje, nadoknada ne šalje ništa dvaput, podsjetnik ide u 19 h.
+# je nikad ne šalje, nadoknada ne šalje ništa dvaput, podsjetnik ide u 20 h.
 #
 #   CRON_SECRET='…' bash scripts/simulacija-test.sh
 #
 # Poruka dana se glumi za izmišljen dan u 2099, da ne dira prave dane (sutrašnja
 # prava poruka u 10 h stiže normalno). Tvoji test uređaji u koraku „10:00“ zaista
-# dobiju obavijest. Podsjetnik se glumi za danas u 19 h — stiže samo ako postoji
+# dobiju obavijest. Podsjetnik se glumi za danas u 20 h — stiže samo ako postoji
 # sutrašnje predavanje označeno sa „Planiram ići“, i samo jednom.
 set -euo pipefail
 BASE="${BASE:-https://quotes-git-test-pandzicharis-porfolio.vercel.app}"
@@ -54,9 +54,11 @@ korak "10:01  nadoknada — niko ne dobija dvaput" \
   "nadoknadi=1&dan=$DAN&sat=10" "d.get('poslano', 0) == 0 and d.get('vecDobilo', 0) > 0"
 korak "10:03  nadoknada — opet ništa" \
   "nadoknadi=1&dan=$DAN&sat=10" "d.get('poslano', 0) == 0"
-korak "19:00  predavanja — podsjetnik za sutrašnja (ako ih planiraš), bez poruke dana" \
-  "predavanja=1&dan=$DANAS&sat=19" "d.get('poslano', 0) == 0 and 'porukaId' not in d"
-korak "20:00  predavanja — podsjetnik ne ide dvaput" \
-  "predavanja=1&dan=$DANAS&sat=20" "d.get('poslano', 0) == 0 and all(x.get('poslano', 0) == 0 for x in pod)"
+korak "19:00  predavanja — podsjetnik još ne ide, bez poruke dana" \
+  "predavanja=1&dan=$DANAS&sat=19" "d.get('poslano', 0) == 0 and 'porukaId' not in d and not pod"
+korak "20:00  predavanja — podsjetnik za sutrašnja (ako ih planiraš), bez poruke dana" \
+  "predavanja=1&dan=$DANAS&sat=20" "d.get('poslano', 0) == 0 and 'porukaId' not in d"
+korak "21:00  predavanja — podsjetnik ne ide dvaput" \
+  "predavanja=1&dan=$DANAS&sat=21" "d.get('poslano', 0) == 0 and all(x.get('poslano', 0) == 0 for x in pod)"
 echo
 if [ "$GRESKE" -eq 0 ]; then echo "✓ Sve prošlo"; else echo "✗ Palo koraka: $GRESKE"; exit 1; fi
