@@ -167,21 +167,26 @@ raspored:   0 7-21 * * *
 (npr. na testu, gdje poruka dana ide u vrijeme posla):
 
 ```
-Poruka dana:  GET https://<domen>/api/send?nadoknadi=1    u vrijeme poruke (npr. 0 10 * * *)
-Predavanja:   GET https://<domen>/api/send?predavanja=1   0 7-21 * * *  (svaki sat)
+Poruka dana:  GET https://<domen>/api/send?nadoknadi=1    0-3 10 * * *  (10:00, nadoknada do 10:03)
+Predavanja:   GET https://<domen>/api/send?predavanja=1   5 7-21 * * *  (svaki sat, u :05)
 ```
 
 `?predavanja=1` šalje **samo** obavijesti o predavanjima — podsjetnik dan
 prije onima koji su označili „Planiram ići“ i dovršetak „Novo predavanje“ —
-i poruku dana nikad ne dira. Svaki sat je namjerno: podsjetnik izlazi u 19 h
+i poruku dana nikad ne dira. Minuta 5 da se ne sudari s porukom dana (dva
+slanja nikad ne idu istovremeno). Svaki sat je namjerno: podsjetnik izlazi u 19 h
 po vremenu mjesta predavanja (London je sat iza Sarajeva, Australija deset
 sati ispred), a dnevnik isporuka pazi da ga niko ne dobije dvaput.
 
 Poruka dana kreće u **10 h po Sarajevu**: poziv u 10 h pošalje je svima, a
-pozivi u 7, 8 i 9 h nje ne diraju. **Na testu** (Vercel Preview) tog praga
-nema — poruka dana ide pri prvom pozivu u danu, kad god je posao zakazan na
-cron-job.org. Varijabla `SAT_PORUKE` u Vercelu mijenja prag u bilo kojem
-okruženju (`0` = bez praga). Obavijest „Novo predavanje“ ide odmah kad
+pozivi u 7, 8 i 9 h nje ne diraju. Test radi isto, s istim pragom. Varijabla
+`SAT_PORUKE` u Vercelu mijenja prag u bilo kojem okruženju (`0` = bez praga).
+
+**Simulacija na testu:** na test adresi (Vercel Preview) poziv može glumiti
+vrijeme — `&sat=7` i `&dan=YYYY-MM-DD` — pa se cijeli dan (7 h, 10 h, 19 h…)
+provjeri za par minuta, s pravim obavijestima na test uređajima. Skripta
+`scripts/simulacija-test.sh` prođe sve korake redom. U produkciji se ovi
+parametri ne čitaju. Obavijest „Novo predavanje“ ide odmah kad
 se predavanje doda u adminu (u bilo koje doba), a podsjetnik onima koji
 planiraju ići — dan prije u 19 h po vremenu mjesta. U 7–9 h ide samo podsjetnik za
 zone gdje je tada veče (npr. Australija). Svaki poziv od 11 h dalje šalje je samo

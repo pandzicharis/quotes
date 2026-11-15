@@ -49,16 +49,34 @@ const ROK_PORUKE_MS = 170_000;
    Australija), ali poruku dana prije 10 h ne šalje. „Novo predavanje“ ide
    odmah iz admina. Ručni /api/send i ?svima=1 šalju kad se pozovu.
 
-   Na testu (Vercel Preview) nema tog praga: poruka dana ide pri prvom
-   pozivu u danu, kad god ga cron zakaže — vrijeme se bira na cron-job.org.
-   Varijabla SAT_PORUKE u Vercelu može prag promijeniti u bilo kojem
-   okruženju (0 = bez praga). */
-const SAT_PORUKE = process.env.SAT_PORUKE
-  ? Number(process.env.SAT_PORUKE)
-  : process.env.VERCEL_ENV === 'preview' ? 0 : 10;
+   Test radi isto kao produkcija (prag 10 h), da proba na testu pokaže pravo
+   ponašanje; drugo vrijeme se na testu glumi simulacijom (&sat=, &dan=,
+   vidi ispod). Varijabla SAT_PORUKE u Vercelu može prag promijeniti u bilo
+   kojem okruženju (0 = bez praga). */
+const SAT_PORUKE = process.env.SAT_PORUKE ? Number(process.env.SAT_PORUKE) : 10;
 const satUSarajevu = (d = new Date()) => Number(new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Sarajevo', hour: '2-digit', hourCycle: 'h23',
 }).format(d));
+
+/* SIMULACIJA — samo na testu (Vercel Preview). `&sat=7` i `&dan=YYYY-MM-DD`
+   glume vrijeme poziva, da se cijeli dan (7 h, 10 h, 19 h…) provjeri za par
+   minuta, s pravim obavijestima na test uređajima. U produkciji
+   (VERCEL_ENV=production) se ovi parametri ne čitaju uopšte. */
+const SIMULACIJA = process.env.VERCEL_ENV === 'preview';
+function simulacija(q) {
+  if (!SIMULACIJA || (!q.has('sat') && !q.has('dan'))) return null;
+  const danas = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Sarajevo' }).format(new Date());
+  const dan = q.get('dan') || danas;
+  const sat = q.has('sat') ? Number(q.get('sat')) : satUSarajevu();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dan) || !Number.isInteger(sat) || sat < 0 || sat > 23) return { greska: true };
+  // trenutak kad je u Sarajevu `dan` u `sat`:00 (ispravka za ljetno vrijeme)
+  let t = Date.parse(`${dan}T${String(sat).padStart(2, '0')}:00:00Z`) - 3600_000;
+  for (let k = 0; k < 2; k++) {
+    const r = (sat - satUSarajevu(new Date(t)) + 24) % 24;
+    t += (r > 12 ? r - 24 : r) * 3600_000;
+  }
+  return { dan, sat, sada: new Date(t) };
+}
 
 /* Jedan kratak zastoj baze ili CDN-a ne smije oboriti cijeli dan: bez
    poruka i pretplata ne ide niko, pa svaki ulazni korak ima drugi pokušaj. */
@@ -79,7 +97,9 @@ export default async function handler(req, res) {
   const nadoknadi = !samoPredavanja && q.get('nadoknadi') === '1';
   const svima = !nadoknadi && !samoPredavanja && q.get('svima') === '1';
   const nacin = samoPredavanja ? 'predavanja' : nadoknadi ? 'nadoknada' : svima ? 'svima' : 'dnevno';
-  const dan = danUTC();
+  const sim = simulacija(q);
+  if (sim?.greska) return res.status(400).json({ greska: 'Simulacija: sat 0–23, dan YYYY-MM-DD' });
+  const dan = sim ? sim.dan : danUTC();
 
   /* Brava prije svega. Njeno uzimanje je upis, pa usput kaže prima li baza
      upis: ako ne prima, nadoknada ne šalje ništa — inače bi svaki poziv
@@ -96,13 +116,14 @@ export default async function handler(req, res) {
 
   // brava se pušta prije odgovora: poslije odgovora platforma smije zamrznuti funkciju
   let odgovor;
-  try { odgovor = await posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dnevnik: brava === true, req }); }
+  try { odgovor = await posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dnevnik: brava === true, req, sim }); }
   catch (e) { odgovor = [500, { greska: e.message, trajanjeMs: Date.now() - pocetak }]; }
   finally { if (brava) await pustiBravu('slanje').catch(() => { /* istekne sama, vidi uzmiBravu */ }); }
   res.status(odgovor[0]).json(odgovor[1]);
 }
 
-async function posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dnevnik, req }) {
+async function posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dnevnik, req, sim }) {
+  const sada = sim?.sada || new Date();
   const kljuc = `dan:${dan}`;
   postaviVapid();                       // treba i obavijestima o predavanjima ispod
 
@@ -114,7 +135,7 @@ async function posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dn
      svima, kao ranije. */
   // prije 10 h nadoknada ne dira poruku dana — ni ne čita ko ju je dobio;
   // ?predavanja=1 je ne dira nikad
-  const porukaDanas = !samoPredavanja && (!nadoknadi || satUSarajevu() >= SAT_PORUKE);
+  const porukaDanas = !samoPredavanja && (!nadoknadi || satUSarajevu(sada) >= SAT_PORUKE);
   let ukupno = 0, dobilo = 0, pretplate = [];
   if (porukaDanas) {
     pretplate = null;
@@ -135,7 +156,7 @@ async function posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dn
   let r = { poslano: 0, palo: 0, preskoceno: 0, drugiKrug: 0, mrtve: [], greske: {}, upisPao: false };
   if (pretplate.length) {
     const podaci = await jos(() => ucitajPoruke(req));
-    poruka = porukaZaDatum(podaci);
+    poruka = porukaZaDatum(podaci, sada);
     // isti payload za sve — serijalizuje se jednom, ne po uređaju
     const sadrzaj = JSON.stringify({ ...napraviSadrzaj(podaci, poruka), kljuc });
     r = await razasalji(pretplate, sadrzaj, {
@@ -163,7 +184,7 @@ async function posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dn
      mijenja ishod poruke dana. */
   let predavanja;
   if ((nadoknadi || samoPredavanja) && !r.upisPao && process.env.PREDAVANJA_PUSH === '1') {
-    try { predavanja = await nadoknadiPredavanja({ pocetak, rokMs: ROK_MS }); }
+    try { predavanja = await nadoknadiPredavanja({ pocetak, rokMs: ROK_MS, sada }); }
     catch (e) { predavanja = { greska: e.message }; }
   }
   if (nadoknadi || samoPredavanja) {
@@ -192,6 +213,7 @@ async function posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dn
       : {}),
     ...(Object.keys(r.greske).length ? { greske: r.greske } : {}),
     ...(predavanja ? { predavanja } : {}),
+    ...(sim ? { simulacija: { dan: sim.dan, sat: sim.sat } } : {}),
     ...(samoPredavanja ? { napomena: process.env.PREDAVANJA_PUSH === '1' ? 'Samo obavijesti o predavanjima — poruka dana ide svojim poslom' : 'PREDAVANJA_PUSH nije 1 — obavijesti o predavanjima su isključene' }
       : !porukaDanas ? { napomena: `Poruka dana kreće u ${SAT_PORUKE} h — ovaj poziv šalje samo obavijesti o predavanjima` }
       : ukupno ? {} : { napomena: 'Nema ni jedne pretplate u bazi — uređaji nisu registrovani' }),

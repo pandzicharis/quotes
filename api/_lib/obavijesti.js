@@ -102,11 +102,12 @@ export async function obavijestiONovom(p, opcije) {
   }
 }
 
-/** Današnji datum i sat u zoni predavanja ('YYYY-MM-DD', 0–23). */
-function sadaU(zona) {
+/** Datum i sat u zoni predavanja ('YYYY-MM-DD', 0–23). `sada` je zadan samo
+    u simulaciji na testu (vidi api/send.js), inače je pravo vrijeme. */
+function sadaU(zona, sada = new Date()) {
   const d = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
     timeZone: zona || 'Europe/Sarajevo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23',
-  }).formatToParts(new Date()).map(x => [x.type, x.value]));
+  }).formatToParts(sada).map(x => [x.type, x.value]));
   return { dan: `${d.year}-${d.month}-${d.day}`, sat: Number(d.hour) };
 }
 const sutra = dan => new Date(Date.parse(`${dan}T12:00:00Z`) + 86400000).toISOString().slice(0, 10);
@@ -116,10 +117,10 @@ const sutra = dan => new Date(Date.parse(`${dan}T12:00:00Z`) + 86400000).toISOSt
 const DANJU = sat => sat >= 7 && sat < 22;
 
 /** Koliko je sada sati u zoni, u minutama od ponoći. */
-function minuteU(zona) {
+function minuteU(zona, sada = new Date()) {
   const d = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
     timeZone: zona || 'Europe/Sarajevo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  }).formatToParts(new Date()).map(x => [x.type, x.value]));
+  }).formatToParts(sada).map(x => [x.type, x.value]));
   return Number(d.hour) * 60 + Number(d.minute);
 }
 
@@ -129,9 +130,9 @@ function minuteU(zona) {
    Gdje je tamošnjih 19 h kod nas noć (Amerika), to veče cron nikad ne
    dočeka — tamo podsjetnik ide dan prije čim se kod njih razdani. */
 const VECE = 19;
-function vrijemeZaPodsjetnik(zona, sat) {
+function vrijemeZaPodsjetnik(zona, sat, sada = new Date()) {
   // razlika zone prema Sarajevu u minutama, -12 h … +12 h
-  const razlika = ((minuteU(zona) - minuteU('Europe/Sarajevo') + 720 + 1440) % 1440) - 720;
+  const razlika = ((minuteU(zona, sada) - minuteU('Europe/Sarajevo', sada) + 720 + 1440) % 1440) - 720;
   const nasih = ((VECE * 60 - razlika) % 1440 + 1440) % 1440;     // tamošnjih 19 h po Sarajevu
   const docekaVece = nasih >= 7 * 60 && nasih <= 21 * 60;
   return docekaVece ? sat >= VECE && sat < 22 : DANJU(sat);
@@ -146,6 +147,7 @@ function vrijemeZaPodsjetnik(zona, sat) {
  * Svaki dio ima svoj try: greška u jednom ne zaustavlja ostale.
  */
 export async function nadoknadiPredavanja(opcije) {
+  const sada = opcije.sada || new Date();              // simulacija na testu, inače sada
   const izv = [];
   const probaj = async (opis, fn) => {
     try { izv.push(await fn()); } catch (e) { izv.push({ kljuc: opis, greska: e.message }); }
@@ -154,12 +156,12 @@ export async function nadoknadiPredavanja(opcije) {
   // „novo“ ide odmah iz admina; ovdje se samo dostavi onima do kojih nije stiglo.
   // Predavanje koje je već počelo ne javlja se kao novo (aplikacija ga i ne prikazuje).
   const nova = (await predavanjaUObavjestavanju().catch(() => []))
-    .filter(p => `${p.datum}T${p.vrijeme}` >= `${sadaU(p.zona).dan}T${String(sadaU(p.zona).sat).padStart(2, '0')}:00`);
+    .filter(p => `${p.datum}T${p.vrijeme}` >= `${sadaU(p.zona, sada).dan}T${String(sadaU(p.zona, sada).sat).padStart(2, '0')}:00`);
   for (const p of nova) await probaj(`novo:${p.id}`, () => dostavi(`novo:${p.id}`, { zaPredavanja: true }, sadrzajNovog(p), opcije, 'nadoknada', p.naslov));
 
   for (const p of await predavanjaUskoro().catch(() => [])) {
-    const s = sadaU(p.zona);
-    if (p.datum !== sutra(s.dan) || !vrijemeZaPodsjetnik(p.zona, s.sat)) continue;
+    const s = sadaU(p.zona, sada);
+    if (p.datum !== sutra(s.dan) || !vrijemeZaPodsjetnik(p.zona, s.sat, sada)) continue;
     await probaj(`podsjetnik:${p.id}`, () =>
       dostavi(`podsjetnik:${p.id}`, { prati: p.id }, sadrzajPodsjetnika(p), opcije, 'nadoknada', p.naslov));
   }
