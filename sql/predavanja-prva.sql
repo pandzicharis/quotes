@@ -31,12 +31,17 @@ select v.naslov, v.podnaslov, v.organizator, v.datum::date, v.vrijeme, v.vrijeme
 from (values
   -- naslov, podnaslov, organizator, datum, vrijeme, vrijeme_opis, zona,
   -- mjesto, adresa, grad, drzava, opis, link, stil, opcije
-  ('NASLOV', null, null, '2026-12-01', '19:00', 'poslije jacije namaza', 'Europe/Sarajevo',
-   'Mjesto (džemat, dvorana…)', null, 'Grad', 'BA', null, null, 'zelena', '{}')
-  -- , ('…drugo predavanje…', …)
+  -- prenesena sa testa 15. 11. 2026. (nadolazeća i objavljena)
+  ('Tribina', 'Vjera, sloboda, dostojanstvo', 'Medžlis IZ Bugojno', '2026-11-21', '19:00', null, 'Europe/Sarajevo',
+   'Sportska dvorana KSC', null, 'Bugojno', 'BA', null, null, 'zelena', '{"hidzri": false}'),
+  ('Večer Kur''ana', null, null, '2026-11-22', '18:30', 'Poslije jacije namaza', 'Europe/Sarajevo',
+   'Arnauti', null, 'Zenica', 'BA', null, null, 'zelena', '{"hidzri": false}'),
+  ('Šehidski mevlud', null, null, '2026-11-27', '19:00', 'Poslije jacije namaza', 'Europe/Sarajevo',
+   'Turija', null, 'Bihać', 'BA', null, null, 'zelena', '{"hidzri": false}')
 ) as v(naslov, podnaslov, organizator, datum, vrijeme, vrijeme_opis, zona,
        mjesto, adresa, grad, drzava, opis, link, stil, opcije)
-where v.naslov <> 'NASLOV'                        -- primjer iznad se nikad ne ubacuje
+where v.naslov <> 'NASLOV'                        -- primjer iz uputstva se nikad ne ubacuje
+  and v.datum::date >= (now() at time zone 'Europe/Sarajevo')::date   -- prošla se preskaču
   and not exists (
     select 1 from public.predavanja p where p.naslov = v.naslov and p.datum = v.datum::date
   );

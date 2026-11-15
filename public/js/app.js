@@ -23,10 +23,11 @@ const VERZIJA = '1.7.0';
    ponovo kroz onboarding. Dodan korak izbora izgleda u PWA toku, pa ide 3. */
 const UVOD_VERZIJA = 3;
 
-/* Predavanja (kalendar, plakati, obavijest o novom predavanju) su u izradi i
-   za sve su isključena — modul se tada ni ne učitava. Na jednom uređaju se
-   uključe sa ?predavanja=1, a isključe sa ?predavanja=0. */
-const PREDAVANJA = false;
+/* Predavanja (kalendar, plakati, obavijest o novom predavanju) su od 1.7.0
+   uključena za sve. Zastavica ostaje kao prekidač: s `false` se isključe
+   svima (modul se tada ni ne učitava), a na jednom uređaju se onda uključe
+   sa ?predavanja=1 i isključe sa ?predavanja=0. */
+const PREDAVANJA = true;
 
 /* Test okruženje: grana `test` na Vercelu (…-git-test-….vercel.app), sa svojom
    bazom i ključevima. Tamo su predavanja uključena sama — instalirana
