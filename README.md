@@ -163,6 +163,20 @@ zaglavlje:  x-cron-secret: <CRON_SECRET>
 raspored:   0 7-21 * * *
 ```
 
+**Ili dva odvojena posla** — kad poruka dana i predavanja trebaju svoj raspored
+(npr. na testu, gdje poruka dana ide u vrijeme posla):
+
+```
+Poruka dana:  GET https://<domen>/api/send?nadoknadi=1    u vrijeme poruke (npr. 0 10 * * *)
+Predavanja:   GET https://<domen>/api/send?predavanja=1   0 7-21 * * *  (svaki sat)
+```
+
+`?predavanja=1` šalje **samo** obavijesti o predavanjima — podsjetnik dan
+prije onima koji su označili „Planiram ići“ i dovršetak „Novo predavanje“ —
+i poruku dana nikad ne dira. Svaki sat je namjerno: podsjetnik izlazi u 19 h
+po vremenu mjesta predavanja (London je sat iza Sarajeva, Australija deset
+sati ispred), a dnevnik isporuka pazi da ga niko ne dobije dvaput.
+
 Poruka dana kreće u **10 h po Sarajevu**: poziv u 10 h pošalje je svima, a
 pozivi u 7, 8 i 9 h nje ne diraju. **Na testu** (Vercel Preview) tog praga
 nema — poruka dana ide pri prvom pozivu u danu, kad god je posao zakazan na

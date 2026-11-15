@@ -14,6 +14,10 @@
                              duplikata). Bez dnevnika isporuka — svima, kao ranije.
      /api/send?svima=1       poruka dana SVIMA, i onima koji su je već dobili —
                              samo za probu.
+     /api/send?predavanja=1  SAMO obavijesti o predavanjima (podsjetnik dan
+                             prije onima koji planiraju ići, dovršetak „Novo
+                             predavanje“) — poruku dana nikad ne dira. Za
+                             poseban cron posao, odvojen od poruke dana.
 
    Dva slanja nikad ne idu istovremeno (brava, vidi uzmiBravu u baza.js).
 
@@ -71,9 +75,10 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   const pocetak = Date.now();
   const q = new URL(req.url, 'http://x').searchParams;
-  const nadoknadi = q.get('nadoknadi') === '1';
-  const svima = !nadoknadi && q.get('svima') === '1';
-  const nacin = nadoknadi ? 'nadoknada' : svima ? 'svima' : 'dnevno';
+  const samoPredavanja = q.get('predavanja') === '1';   // bez poruke dana, ma šta drugo stajalo u adresi
+  const nadoknadi = !samoPredavanja && q.get('nadoknadi') === '1';
+  const svima = !nadoknadi && !samoPredavanja && q.get('svima') === '1';
+  const nacin = samoPredavanja ? 'predavanja' : nadoknadi ? 'nadoknada' : svima ? 'svima' : 'dnevno';
   const dan = danUTC();
 
   /* Brava prije svega. Njeno uzimanje je upis, pa usput kaže prima li baza
@@ -83,7 +88,7 @@ export default async function handler(req, res) {
   let brava = null;                                   // null — bez brave i bez dnevnika
   try { brava = await jos(() => uzmiBravu('slanje')); }
   catch (e) {
-    if (nadoknadi) return res.status(503).json({ greska: `Dnevnik isporuka ne prima upis — ništa nije poslano: ${e.message}` });
+    if (nadoknadi || samoPredavanja) return res.status(503).json({ greska: `Dnevnik isporuka ne prima upis — ništa nije poslano: ${e.message}` });
   }
   if (brava === false) {
     return res.status(200).json({ ok: true, dan, nacin, napomena: 'Drugo slanje je upravo u toku — ovaj poziv ne šalje ništa' });
@@ -91,13 +96,13 @@ export default async function handler(req, res) {
 
   // brava se pušta prije odgovora: poslije odgovora platforma smije zamrznuti funkciju
   let odgovor;
-  try { odgovor = await posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik: brava === true, req }); }
+  try { odgovor = await posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dnevnik: brava === true, req }); }
   catch (e) { odgovor = [500, { greska: e.message, trajanjeMs: Date.now() - pocetak }]; }
   finally { if (brava) await pustiBravu('slanje').catch(() => { /* istekne sama, vidi uzmiBravu */ }); }
   res.status(odgovor[0]).json(odgovor[1]);
 }
 
-async function posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik, req }) {
+async function posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dnevnik, req }) {
   const kljuc = `dan:${dan}`;
   postaviVapid();                       // treba i obavijestima o predavanjima ispod
 
@@ -107,8 +112,9 @@ async function posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik, req }) {
      Nadoknada bez dnevnika ne zna kome je već poslano — tada ne šalje nikome,
      da niko ne dobije istu poruku na svaki poziv; obično slanje tada ide
      svima, kao ranije. */
-  // prije 10 h nadoknada ne dira poruku dana — ni ne čita ko ju je dobio
-  const porukaDanas = !nadoknadi || satUSarajevu() >= SAT_PORUKE;
+  // prije 10 h nadoknada ne dira poruku dana — ni ne čita ko ju je dobio;
+  // ?predavanja=1 je ne dira nikad
+  const porukaDanas = !samoPredavanja && (!nadoknadi || satUSarajevu() >= SAT_PORUKE);
   let ukupno = 0, dobilo = 0, pretplate = [];
   if (porukaDanas) {
     pretplate = null;
@@ -156,11 +162,11 @@ async function posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik, req }) {
      samo dok dnevnik prima upis. Svaki dio ima svoj try — greška ovdje ne
      mijenja ishod poruke dana. */
   let predavanja;
-  if (nadoknadi && !r.upisPao && process.env.PREDAVANJA_PUSH === '1') {
+  if ((nadoknadi || samoPredavanja) && !r.upisPao && process.env.PREDAVANJA_PUSH === '1') {
     try { predavanja = await nadoknadiPredavanja({ pocetak, rokMs: ROK_MS }); }
     catch (e) { predavanja = { greska: e.message }; }
   }
-  if (nadoknadi) {
+  if (nadoknadi || samoPredavanja) {
     // dnevnici ne rastu unedogled, a prošla predavanja odlaze — jeftino i tiho,
     // svako za sebe, da jedna greška ne preskoči ostala
     for (const ocisti of [ocistiIsporuke, ocistiDogadjaje, obrisiProslaPredavanja]) {
@@ -186,7 +192,8 @@ async function posao({ nadoknadi, svima, nacin, dan, pocetak, dnevnik, req }) {
       : {}),
     ...(Object.keys(r.greske).length ? { greske: r.greske } : {}),
     ...(predavanja ? { predavanja } : {}),
-    ...(!porukaDanas ? { napomena: `Poruka dana kreće u ${SAT_PORUKE} h — ovaj poziv šalje samo obavijesti o predavanjima` }
+    ...(samoPredavanja ? { napomena: process.env.PREDAVANJA_PUSH === '1' ? 'Samo obavijesti o predavanjima — poruka dana ide svojim poslom' : 'PREDAVANJA_PUSH nije 1 — obavijesti o predavanjima su isključene' }
+      : !porukaDanas ? { napomena: `Poruka dana kreće u ${SAT_PORUKE} h — ovaj poziv šalje samo obavijesti o predavanjima` }
       : ukupno ? {} : { napomena: 'Nema ni jedne pretplate u bazi — uređaji nisu registrovani' }),
   }];
 }
