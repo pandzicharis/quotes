@@ -16,7 +16,7 @@ import {
 /* Mora biti isto kao IZDANJE u sw.js — po toj oznaci se odlučuje hoće li se
    korisniku ponuditi traka „nova verzija“. Podiže se samo kad izdanje zaista
    nosi nešto novo, ne na svaku izmjenu koda. */
-const VERZIJA = '1.7.0';
+const VERZIJA = '1.7.1';
 
 /* Verzija uvoda je odvojena od verzije aplikacije: podiže se samo kad se
    tok stvarno promijeni, da obična nadogradnja ne tjera sve korisnike
