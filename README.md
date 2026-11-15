@@ -187,7 +187,10 @@ pozivi u 7, 8 i 9 h nje ne diraju. Test radi isto, s istim pragom. Varijabla
 vrijeme — `&sat=7` i `&dan=YYYY-MM-DD` — pa se cijeli dan (7 h, 10 h, 20 h…)
 provjeri za par minuta, s pravim obavijestima na test uređajima. Skripta
 `scripts/simulacija-test.sh` prođe sve korake redom. U produkciji se ovi
-parametri ne čitaju. Obavijest „Novo predavanje“ ide odmah kad
+parametri ne čitaju. **Proba opterećenja:** `scripts/proba-1300.mjs` prijavi
+~1300 lažnih korisnika preko weba, pošalje im poruku dana kao cron (10:00,
+10:01, 10:03) i kaže kome je stiglo; lažne adrese vode na `/api/proba-push`,
+koji glumi push servis (samo na testu), pa nijedan telefon ništa ne dobija. Obavijest „Novo predavanje“ ide odmah kad
 se predavanje doda u adminu (u bilo koje doba), a podsjetnik onima koji
 planiraju ići — dan prije u 20 h po vremenu mjesta. U 7–9 h ide samo podsjetnik za
 zone gdje je tada veče (npr. Australija). Svaki poziv od 11 h dalje šalje je samo
