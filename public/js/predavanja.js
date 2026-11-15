@@ -40,7 +40,8 @@ let kalMjesec = '';            // filter kalendara: 'YYYY-MM' ili '' za sve mjes
 let kalGrad = cita(GRAD, '');
 let kalPrikaz = 'sva';         // kalendar: 'sva' ili 'pracena' (moja predavanja)
 const KAL_POGLED = 'pd.kalendarPogled';
-let kalPogled = cita(KAL_POGLED, 'lista') === 'plakati' ? 'plakati' : 'lista';   // kalendar kao lista ili kao plakati
+// kalendar kao plakati (zadano) ili kao lista — izbor se pamti na uređaju
+let kalPogled = cita(KAL_POGLED, 'plakati') === 'lista' ? 'lista' : 'plakati';
 
 const vidjena = () => cita(VIDJENA, []);
 function oznaciVidjeno(id) {
@@ -161,8 +162,8 @@ function napraviKostur() {
           <span class="modal__ikona"><svg><use href="#i-kalendar"/></svg></span>
           <div class="modal__naslov"><small>Poruka dana</small><h3>Predavanja</h3></div>
           <div class="kal-pogled" id="kal-pogled" role="group" aria-label="Izgled">
-            <button type="button" data-pogled="lista" aria-pressed="true" aria-label="Lista" title="Lista"><svg><use href="#i-lista"/></svg></button>
-            <button type="button" data-pogled="plakati" aria-pressed="false" aria-label="Plakati" title="Plakati"><svg><use href="#i-mreza"/></svg></button>
+            <button type="button" data-pogled="lista" aria-pressed="false" aria-label="Lista" title="Lista"><svg><use href="#i-lista"/></svg></button>
+            <button type="button" data-pogled="plakati" aria-pressed="true" aria-label="Plakati" title="Plakati"><svg><use href="#i-mreza"/></svg></button>
           </div>
           <button class="icon-btn" data-zatvori aria-label="Zatvori"><svg><use href="#i-x"/></svg></button>
         </div>
