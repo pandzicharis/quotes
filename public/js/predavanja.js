@@ -423,7 +423,7 @@ function crtajMoja() {
         <span class="pred-sub__glava">
           ${listKalendara(p)}
           <span class="pred-moja__tekst">
-            <small>${esc(danUSedmici(p.datum))}</small>
+            <small>${esc(danUSedmici(p.datum))} · ${zaDana(danaDo(p))}</small>
             <b>${esc(p.naslov)}</b>
           </span>
         </span>
