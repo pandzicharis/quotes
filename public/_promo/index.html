@@ -204,7 +204,9 @@
      šalje kad se predavanje doda (sadrzajNovog u api/_lib/obavijesti.js). */
   let predavanja = [];
   if (g === 'predavanja') {
-    predavanja = await (await fetch('/_promo/predavanja.json')).json();
+    // u bijeloj grafici i plakati su svijetli (stil „krem“), da ne strše tamni
+    predavanja = (await (await fetch('/_promo/predavanja.json')).json())
+      .map(p => tema === 'svijetla' ? { ...p, stil: 'krem' } : p);
     Object.entries({
       'pd.predavanjaLokalno': predavanja, 'pd.predavanjaVidjena': [],
       'pd.predavanjaPracena': [], 'pd.predavanjaObavijesti': true, 'pd.predavanjaGrad': '',
