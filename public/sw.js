@@ -30,7 +30,7 @@
    datoteke, i kad se promijeni samo komentar. Ranije je svaka takva sitnica
    izlazila korisniku kao „Instaliraj novu verziju“; sada se preuzme tiho,
    a pita se samo kad se IZDANJE zaista promijeni. */
-const IZDANJE = '1.7.1';
+const IZDANJE = '1.7.2';
 const KESH_V  = 'v23';
 const KESH = `poruka-dana-${KESH_V}`;
 /* Broj nepročitanih poruka na ikonici. Živi u svom kešu jer worker nema
