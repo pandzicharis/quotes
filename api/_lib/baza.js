@@ -376,16 +376,6 @@ export async function zakaziPoruke(redovi) {
   });
 }
 
-/** Upisuje izbor za dan samo ako ga još nema — automatski izbor nikad ne
-    prepisuje ono što je admin izabrao. true kad je upisano. */
-export async function zakaziAkoNema(dan, poruka) {
-  const r = await zahtjev(`${TAB_RASPORED}?on_conflict=dan`, {
-    method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
-    body: JSON.stringify([{ dan, poruka }]),
-  });
-  return (await r.json()).length > 0;
-}
-
 /** Briše izbor za date dane — oni tada nastavljaju krug. */
 export async function otkaziPoruke(dani) {
   if (!dani.length) return;

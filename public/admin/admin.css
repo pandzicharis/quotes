@@ -530,7 +530,7 @@ svg.ik--okvir { width: 15px; height: 15px; fill: none; stroke: currentColor; str
 .kal-dan p { grid-area: tekst; margin: 0; font: 13.5px/1.35 var(--serif); color: var(--ink-soft); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .kal-dan__ponovo { grid-area: ponovo; font-size: 11px; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
 .kal-dan__ponovo.brzo { color: #E6A85C; }
-/* dan bez izabrane poruke: prazan, isprekidan, sa „Izaberi“; sitno — šta se sama izabere u 9:30 */
+/* dan bez izabrane poruke: prazan, isprekidan, sa „Izaberi“; sitno — šta ide ako ostane prazan */
 .kal-dan--bez { grid-template-areas: "datum datum" "izaberi izaberi" "inace inace"; background: transparent; border: 1px dashed var(--line); cursor: pointer; }
 .kal-dan--bez:hover { background: color-mix(in srgb, var(--gold) 6%, transparent); border-color: var(--gold); }
 .kal-dan__izaberi { grid-area: izaberi; align-self: center; margin-top: 18px; font: 600 12.5px var(--sans); color: var(--gold); }

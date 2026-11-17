@@ -18,20 +18,17 @@
                              prije onima koji planiraju ići, dovršetak „Novo
                              predavanje“) — poruku dana nikad ne dira. Za
                              poseban cron posao, odvojen od poruke dana.
-     /api/send?izbor=1       samo automatski izbor: ako za danas nije izabrana
-                             poruka, od 9:30 upiše sljedeću po redu kao izbor
-                             (cron u 9:30). Ništa ne šalje.
 
    Dva slanja nikad ne idu istovremeno (brava, vidi uzmiBravu u baza.js).
 
    curl -H "x-cron-secret: <CRON_SECRET>" "https://<domen>/api/send?nadoknadi=1"  */
 import {
   svePretplate, kojiNemaju, skiniPretplate, bazaSpremna, zabiljeziIsporuke, ocistiIsporuke, ocistiDogadjaje,
-  obrisiProslaPredavanja, uzmiBravu, pustiBravu, rasporedDo, zakaziAkoNema,
+  obrisiProslaPredavanja, uzmiBravu, pustiBravu, rasporedDo,
 } from './_lib/baza.js';
 import { ovlascen, odbij } from './_lib/auth.js';
 import {
-  postaviVapid, vapidSpreman, ucitajPoruke, porukaZaDatum, napraviSadrzaj, razasalji, danUTC, pauza, danSarajevo,
+  postaviVapid, vapidSpreman, ucitajPoruke, porukaZaDatum, napraviSadrzaj, razasalji, danUTC, pauza,
 } from './_lib/push.js';
 import { nadoknadiPredavanja, zapisiSlanje } from './_lib/obavijesti.js';
 
@@ -60,25 +57,6 @@ const SAT_PORUKE = process.env.SAT_PORUKE ? Number(process.env.SAT_PORUKE) : 10;
 const satUSarajevu = (d = new Date()) => Number(new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Sarajevo', hour: '2-digit', hourCycle: 'h23',
 }).format(d));
-
-/* AUTOMATSKI IZBOR — dan za koji admin nije izabrao poruku dobije sljedeću
-   po redu pola sata prije slanja (9:30): upiše se kao izbor, pa je admin
-   vidi u kalendaru i do 10 h je još može promijeniti. Ono što je admin
-   izabrao se nikad ne prepisuje. Pokreće ga cron u 9:30 (?izbor=1), a
-   slanje poruke dana radi isto, kao rezervu, ako taj poziv izostane. */
-const IZBOR_PRIJE_MIN = 30;
-const minutaUSarajevu = (d = new Date()) => {
-  const x = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Sarajevo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
-  }).formatToParts(d).map(p => [p.type, p.value]));
-  return Number(x.hour) * 60 + Number(x.minute);
-};
-async function izaberiAkoNema(req, dan) {
-  const [podaci, raspored] = await Promise.all([jos(() => ucitajPoruke(req)), jos(() => rasporedDo(dan))]);
-  if (podaci.poruke.some(p => p.id === raspored[dan])) return { dan, vecIzabrana: raspored[dan] };
-  const p = porukaZaDatum(podaci, dan, raspored);
-  return { dan, izabrana: p.id, upisano: await zakaziAkoNema(dan, p.id) };
-}
 
 /* SIMULACIJA — samo na testu (Vercel Preview). `&sat=7` i `&dan=YYYY-MM-DD`
    glume vrijeme poziva, da se cijeli dan (7 h, 10 h, 20 h…) provjeri za par
@@ -122,16 +100,6 @@ export default async function handler(req, res) {
   const sim = simulacija(q);
   if (sim?.greska) return res.status(400).json({ greska: 'Simulacija: sat 0–23, dan YYYY-MM-DD' });
   const dan = sim ? sim.dan : danUTC();
-
-  if (q.get('izbor') === '1') {
-    const danS = sim ? sim.dan : danSarajevo();
-    // simulacija na testu bira odmah; inače tek od 9:30
-    if (!sim && minutaUSarajevu() < SAT_PORUKE * 60 - IZBOR_PRIJE_MIN) {
-      return res.status(200).json({ ok: true, dan: danS, napomena: `Automatski izbor kreće u ${SAT_PORUKE - 1}:${String(60 - IZBOR_PRIJE_MIN).padStart(2, '0')} — ovaj poziv ne bira ništa` });
-    }
-    try { return res.status(200).json({ ok: true, ...(await izaberiAkoNema(req, danS)) }); }
-    catch (e) { return res.status(500).json({ greska: e.message }); }
-  }
 
   /* Brava prije svega. Njeno uzimanje je upis, pa usput kaže prima li baza
      upis: ako ne prima, nadoknada ne šalje ništa — inače bi svaki poziv
@@ -193,11 +161,6 @@ async function posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dn
     let raspored = {};
     try { raspored = await rasporedDo(dan); } catch { /* po redoslijedu */ }
     poruka = porukaZaDatum(podaci, dan, raspored);
-    // rezerva automatskog izbora (9:30): dan bez izbora se upiše kao izabran,
-    // da kalendar pokaže šta je otišlo; slanje ne čeka na to
-    if (!sim && !podaci.poruke.some(p => p.id === raspored[dan])) {
-      try { await zakaziAkoNema(dan, poruka.id); } catch { /* slanje ide i bez upisa */ }
-    }
     // isti payload za sve — serijalizuje se jednom, ne po uređaju
     const sadrzaj = JSON.stringify({ ...napraviSadrzaj(podaci, poruka), kljuc });
     r = await razasalji(pretplate, sadrzaj, {
