@@ -1006,9 +1006,9 @@ $$('[data-poruke-pogled]').forEach(b => b.addEventListener('click', () => {
 
 /* ---------- kalendar ----------
    Mjesec po danima: knjiga, tekst i koliko je dana prošlo od prošlog puta
-   iste poruke. Dan bez izbora pokazuje poruku koja automatski ide po
-   redoslijedu (isto šalje i server), uz blago isprekidan okvir; klik bira
-   drugu. Na telefonu je mjesec lista dana. */
+   iste poruke. Dan bez izbora je prazan, s „Izaberi“; ako ostane prazan, u
+   9:30 server sam izabere sljedeću po redu i ona se tada vidi kao izabrana.
+   Na telefonu je mjesec lista dana. */
 let kalMjesec = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
 const DANI_KRATKO = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
 const NAZAD = 400;   // koliko dana unazad se traži prethodno pojavljivanje
@@ -1039,17 +1039,29 @@ function crtajKalendar() {
     const datum = `<span class="kal-dan__datum"><b>${d.getDate()}</b><small>${DANI_KRATKO[sedmica]}</small></span>`;
     const klase = `kal-dan${k === danas ? ' danas' : ''}${sedmica === 0 ? ' pon' : ''}`;
 
+    // dan bez izbora, koji se još može mijenjati: prazan. Ako ostane prazan,
+    // u 9:30 server sam izabere sljedeću po redu (vidi api/send.js, ?izbor=1)
+    if (!iz && !zaklj) {
+      celije.push(`<button type="button" class="${klase} kal-dan--bez" data-dan="${k}" data-poruka=""
+          title="${esc(`${kratkiDatum(d)}: poruka nije izabrana — ako ostane tako, u 9:30 se sama izabere sljedeća po redu: poruka ${br}`)}">
+        ${datum}
+        <span class="kal-dan__izaberi">+ Izaberi</span>
+        <span class="kal-dan__inace">inače ${br} · ${esc(imeKnjige(p.knjiga))}</span>
+      </button>`);
+      continue;
+    }
+
     let prije = 0, poslije = 0;
     for (let x = j - 1; x >= 0; x--) if (dani[x] === p) { prije = j - x; break; }
     for (let x = j + 1; x < dani.length; x++) if (dani[x] === p) { poslije = x - j; break; }
     const opis = [
       `${DANI_KRATKO[sedmica]}, ${kratkiDatum(d)}: poruka ${br}, ${imeKnjige(p.knjiga)}`,
-      iz ? '' : zaklj ? 'nije bila izabrana — išla je po redoslijedu' : 'automatski, po redoslijedu — klik za drugu poruku',
+      iz ? '' : 'nije bila izabrana — išla je po redoslijedu',
       prije ? `ista poruka ${prijeDana(prije)}` : 'ranije nije bila poruka dana',
       poslije ? `ponovo ${zaDana(poslije)}` : '',
       zaklj && k === danas ? `poslana u ${SAT_PORUKE} h — više se ne mijenja` : '',
     ].filter(Boolean).join(' · ');
-    celije.push(`<button type="button" class="${klase}${!iz && !zaklj ? ' auto' : ''}" data-dan="${k}" data-poruka="${p.id}"
+    celije.push(`<button type="button" class="${klase}" data-dan="${k}" data-poruka="${p.id}"
         style="--knjiga:${bojaKnjige(p.knjiga)}" title="${esc(opis)}"${zaklj ? ' disabled' : ''}>
       ${datum}
       <span class="kal-dan__br">${br}</span>
@@ -1272,7 +1284,7 @@ function crtajIzbor() {
   const inace = nastavak(k);
   $('#dan-napomena').innerHTML = [
     sad ? `Izabrana je poruka ${lista.indexOf(sad) + 1}.`
-      : `Za ovaj dan nije izabrana poruka, pa automatski ide po redoslijedu: poruka ${lista.indexOf(inace) + 1}. Izaberi drugu ako želiš.`,
+      : `Za ovaj dan još nije izabrana poruka. Ako ostane tako, u 9:30 se sama izabere sljedeća po redu: poruka ${lista.indexOf(inace) + 1}.`,
     k === danasK() ? `Današnja poruka se može mijenjati do ${SAT_PORUKE} h.` : '',
   ].filter(Boolean).join(' ');
   crtajTaboveKnjiga($('#dan-knjige'), lista, danKnjiga);
