@@ -1,5 +1,6 @@
 /* Zajednička logika: VAPID, izbor poruke dana, slanje. */
 import webpush from 'web-push';
+import { svePoruke } from './baza.js';
 
 const DAN_MS = 86400000;
 
@@ -19,20 +20,48 @@ export function postaviVapid() {
   postavljen = true;
 }
 
-/** Statični JSON se čita sa istog deploya — uvijek je u sinhronu sa aplikacijom. */
+/** Autor i knjige su u statičnom JSON-u sa istog deploya; poruke uređuje
+    admin, pa dolaze iz baze. Kad baza ne odgovara ili je tabela prazna,
+    ostaje lista iz poruke.json — slanje zbog toga nikad ne staje. */
 export async function ucitajPoruke(req) {
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const r = await fetch(`${proto}://${host}/data/poruke.json`, { cache: 'no-store' });
   if (!r.ok) throw new Error(`poruke.json HTTP ${r.status}`);
-  return r.json();
+  const podaci = await r.json();
+  try {
+    const aktivne = (await svePoruke()).filter(p => !p.obrisana);
+    if (aktivne.length) podaci.poruke = aktivne;
+  } catch { /* baza ne odgovara — lista iz poruke.json */ }
+  return podaci;
 }
 
-/** Ista formula kao u klijentu: isti dan → ista poruka. */
-export function porukaZaDatum(podaci, d = new Date()) {
-  const dana = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAN_MS);
-  const n = podaci.poruke.length;
-  return podaci.poruke[((dana % n) + n) % n];
+const p2 = n => String(n).padStart(2, '0');
+/** 'YYYY-MM-DD' po kalendaru datuma `d` (na serveru UTC). */
+export const kljucDana = (d = new Date()) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+/** Današnji dan u Sarajevu, 'YYYY-MM-DD'. */
+export const danSarajevo = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Sarajevo' }).format(d);
+
+const brojDana = k => { const [g, m, d] = k.split('-').map(Number); return Math.floor(Date.UTC(g, m - 1, d) / DAN_MS); };
+
+/** Poruka dana za dan `d` (Date ili 'YYYY-MM-DD') — isto pravilo u
+    aplikaciji (js/app.js, porukaZa) i adminu (porukaNaDan):
+      1. poruka koju je admin izabrao za taj dan, ako je još u krugu;
+      2. inače krug se nastavlja od zadnjeg izabranog dana prije njega:
+         dan poslije poruke X dobija poruku iza X, i tako redom;
+      3. dok ništa nije izabrano — broj dana % broj poruka, kao ranije.
+    `raspored` je { 'YYYY-MM-DD': id } — dovoljno je da ima dane do `d`. */
+export function porukaZaDatum(podaci, d = new Date(), raspored = {}) {
+  const lista = podaci.poruke, n = lista.length;
+  const kljuc = typeof d === 'string' ? d : kljucDana(d);
+  const mjesto = id => (id == null ? -1 : lista.findIndex(p => p.id === id));
+  const i = mjesto(raspored[kljuc]);
+  if (i >= 0) return lista[i];
+  for (const k of Object.keys(raspored).filter(x => x < kljuc).sort().reverse()) {
+    const j = mjesto(raspored[k]);
+    if (j >= 0) return lista[(j + brojDana(kljuc) - brojDana(k)) % n];
+  }
+  return lista[((brojDana(kljuc) % n) + n) % n];
 }
 
 /** Koliko karaktera najviše ide u notifikaciju. */

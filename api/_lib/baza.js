@@ -324,6 +324,64 @@ export async function ocistiDogadjaje(dana = 8) {
   await zahtjev(`${TAB_DOGADJAJI}?dan=lt.${prije}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
 }
 
+/* ---------- poruke dana i raspored ----------
+   Poruke uređuje admin, a aplikacija i slanje ih čitaju odavde (poruke.json
+   je rezerva dok baza ne odgovara). Vidi `poruke` i `raspored_poruka` u
+   sql/shema.sql. */
+const TAB_PORUKE = 'poruke';
+const TAB_RASPORED = 'raspored_poruka';
+
+/** Sve poruke po redoslijedu, i obrisane — aplikaciji trebaju za sačuvane. */
+export const svePoruke = () =>
+  sveStranice(`${TAB_PORUKE}?select=id,tekst,knjiga,poglavlje,redoslijed,obrisana&order=redoslijed,id`);
+
+/** Nova poruka ide na kraj kruga, s prvim slobodnim id-em (i obrisane ga drže). */
+export async function dodajPoruku(p, sve) {
+  const id = Math.max(0, ...sve.map(x => x.id)) + 1;
+  const redoslijed = Math.max(0, ...sve.map(x => x.redoslijed)) + 1;
+  const r = await zahtjev(TAB_PORUKE, {
+    method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ ...p, id, redoslijed }),
+  });
+  return (await r.json())[0];
+}
+
+export async function izmijeniPoruku(id, p) {
+  const r = await zahtjev(`${TAB_PORUKE}?id=eq.${id}`, {
+    method: 'PATCH', headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ ...p, izmijenjeno: new Date().toISOString() }),
+  });
+  return (await r.json())[0] || null;
+}
+
+/** { 'YYYY-MM-DD': idPoruke } — svi zakazani dani. */
+export async function rasporedPoruka() {
+  const redovi = await sveStranice(`${TAB_RASPORED}?select=dan,poruka&order=dan`);
+  return Object.fromEntries(redovi.map(x => [x.dan, x.poruka]));
+}
+
+/** Izabrani dani do `dan` uključivo, najnoviji prvi — dovoljno za poruku tog
+    dana (vidi porukaZaDatum: dan bez izbora nastavlja krug od zadnjeg
+    izabranog). 60 redova pokrije i izbor čija je poruka u međuvremenu obrisana. */
+export async function rasporedDo(dan) {
+  const r = await zahtjev(`${TAB_RASPORED}?select=dan,poruka&dan=lte.${dan}&order=dan.desc&limit=60`);
+  return Object.fromEntries((await r.json()).map(x => [x.dan, x.poruka]));
+}
+
+/** Upisuje izbor za više dana jednim pozivom: [{ dan, poruka }]. */
+export async function zakaziPoruke(redovi) {
+  if (!redovi.length) return;
+  await zahtjev(`${TAB_RASPORED}?on_conflict=dan`, {
+    method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify(redovi),
+  });
+}
+
+/** Briše izbor za date dane — oni tada nastavljaju krug. */
+export async function otkaziPoruke(dani) {
+  if (!dani.length) return;
+  await zahtjev(`${TAB_RASPORED}?dan=in.(${dani.join(',')})`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+}
+
 /* ---------- brojanje instalacija ---------- */
 /* Isto što je ranije radio `SADD` u skup: uređaj šalje nasumičnu oznaku koju
    sam napravi i čuva, pa ponovno otvaranje ne diže brojku. Ovdje to nosi

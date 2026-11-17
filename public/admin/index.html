@@ -98,20 +98,34 @@
       <header class="glava">
         <div><span class="nad">Poruka dana u aplikaciji</span><h1>Poruke</h1></div>
         <div class="glava__akcije">
+          <div class="segment" role="group" aria-label="Prikaz poruka">
+            <button type="button" data-poruke-pogled="lista" aria-pressed="true"><svg class="ik"><use href="#i-lista"/></svg> Lista</button>
+            <button type="button" data-poruke-pogled="kalendar" aria-pressed="false"><svg class="ik"><use href="#i-kalendar"/></svg> Kalendar</button>
+          </div>
           <button class="zlatno" id="citat-novi"><svg class="ik"><use href="#i-plus"/></svg><span>Nova poruka</span></button>
         </div>
       </header>
-      <div class="alati">
-        <div class="trazi"><svg><use href="#i-lupa"/></svg><input type="search" id="citati-trazi" placeholder="Traži po tekstu, knjizi, poglavlju…"></div>
-        <select id="citati-knjiga" style="width:auto"></select>
+      <p class="sitno poruke-napomena" id="citati-izmjene"></p>
+      <div id="poruke-lista">
+        <div class="alati">
+          <div class="trazi"><svg><use href="#i-lupa"/></svg><input type="search" id="citati-trazi" placeholder="Traži po tekstu, knjizi, poglavlju…"></div>
+        </div>
+        <div class="knjige-tabovi" id="citati-knjige" role="tablist" aria-label="Knjiga"></div>
+        <div class="red sitno" style="margin:-4px 0 14px">
+          <span id="citati-broj"></span>
+        </div>
+        <div class="povrsina redovi" id="citati"></div>
       </div>
-      <div class="red sitno" style="margin:-4px 0 14px">
-        <span id="citati-broj"></span>
-        <span class="razmak"></span>
-        <span id="citati-izmjene"></span>
-        <button class="tiho opasno" id="citati-ponisti" hidden><svg class="ik"><use href="#i-ponisti"/></svg> Poništi izmjene</button>
+      <!-- kalendar: poruka dana po danima; klik na dan zakazuje drugu poruku -->
+      <div id="poruke-kalendar" hidden>
+        <div class="kal-glava">
+          <button type="button" class="ikona-dugme" id="kal-nazad" aria-label="Prethodni mjesec"><svg class="ik"><use href="#i-lijevo"/></svg></button>
+          <h2 id="kal-naslov"></h2>
+          <button type="button" class="ikona-dugme" id="kal-naprijed" aria-label="Sljedeći mjesec"><svg class="ik"><use href="#i-desno"/></svg></button>
+          <button type="button" class="tiho" id="kal-danas">Danas</button>        </div>
+        <div class="kal" id="kal"></div>
+        <div class="kal-legenda sitno" id="kal-legenda"></div>
       </div>
-      <div class="povrsina redovi" id="citati"></div>
     </section>
 
     <!-- grafike za mreže: stranica /grafike, ugrađena; preuzimanje i dijeljenje rade i odavde -->
@@ -250,6 +264,29 @@
       <span class="razmak"></span>
       <button type="button" class="tiho" id="citat-odustani"><svg class="ik"><use href="#i-x"/></svg> Odustani</button>
       <button type="button" class="zlatno" id="citat-sacuvaj"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj poruku</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===== PORUKA ZA DAN: izbor poruke koja tog dana ide umjesto redoslijeda ===== -->
+<dialog class="dijalog dijalog--dan" id="dan-modal" aria-labelledby="dan-naslov">
+  <i class="rucka" aria-hidden="true"></i>
+  <form method="dialog" class="dijalog__karta dan-uredi">
+    <header class="dijalog__glava">
+      <span class="glava__ikona"><svg class="ik"><use href="#i-kalendar"/></svg></span>
+      <div class="glava__naslov"><span class="nad">Poruka dana za</span><h2 id="dan-naslov"></h2></div>
+      <button value="zatvori" class="tiho ikona-dugme glava__x" aria-label="Zatvori"><svg class="ik"><use href="#i-x"/></svg></button>
+    </header>
+    <p class="sitno dijalog__opis" id="dan-napomena"></p>
+    <div class="trazi"><svg><use href="#i-lupa"/></svg><input type="search" id="dan-trazi" placeholder="Traži poruku…"></div>
+    <div class="knjige-tabovi" id="dan-knjige" role="tablist" aria-label="Knjiga"></div>
+    <div class="dan-lista" id="dan-lista"></div>
+    <button type="button" class="dan-nova" id="dan-nova"><svg class="ik"><use href="#i-plus"/></svg> Nova poruka za ovaj dan</button>
+    <div class="red dan-dugmad">
+      <button type="button" class="tiho opasno" id="dan-vrati" hidden><svg class="ik"><use href="#i-ponisti"/></svg> Ukloni izbor</button>
+      <span class="razmak"></span>
+      <button type="button" class="tiho" id="dan-odustani"><svg class="ik"><use href="#i-x"/></svg> Odustani</button>
+      <button type="button" class="zlatno" id="dan-sacuvaj"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj</button>
     </div>
   </form>
 </dialog>

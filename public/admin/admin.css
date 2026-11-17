@@ -46,6 +46,12 @@ input, select, textarea {
 }
 input:hover, select:hover, textarea:hover { border-color: var(--line); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 18%, transparent); }
+/* strelica selecta: vlastita i uvučena od ruba — sistemska stoji uz sam rub */
+select {
+  appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23B4BEB4' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; background-size: 16px;
+}
 textarea { min-height: 96px; resize: vertical; line-height: 1.55; }
 
 .segment { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line-soft); }
@@ -487,6 +493,132 @@ svg.ik--okvir { width: 15px; height: 15px; fill: none; stroke: currentColor; str
 /* poruke: kad dolazi, koliko je puta bila poruka dana, dijeljenja */
 .citat__stat { grid-column: 2; display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: 12px; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
 .citat__stat .danas { color: var(--gold); font-weight: 600; }
+.citat__stat .zakazano { color: var(--gold-l); font-weight: 600; }
+.poruke-napomena { margin: -10px 0 14px; color: var(--gold); }
+.poruke-napomena:empty { display: none; }
+
+/* ---------- poruke: kalendar ----------
+   Mjesec po danima: broj poruke u krugu, knjiga (svaka svoja boja, --knjiga),
+   početak teksta i razmak od prošlog puta iste poruke (narandžast kad je
+   kraći od redovnog). Dan bez izabrane poruke je isprekidan i prazan, s
+   „Izaberi“. Na telefonu isti dani idu jedan ispod drugog, kao lista. */
+.kal-glava { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; }
+.kal-glava h2 { font-size: 24px; min-width: 190px; text-align: center; }
+.kal-glava #kal-danas { margin-left: auto; }
+.kal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.kal__ime { padding: 0 4px 2px; font: 700 10.5px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-mute); }
+.kal-dan {
+  position: relative; display: grid; grid-template-columns: 1fr auto; align-content: start; justify-content: stretch; gap: 3px 6px;
+  grid-template-areas: "datum br" "knjiga knjiga" "tekst tekst" "ponovo ponovo";
+  min-height: 140px; padding: 8px 10px 8px 13px; text-align: left; font-weight: 400; border-radius: 10px;
+  -webkit-touch-callout: none; touch-action: manipulation;
+}
+.kal-dan::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--knjiga, transparent); opacity: .85; }
+.kal-dan--prazno { background: none; border: 0; }
+.kal-dan--prazno::before { display: none; }
+.kal-dan:not(:disabled) { cursor: grab; }
+.kal-dan:disabled { opacity: .5; }
+.kal-dan:disabled:hover { background: var(--surface); border-color: var(--line-soft); }
+.kal-dan.danas { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.kal-dan.danas:disabled { opacity: .8; }
+.kal-dan.ista { border-color: color-mix(in srgb, var(--gold) 70%, transparent); background: color-mix(in srgb, var(--gold) 7%, var(--surface)); }
+.kal-dan__datum { grid-area: datum; display: flex; align-items: baseline; gap: 6px; }
+.kal-dan__datum b { font: 500 18px/1 var(--serif); }
+.kal-dan__datum small { display: none; font: 600 10.5px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-mute); }
+.kal-dan__br { grid-area: br; font: 600 12px var(--sans); color: var(--gold); font-variant-numeric: tabular-nums; }
+.kal-dan__knjiga { grid-area: knjiga; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 600 10.5px var(--sans); letter-spacing: .02em; color: var(--knjiga); }
+.kal-dan p { grid-area: tekst; margin: 0; font: 13.5px/1.35 var(--serif); color: var(--ink-soft); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.kal-dan__ponovo { grid-area: ponovo; font-size: 11px; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+.kal-dan__ponovo.brzo { color: #E6A85C; }
+/* dan bez izabrane poruke: prazan, isprekidan, sa „Izaberi“; sitno — šta ide ako ostane prazan */
+.kal-dan--bez { grid-template-areas: "datum datum" "izaberi izaberi" "inace inace"; background: transparent; border: 1px dashed var(--line); cursor: pointer; }
+.kal-dan--bez:hover { background: color-mix(in srgb, var(--gold) 6%, transparent); border-color: var(--gold); }
+.kal-dan__izaberi { grid-area: izaberi; align-self: center; margin-top: 18px; font: 600 12.5px var(--sans); color: var(--gold); }
+.kal-dan__inace { grid-area: inace; font-size: 10.5px; color: var(--ink-mute); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.kal-legenda { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 14px; }
+.kal-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.kal-knjiga { display: inline-block; width: 12px; height: 3px; border-radius: 2px; background: var(--knjiga); }
+
+/* prevlačenje: duh prati prst/miš, izvor ostaje kao isprekidan obris,
+   cilj se malo uvuče; poslije zamjene oba dana kratko zasvijetle */
+.kal-duh { position: fixed; z-index: 60; margin: 0; pointer-events: none; transform-origin: 50% 50%; will-change: transform;
+  background: var(--surface-2); border-color: var(--gold); box-shadow: 0 22px 44px -14px rgba(0,0,0,.7), 0 0 0 1px var(--gold);
+  transition: scale .18s cubic-bezier(.2, .8, .2, 1), rotate .18s cubic-bezier(.2, .8, .2, 1); }
+.kal-duh.podignut { scale: 1.05; rotate: -1.2deg; }
+.kal-duh--drugi { box-shadow: 0 12px 30px -12px rgba(0,0,0,.6), 0 0 0 1px var(--line); }
+.kal-dan--izvor { opacity: .28; border-style: dashed; border-color: var(--line); }
+.kal-dan--cilj { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, var(--surface)); scale: .96; transition: scale .15s, background .15s; }
+html.vuce, html.vuce * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; }
+@keyframes kalNovo {
+  0% { scale: .92; box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 65%, transparent); }
+  55% { scale: 1.03; box-shadow: 0 0 0 8px color-mix(in srgb, var(--gold) 0%, transparent); }
+  100% { scale: 1; }
+}
+.kal-dan--novo { animation: kalNovo .5s cubic-bezier(.2, .8, .2, 1); }
+.poruka.sa-dugmetom { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 16px; pointer-events: auto; }
+.poruka.sa-dugmetom button { padding: 7px 12px; color: var(--gold-l); }
+
+/* ---------- poruke: lista ----------
+   Boja knjige uz svaku poruku i tabovi po knjigama. */
+.citat { position: relative; }
+.citat::before { content: ''; position: absolute; left: 0; top: 18px; bottom: 18px; width: 3px; border-radius: 0 3px 3px 0; background: var(--knjiga, transparent); opacity: .85; }
+.citat__knjiga { color: var(--knjiga); font-weight: 600; }
+/* tabovi po knjigama (lista i izbor za dan): tačka u boji knjige, broj u bedžu,
+   aktivan tab podvučen bojom svoje knjige */
+.knjige-tabovi { position: relative; display: flex; gap: 2px; margin: -4px 0 12px; border-bottom: 1px solid var(--line-soft); overflow-x: auto; scrollbar-width: none; }
+.knjige-tabovi::-webkit-scrollbar { display: none; }
+.knjiga-tab { flex: none; position: relative; gap: 8px; padding: 10px 12px 11px; font-size: 13px; font-weight: 500; color: var(--ink-soft);
+  background: none; border: 0; border-radius: 8px 8px 0 0; white-space: nowrap; }
+.knjiga-tab:hover { background: var(--hover); border-color: transparent; color: var(--ink); }
+.knjiga-tab i { width: 8px; height: 8px; border-radius: 50%; background: var(--knjiga); flex: none; }
+.knjiga-tab .bedz { min-width: 20px; padding: 1px 6px; border-radius: 99px; font: 600 11px/1.5 var(--sans); text-align: center; font-variant-numeric: tabular-nums;
+  color: var(--ink-soft); background: var(--hover); }
+.knjiga-tab[aria-selected="true"] { color: var(--ink); }
+.knjiga-tab[aria-selected="true"]::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--knjiga, var(--gold)); }
+.knjiga-tab[aria-selected="true"] .bedz { color: var(--na-zlatu); background: var(--knjiga, var(--gold)); }
+@media (prefers-reduced-motion: reduce) { .kal-dan--novo { animation: none; } .kal-duh { transition: none !important; } }
+
+/* poruka za dan: lista za izbor, s bojom knjige */
+.dijalog.dijalog--dan { width: min(680px, calc(100% - 28px)); }
+.dan-lista { max-height: 44vh; overflow: auto; border: 1px solid var(--line-soft); border-radius: 12px; }
+.dan-izbor { position: relative; display: grid; grid-template-columns: 30px 1fr; gap: 2px 10px; width: 100%; padding: 10px 12px 10px 14px; text-align: left; align-items: start; justify-content: stretch;
+  font-weight: 400; border: 0; border-radius: 0; background: none; }
+.dan-izbor::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; background: var(--knjiga); opacity: .85; }
+.dan-izbor + .dan-izbor { border-top: 1px solid var(--line-soft); }
+.dan-izbor:hover { background: var(--hover); border-color: transparent; }
+.dan-izbor[aria-pressed="true"] { background: color-mix(in srgb, var(--gold) 16%, transparent); }
+.dan-izbor .citat__br { font-size: 16px; }
+.dan-izbor p { margin: 0; font: 15px/1.4 var(--serif); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dan-izbor .sitno { grid-column: 2; font-size: 11.5px; color: var(--ink-mute); }
+.dan-izbor .sitno b:not(.citat__knjiga) { color: var(--gold); font-weight: 600; }
+.dijalog--dan .knjige-tabovi { margin: -6px 0 -4px; }
+.dan-nova { justify-content: flex-start; width: 100%; padding: 12px 14px; border-style: dashed; border-color: var(--line); background: transparent; color: var(--gold); }
+.dan-nova:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 6%, transparent); }
+
+/* telefon: dan po dan — datum lijevo, knjiga i broj gore, tekst ispod;
+   sedmice razdvojene razmakom */
+@media (max-width: 720px) {
+  .kal { grid-template-columns: 1fr; gap: 6px; }
+  .kal__ime, .kal-dan--prazno { display: none; }
+  .kal-dan { grid-template-columns: 38px minmax(0, 1fr) auto; grid-template-areas: "datum knjiga br" "datum tekst tekst" "datum ponovo ponovo";
+    min-height: 0; padding: 10px 12px 10px 14px; gap: 2px 12px; }
+  .kal-dan--bez { grid-template-areas: "datum izaberi izaberi" "datum inace inace"; }
+  .kal-dan__izaberi { margin-top: 0; }
+  .kal-dan.pon:not(:first-of-type) { margin-top: 10px; }
+  .kal-dan__datum { flex-direction: column; align-items: center; gap: 3px; padding-top: 1px; }
+  .kal-dan__datum b { font-size: 22px; }
+  .kal-dan__datum small { display: block; font-size: 9.5px; }
+  .kal-dan__knjiga { font-size: 11px; align-self: center; }
+  .kal-dan p { font-size: 15px; -webkit-line-clamp: 2; color: var(--ink); }
+  .kal-dan:disabled p { color: var(--ink-soft); }
+  .kal-glava { flex-wrap: wrap; }
+  .kal-glava h2 { font-size: 20px; min-width: 0; flex: 1; }
+  .dan-lista { max-height: none; }
+  /* duga lista poruka: dugmad ostaju na dnu ekrana */
+  .dan-dugmad { position: sticky; bottom: 0; z-index: 1; margin: 0 -16px; padding: 12px 16px; background: var(--surface); border-top: 1px solid var(--line-soft); }
+  .dan-dugmad .razmak, #dan-odustani { display: none; }
+  #dan-sacuvaj { flex: 1; padding: 13px; font-size: 15px; }
+}
 
 /* izmjena predavanja: sakrij / obriši, umjesto prekidača za obavijest */
 .upravljanje { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }

@@ -656,15 +656,25 @@ export async function nacrtajRaspored(cv, lista, {
       const r = lomiDijelove(c, dijeloviReda(p), wt);
       return r.length > 3 ? [r[0], r[1], skrati(c, r.slice(2).join(' '), wt)] : r;
     });
-    const hL = F.mj * k * 2.1 + fd * 1.05;                    // list kalendara: traka s mjesecom + dan
-    const hR = F.grad * k * 1.15 + U * .5 * k + fmj * 1.3 * Math.max(1, ...opisi.map(o => o.length));
-    const rh = Math.max(hL, hR) + U * 3.2 * k, uKoloni = Math.ceil(n / kol);
-    return { k, kol, kolW, dw, hL, rh, opisi, uKoloni, stane: uKoloni * rh <= prostor };
+    const bh = F.mj * k * 2.1, hL = bh + fd * 1.05;           // list kalendara: traka s mjesecom + dan
+    /* Grad i opis su zbijen blok (od vrha slova grada do osnovne linije
+       zadnjeg reda), centriran po visini lista. Kad opis ima više redova
+       nego što list primi, list se produži — blok nikad ne viri. */
+    // mjere se od osnovne linije — ostatak sloga radi sa 'middle'
+    c.textBaseline = 'alphabetic';
+    const vrhSlova = font => { c.font = font; return c.measureText('H').actualBoundingBoxAscent; };
+    const capG = vrhSlova(`700 ${F.grad * k}px ${SANS}`), capM = vrhSlova(`500 ${fmj}px ${SANS}`);
+    c.textBaseline = 'middle';
+    const razmakG = U * 1.25 * k;                                // od grada do opisa (i kvačica na Č, Š)
+    const visTeksta = o => capG + razmakG + capM + fmj * 1.3 * (o.length - 1);
+    const hB = Math.max(hL, ...opisi.map(o => visTeksta(o) + U * 1.2 * k));
+    const rh = hB + U * 3.2 * k, uKoloni = Math.ceil(n / kol);
+    return { k, kol, kolW, dw, hB, bh, capG, visTeksta, rh, opisi, uKoloni, stane: uKoloni * rh <= prostor };
   };
   const najvece = kol => { let k = 1.25, r; do { r = slozi(k, kol); k *= .96; } while (!r.stane && k > .3); return r; };
   let L = najvece(1);
   if (L.k < .6 && n > 5) { const L2 = najvece(2); if (L2.k > L.k) L = L2; }
-  const { kol, k, kolW, dw, hL, rh, opisi, uKoloni } = L;
+  const { kol, k, kolW, dw, hB, bh, capG, visTeksta, rh, opisi, uKoloni } = L;
   const fd = F.dan * k, fm = F.mj * k, fg = F.grad * k, fmj = F.mjesto * k;
 
   const visBloka = visGlave + uKoloni * rh + U * 1.5 + lk.vis;
@@ -705,13 +715,13 @@ export async function nacrtajRaspored(cv, lista, {
 
       // datum kao list kalendara, isti kao u aplikaciji: gore zlatna traka s
       // mjesecom, ispod krupan dan; broj se centrira po stvarnom crtežu cifara
-      const topL = yc - hL / 2, xd = x + dw / 2;
-      const lw = dw * .92, lx = x + (dw - lw) / 2, bh = fm * 2.1, rr = lw * .18;
-      const okvirLista = () => { c.beginPath(); c.roundRect ? c.roundRect(lx, topL, lw, hL, rr) : c.rect(lx, topL, lw, hL); };
+      const topL = yc - hB / 2, xd = x + dw / 2;
+      const lw = dw * .92, lx = x + (dw - lw) / 2, rr = lw * .18;
+      const okvirLista = () => { c.beginPath(); c.roundRect ? c.roundRect(lx, topL, lw, hB, rr) : c.rect(lx, topL, lw, hB); };
       c.save();
       okvirLista(); c.clip();
       c.fillStyle = saAlfom(s.gold, s.id === 'krem' ? .07 : .1);
-      c.fillRect(lx, topL, lw, hL);
+      c.fillRect(lx, topL, lw, hB);
       const traka = c.createLinearGradient(lx, topL, lx + lw, topL + bh);
       traka.addColorStop(0, s.navod);
       traka.addColorStop(1, s.gold);
@@ -731,13 +741,14 @@ export async function nacrtajRaspored(cv, lista, {
       c.fillStyle = s.ink;
       c.font = `700 ${fd * .86}px ${DISPLAY}`;
       const mb = c.measureText(String(d));
-      c.fillText(String(d), xd, topL + bh + (hL - bh) / 2 + (mb.actualBoundingBoxAscent - mb.actualBoundingBoxDescent) / 2);
+      c.fillText(String(d), xd, topL + bh + (hB - bh) / 2 + (mb.actualBoundingBoxAscent - mb.actualBoundingBoxDescent) / 2);
       c.textAlign = 'left';
 
-      // grad, pa van BiH zastava (i država, ako stane) u istom redu, ispod dan, sat i mjesto
-      const hR = fg * 1.15 + U * .5 * k + fmj * 1.3 * o.length;
-      const xt = x + dw + U * 2.8 * k, wt = x + kolW - xt, topR = yc - hR / 2;
-      const y1 = topR + fg * 1.15 / 2;
+      // grad, pa van BiH zastava (i država, ako stane) u istom redu, ispod dan,
+      // sat i mjesto — zbijeno, u sredini visine lista
+      const xt = x + dw + U * 2.8 * k, wt = x + kolW - xt;
+      const vrhB = yc - visTeksta(o) / 2;
+      const bazaG = vrhB + capG, y1 = vrhB + capG / 2;
       const zImg = zastave[p.drzava];
       const zh = fm * 1.3, zwd = zh * 1.5, zRaz = U * 1.3 * k;
       const wg = wt - (zImg ? zRaz + zwd : 0);     // zastavi se uvijek ostavi mjesta
@@ -747,7 +758,7 @@ export async function nacrtajRaspored(cv, lista, {
       while (c.measureText(grad).width > wg && fgg > fg * .75) { fgg *= .95; c.font = `700 ${fgg}px ${SANS}`; }
       const tg = skrati(c, grad, wg);
       c.fillStyle = s.ink;
-      c.fillText(tg, xt, y1);
+      c.fillText(tg, xt, bazaG);
       if (zImg) {
         let xz = xt + c.measureText(tg).width + zRaz;
         c.font = `700 ${fm}px ${SANS}`;
@@ -761,12 +772,13 @@ export async function nacrtajRaspored(cv, lista, {
         xz += zwd + U * .8 * k;
         if (ime && xz + c.measureText(ime).width + ime.length * W * 0.005 * k <= x + kolW) {
           c.fillStyle = blijedo(s, .78);
-          razmaknuto(c, ime, xz, y1, W * 0.005 * k);
+          razmaknuto(c, ime, xz, y1 + c.measureText('H').actualBoundingBoxAscent / 2, W * 0.005 * k);
         }
       }
       c.fillStyle = blijedo(s, .72);
       c.font = `500 ${fmj}px ${SANS}`;
-      o.forEach((r, j) => c.fillText(r, xt, topR + fg * 1.15 + U * .5 * k + fmj * 1.3 * (j + .5)));
+      const bazaDno = vrhB + visTeksta(o);
+      o.forEach((r, j) => c.fillText(r, xt, bazaDno - fmj * 1.3 * (o.length - 1 - j)));
     });
     if (red.length) linija(x, y + red.length * rh, x + kolW, y + red.length * rh, .22);
   }

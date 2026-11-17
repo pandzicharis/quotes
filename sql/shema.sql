@@ -168,3 +168,34 @@ revoke all on function public.zabiljezi_dogadjaj(text, text) from public, anon, 
 -- Supabase ovo daje i sam; ovdje stoji da ne zavisi od podrazumijevanih prava
 grant select, insert, update, delete on public.dogadjaji to service_role;
 grant execute on function public.zabiljezi_dogadjaj(text, text) to service_role;
+
+-- ---------- poruke dana i raspored (admin ih uređuje) ----------
+-- Poruka dana = aktivne poruke po `redoslijed`, broj dana % broj aktivnih —
+-- ista formula u aplikaciji i u slanju. `obrisana` je meko brisanje: sačuvane
+-- poruke u aplikaciji se vežu za id, pa obrisana ostaje, samo ne ide u krug.
+-- Početni sadržaj: sql/poruke-pocetne.sql (35 poruka iz data/poruke.json).
+-- Dok je tabela prazna ili je nema, aplikacija i slanje rade iz poruke.json.
+create table if not exists public.poruke (
+  id           integer     primary key,
+  tekst        text        not null check (length(tekst) between 1 and 2000),
+  knjiga       text        not null default '',
+  poglavlje    text,
+  redoslijed   integer     not null,
+  obrisana     boolean     not null default false,
+  napravljeno  timestamptz not null default now(),
+  izmijenjeno  timestamptz not null default now()
+);
+
+-- Poruka zakazana za određeni dan; dan bez reda ide po redoslijedu.
+create table if not exists public.raspored_poruka (
+  dan          date        primary key,
+  poruka       integer     not null,
+  napravljeno  timestamptz not null default now()
+);
+
+alter table public.poruke          enable row level security;
+alter table public.raspored_poruka enable row level security;
+revoke all on public.poruke          from anon, authenticated;
+revoke all on public.raspored_poruka from anon, authenticated;
+grant select, insert, update, delete on public.poruke          to service_role;
+grant select, insert, update, delete on public.raspored_poruka to service_role;

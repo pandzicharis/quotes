@@ -34,7 +34,7 @@ let stil = 'zelena', format = 'objava', opcije = { ...OPCIJE };
 function obavijest(t, greska = false) {
   const el = $('#poruka');
   ($('dialog[open]') || document.body).append(el);     // otvoren dijalog je u gornjem sloju — poruka mora u njega
-  el.textContent = t; el.classList.toggle('greska', greska); el.classList.add('on');
+  el.textContent = t; el.classList.toggle('greska', greska); el.classList.remove('sa-dugmetom'); el.classList.add('on');
   clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('on'), 2600);
 }
 
@@ -56,6 +56,7 @@ async function ucitaj() {
     $('#rezim').hidden = !radiLokalno();
     $('[data-popuni]').hidden = !radiLokalno();
     crtajSve();
+    pogled(pogledIzAdrese());
     return true;
   } catch (e) {
     if (e.status === 401) {
@@ -77,10 +78,16 @@ $('#f-prijava').addEventListener('submit', async e => {
 });
 $('#odjava').addEventListener('click', () => { localStorage.removeItem(TAJNA); location.reload(); });
 
-/* ---------- pogledi ---------- */
+/* ---------- pogledi ----------
+   Otvoreni ekran stoji u adresi (#poruke, #statistika…), pa ga osvježavanje
+   stranice ne vraća na predavanja. */
+const ADRESE = { lista: 'predavanja', citati: 'poruke', statistika: 'statistika', grafike: 'grafike' };
+const pogledIzAdrese = () => Object.keys(ADRESE).find(k => `#${ADRESE[k]}` === location.hash) || 'lista';
+
 function pogled(ime) {
   $$('[data-pogled]').forEach(s => { s.hidden = s.dataset.pogled !== ime; });
   $$('[data-tab]').forEach(b => b.setAttribute('aria-current', String(b.dataset.tab === ime)));
+  history.replaceState(null, '', `${location.pathname}${location.search}#${ADRESE[ime]}`);
   scrollTo({ top: 0 });
   if (ime === 'citati') ucitajCitate();
   if (ime === 'statistika') ucitajStatistiku();
@@ -742,30 +749,89 @@ $$('#izvoz [data-izvezi]').forEach(b => b.addEventListener('click', () => {
   izveziRaspored(red, b);
 }));
 
-/* ---------- poruke (citati) ---------- */
-/* Za sada se čuvaju u ovom pregledniku — kako će ići na produkciji (baza
-   ili fajl) odlučuje se kasnije. */
-let izvor = null;          // poruke.json sa servera
-let citati = [];
+/* ---------- poruke (citati) i raspored ----------
+   Poruke i raspored po datumima su u bazi (/api/poruke): „Sačuvaj“ upisuje
+   odmah, a aplikacija i notifikacije vide izmjenu za minut-dva. Poruka dana
+   = aktivne poruke po redoslijedu, broj dana % broj poruka — osim dana za
+   koje je zakazana druga. Lokalno, bez /api, sve ide u ovaj preglednik. */
+const RASPORED_LOK = 'pd.rasporedLokalno';
+const PORUKE_POGLED = 'pd.adminPorukePogled';
+let izvor = null;          // poruke.json sa servera: knjige (i rezervna lista)
+let citati = [];           // sve poruke, i obrisane, po redoslijedu
+let raspored = {};         // { 'YYYY-MM-DD': id }
+let porukeLokalno = false;
+let porukeNapomena = '';
 let urediCitat = null;
+let porukePogled = localStorage.getItem(PORUKE_POGLED) === 'kalendar' ? 'kalendar' : 'lista';
+
+const aktivni = () => citati.filter(c => !c.obrisana);
 
 async function ucitajCitate() {
   if (!izvor) {
     izvor = await fetch('/data/poruke.json', { cache: 'no-cache' }).then(r => r.json());
-    let lok = null;
-    try { lok = JSON.parse(localStorage.getItem(CITATI)); } catch { /* nema */ }
-    citati = lok || izvor.poruke.slice();
     const opcijeKnjiga = izvor.knjige.map(k => `<option value="${k.id}">${esc(k.naslov)}</option>`).join('');
-    $('#citati-knjiga').innerHTML = `<option value="">Sve knjige</option>${opcijeKnjiga}`;
     $('#citat-knjiga').innerHTML = opcijeKnjiga;
+    await procitajPoruke();
     ucitajStatistikuPoruka();                    // ne čeka se — lista se vidi odmah, brojke stignu
   }
-  crtajCitate();
+  crtajPoruke();
+}
+
+/* Poziv na /api/poruke. Lokalno (statični server, nema JSON-a) vraća null. */
+async function apiPoruke(metoda = 'GET', upit = '', tijelo) {
+  const r = await fetch(`/api/poruke${upit}`, {
+    method: metoda,
+    cache: 'no-store',
+    headers: {
+      ...(metoda !== 'GET' ? { Authorization: `Bearer ${tajna}` } : {}),
+      ...(tijelo ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: tijelo ? JSON.stringify(tijelo) : undefined,
+  });
+  if (!(r.headers.get('content-type') || '').includes('json')) {
+    if (jeLokalniHost) return null;
+    throw new Error(`Server je vratio ${r.status}`);
+  }
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.greska || `Greška ${r.status}`);
+  return d;
+}
+
+async function procitajPoruke() {
+  porukeNapomena = '';
+  try {
+    const d = await apiPoruke('GET', '?svjeze=1');
+    if (d) {
+      porukeLokalno = false;
+      raspored = d.raspored || {};
+      if (d.poruke.length) { citati = d.poruke; return; }
+      porukeNapomena = 'Baza poruka je prazna — prikazane su poruke iz poruke.json. Pokreni sql/poruke-pocetne.sql.';
+      citati = izvor.poruke.map((p, i) => ({ ...p, redoslijed: i + 1 }));
+      return;
+    }
+  } catch (e) {
+    porukeNapomena = `Poruke iz baze nisu stigle (${e.message}) — prikazane su iz poruke.json, čuvanje ne radi.`;
+    citati = izvor.poruke.map((p, i) => ({ ...p, redoslijed: i + 1 }));
+    return;
+  }
+  // lokalno: ovaj preglednik
+  porukeLokalno = true;
+  let lok = null;
+  try { lok = JSON.parse(localStorage.getItem(CITATI)); } catch { /* nema */ }
+  citati = lok || izvor.poruke.map((p, i) => ({ ...p, redoslijed: i + 1 }));
+  try { raspored = JSON.parse(localStorage.getItem(RASPORED_LOK)) || {}; } catch { raspored = {}; }
+}
+
+function pisiLokalno() {
+  try {
+    localStorage.setItem(CITATI, JSON.stringify(citati));
+    localStorage.setItem(RASPORED_LOK, JSON.stringify(raspored));
+  } catch { obavijest('Preglednik ne da da se sačuva', true); }
 }
 
 /* Statistika po poruci (/api/analitika?poruke=1): koliko je puta bila poruka
    dana, zadnji put, dijeljenja. Lokalno servera nema — tada se vidi samo kad
-   poruka sljedeći put dolazi, što se računa iz redoslijeda. */
+   poruka sljedeći put dolazi. */
 let statPoruka = null;
 async function ucitajStatistikuPoruka() {
   if (jeLokalniHost) return;
@@ -775,59 +841,491 @@ async function ucitajStatistikuPoruka() {
   } catch { /* bez brojki — lista radi isto */ }
 }
 
-/* Poruka dana = dan % broj poruka (kao u aplikaciji), pa se iz mjesta u
-   listi zna za koliko dana poruka dolazi: 0 je danas. */
-function zaKolikoDana(i, n) {
-  const d = new Date(), t = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5);
-  return (((i - t) % n) + n) % n;
-}
-const kratkiDatum = d => `${d.getDate()}. ${MJESECI_KRATKO[d.getMonth()]}`;
+/* ---------- koja je poruka kojeg dana ----------
+   Isto pravilo kao aplikacija i slanje (porukaZaDatum u api/_lib/push.js):
+   poruka koju je admin izabrao za dan; inače krug se nastavlja od zadnjeg
+   izabranog dana (dan poslije poruke X dobija poruku iza X); dok ništa nije
+   izabrano — broj dana % broj poruka, kao ranije. */
+const brojDanaK = k => { const [g, m, d] = k.split('-').map(Number); return Math.floor(Date.UTC(g, m - 1, d) / 864e5); };
+const izKljucaD = k => { const [g, m, d] = k.split('-').map(Number); return new Date(g, m - 1, d); };
+const pomakni = (k, n) => { const d = izKljucaD(k); d.setDate(d.getDate() + n); return kljucD(d); };
+const danasK = () => kljucD(new Date());
 
-function statistikaCitata(c) {
-  const k = zaKolikoDana(citati.indexOf(c), citati.length);
+/* Poruka dana kreće u 10 h po Sarajevu. Od tada se današnji dan (kao i svi
+   prošli) više ne mijenja — ni ovdje, ni na serveru (/api/poruke to odbija). */
+const SAT_PORUKE = 10;
+const satSarajevo = () => Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Sarajevo', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+const zakljucan = k => k < danasK() || (k === danasK() && satSarajevo() >= SAT_PORUKE);
+
+/** Poruka izabrana za dan, ako je još u krugu. */
+const izabrana = (k, lista = aktivni()) => (raspored[k] != null && lista.find(c => c.id === raspored[k])) || null;
+
+/** Šta ide na dan bez izbora: nastavak kruga od zadnjeg izabranog dana. */
+function nastavak(k, lista = aktivni()) {
+  const n = lista.length;
+  if (!n) return null;
+  for (const x of Object.keys(raspored).filter(y => y < k).sort().reverse()) {
+    const j = lista.findIndex(c => c.id === raspored[x]);
+    if (j >= 0) return lista[(j + brojDanaK(k) - brojDanaK(x)) % n];
+  }
+  return lista[((brojDanaK(k) % n) + n) % n];
+}
+const porukaNaDan = (k, lista = aktivni()) => izabrana(k, lista) || nastavak(k, lista);
+
+/** Poruke za `n` uzastopnih dana od `od`, u jednom prolazu: dan bez izbora je
+    poruka iza one od prethodnog dana — isto što i nastavak kruga. */
+function niz(od, n) {
+  const lista = aktivni(), m = lista.length, dani = [];
+  if (!m) return dani;
+  let k = od, prije = -1;
+  for (let i = 0; i < n; i++, k = pomakni(k, 1)) {
+    const p = izabrana(k, lista) || (i === 0 ? nastavak(k, lista) : lista[(prije + 1) % m]);
+    dani.push(p);
+    prije = lista.indexOf(p);
+  }
+  return dani;
+}
+
+const kratkiDatum = d => `${d.getDate()}. ${MJESECI_KRATKO[d.getMonth()]}`;
+const zaDana = k => (k === 1 ? 'sutra' : `za ${k} dana`);
+const prijeDana = k => (k === 1 ? 'jučer' : `prije ${k} dana`);
+const imeKnjige = id => izvor?.knjige.find(k => k.id === id)?.naslov || id || '';
+const oznaci = (t, q) => (q ? esc(t).replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>') : esc(t));
+// svaka knjiga svoja boja — u kalendaru, listi i izboru se vidi kako se smjenjuju
+const BOJE_KNJIGA = ['#E9C77E', '#8FC9A8', '#E39C80', '#93B5E6', '#C6A2E0', '#E59AB4', '#B9C97A', '#7FC4C9'];
+const bojaKnjige = id => BOJE_KNJIGA[Math.max(0, izvor.knjige.findIndex(k => k.id === id)) % BOJE_KNJIGA.length];
+
+function crtajPoruke() {
+  const kal = porukePogled === 'kalendar';
+  $$('[data-poruke-pogled]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.porukePogled === porukePogled)));
+  $('#poruke-lista').hidden = kal;
+  $('#poruke-kalendar').hidden = !kal;
+  $('#citati-izmjene').textContent = porukeLokalno ? 'Lokalni režim — poruke se čuvaju u ovom pregledniku' : porukeNapomena;
+  if (kal) crtajKalendar(); else crtajCitate();
+}
+
+/* ---------- lista ----------
+   Svaka poruka jednom, s bojom svoje knjige i tabovima po knjigama. Šta ide
+   kojeg dana — to je kalendar. */
+let filtKnjiga = '';
+
+function statistikaCitata(c, naprijed) {
+  const k = naprijed.indexOf(c);
   const s = statPoruka?.[c.id];
-  const dalje = new Date(); dalje.setDate(dalje.getDate() + k);
+  const danas = danasK();
+  const izabrano = Object.keys(raspored).filter(d => d > danas && raspored[d] === c.id).sort();
   const dijeljeno = s ? (s.dijeljenje || 0) + (s.preuzimanje || 0) + (s.kopiranje || 0) : 0;
   return [
-    k === 0 ? '<b class="danas">Danas je poruka dana</b>' : `sljedeći put ${kratkiDatum(dalje)}`,
+    k === 0 ? '<b class="danas">Danas je poruka dana</b>'
+      : k > 0 ? `sljedeći put ${kratkiDatum(izKljucaD(pomakni(danas, k)))}` : '',
+    izabrano.length ? `<b class="zakazano">izabrana: ${izabrano.slice(0, 3).map(d => kratkiDatum(izKljucaD(d))).join(', ')}${izabrano.length > 3 ? ` +${izabrano.length - 3}` : ''}</b>` : '',
     s ? `${s.prikazano || 0}× poruka dana${s.zadnje && k !== 0 ? ` · zadnji put ${kratkiDatum(new Date(`${s.zadnje}T12:00:00`))}` : ''}` : '',
     dijeljeno ? `podijeljeno ${dijeljeno} (7 dana)` : '',
     s?.sacuvano ? `sačuvano ${s.sacuvano} (7 dana)` : '',
   ].filter(Boolean).map(t => `<span>${t}</span>`).join('');
 }
 
-const imeKnjige = id => izvor?.knjige.find(k => k.id === id)?.naslov || id || '';
-const oznaci = (t, q) => (q ? esc(t).replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>') : esc(t));
+/** Tabovi po knjigama (lista i izbor poruke za dan): tačka u boji knjige,
+    naziv i broj poruka u bedžu; aktivan tab podvučen bojom knjige. */
+function crtajTaboveKnjiga(el, lista, aktivna) {
+  const broj = id => lista.filter(c => c.knjiga === id).length;
+  el.innerHTML = [
+    `<button type="button" role="tab" class="knjiga-tab" data-knjiga="" aria-selected="${!aktivna}">Sve <span class="bedz">${lista.length}</span></button>`,
+    ...izvor.knjige.filter(k => broj(k.id)).map(k => `<button type="button" role="tab" class="knjiga-tab" data-knjiga="${k.id}"
+      aria-selected="${aktivna === k.id}" style="--knjiga:${bojaKnjige(k.id)}"><i></i>${esc(k.naslov)} <span class="bedz">${broj(k.id)}</span></button>`),
+  ].join('');
+  // aktivan tab u vidno polje — skrola samo traka tabova, ne stranica
+  const a = el.querySelector('[aria-selected="true"]');
+  if (a && el.scrollWidth > el.clientWidth) el.scrollLeft = Math.max(0, a.offsetLeft - (el.clientWidth - a.offsetWidth) / 2);
+}
+const crtajKnjigeFilter = lista => crtajTaboveKnjiga($('#citati-knjige'), lista, filtKnjiga);
 
 function crtajCitate() {
+  if (porukePogled === 'kalendar') return;
   const q = $('#citati-trazi').value.trim();
   const ql = q.toLowerCase();
-  const knjiga = $('#citati-knjiga').value;
-  const red = citati.filter(c => (!knjiga || c.knjiga === knjiga)
+  const lista = aktivni();
+  const naprijed = niz(danasK(), 400);
+  crtajKnjigeFilter(lista);
+  const red = lista.filter(c => (!filtKnjiga || c.knjiga === filtKnjiga)
     && (!ql || [c.tekst, c.poglavlje, c.tema, imeKnjige(c.knjiga)].join(' ').toLowerCase().includes(ql)));
-  $('#citati-broj').textContent = `${red.length} od ${citati.length}`;
-  const lokalno = localStorage.getItem(CITATI) !== null;
-  $('#citati-izmjene').textContent = lokalno ? 'Izmjene su samo u ovom pregledniku — izvezi ih za objavu' : '';
-  $('#citati-ponisti').hidden = !lokalno;
-  // redni broj je mjesto citata u redoslijedu kojim ih aplikacija prikazuje, dan za danom
-  $('#citati').innerHTML = red.map(c => `<div class="citat" data-citat="${c.id}">
-    <span class="citat__br">${citati.indexOf(c) + 1}.</span>
+  $('#citati-broj').textContent = `${red.length} od ${lista.length}`;
+  // redni broj je mjesto poruke u krugu kojim ih aplikacija prikazuje, dan za danom
+  $('#citati').innerHTML = red.map(c => `<div class="citat" data-citat="${c.id}" style="--knjiga:${bojaKnjige(c.knjiga)}">
+    <span class="citat__br">${lista.indexOf(c) + 1}.</span>
     <p>${oznaci(c.tekst, q)}</p>
-    <span class="sitno">${oznaci(imeKnjige(c.knjiga), q)}${c.poglavlje || c.tema ? ` · ${oznaci(c.poglavlje || c.tema, q)}` : ''}</span>
-    <span class="citat__stat">${statistikaCitata(c)}</span>
-  </div>`).join('') || '<p class="prazno">Nijedan citat ne odgovara pretrazi.</p>';
+    <span class="sitno"><b class="citat__knjiga">${oznaci(imeKnjige(c.knjiga), q)}</b>${c.poglavlje || c.tema ? ` · ${oznaci(c.poglavlje || c.tema, q)}` : ''}</span>
+    <span class="citat__stat">${statistikaCitata(c, naprijed)}</span>
+  </div>`).join('') || '<p class="prazno">Nijedna poruka ne odgovara pretrazi.</p>';
 }
 $('#citati-trazi').addEventListener('input', crtajCitate);
-$('#citati-knjiga').addEventListener('change', crtajCitate);
+$('#citati-knjige').addEventListener('click', e => {
+  const b = e.target.closest('[data-knjiga]');
+  if (!b) return;
+  filtKnjiga = filtKnjiga === b.dataset.knjiga ? '' : b.dataset.knjiga;
+  crtajCitate();
+});
+$$('[data-poruke-pogled]').forEach(b => b.addEventListener('click', () => {
+  porukePogled = b.dataset.porukePogled;
+  try { localStorage.setItem(PORUKE_POGLED, porukePogled); } catch { /* tiho */ }
+  crtajPoruke();
+}));
 
+/* ---------- kalendar ----------
+   Mjesec po danima. Dan s izabranom porukom pokazuje knjigu, tekst i koliko
+   je dana prošlo od prošlog puta iste poruke. Dan bez izbora je prazan, s
+   „Izaberi“ — a sitno piše šta ide ako ostane prazan (nastavak kruga), da
+   slanje nikad ne ostane bez poruke. Na telefonu je mjesec lista dana. */
+let kalMjesec = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
+const DANI_KRATKO = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
+const NAZAD = 400;   // koliko dana unazad se traži prethodno pojavljivanje
+
+function crtajKalendar() {
+  const lista = aktivni();
+  const n = lista.length;
+  const prvi = kljucD(kalMjesec);
+  const dana = new Date(kalMjesec.getFullYear(), kalMjesec.getMonth() + 1, 0).getDate();
+  const dani = niz(pomakni(prvi, -NAZAD), NAZAD + dana + NAZAD);    // i unaprijed, za „ponovo za“
+  const danas = danasK();
+  const mj = MJESECI[kalMjesec.getMonth()];
+  $('#kal-naslov').textContent = `${mj[0].toUpperCase()}${mj.slice(1)} ${kalMjesec.getFullYear()}.`;
+  $('#kal-danas').disabled = prvi === kljucD(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+
+  const celije = [];
+  for (let i = 0; i < (kalMjesec.getDay() + 6) % 7; i++) celije.push('<span class="kal-dan kal-dan--prazno"></span>');
+  for (let i = 0; i < dana; i++) {
+    const k = pomakni(prvi, i);
+    const j = NAZAD + i;
+    const p = dani[j];
+    if (!p) continue;
+    const d = izKljucaD(k);
+    const sedmica = (d.getDay() + 6) % 7;
+    const zaklj = zakljucan(k);
+    const iz = !!izabrana(k, lista);
+    const br = lista.indexOf(p) + 1;
+    const datum = `<span class="kal-dan__datum"><b>${d.getDate()}</b><small>${DANI_KRATKO[sedmica]}</small></span>`;
+    const klase = `kal-dan${k === danas ? ' danas' : ''}${sedmica === 0 ? ' pon' : ''}`;
+
+    // dan bez izbora, koji se još može mijenjati: prazan
+    if (!iz && !zaklj) {
+      celije.push(`<button type="button" class="${klase} kal-dan--bez" data-dan="${k}" data-poruka=""
+          title="${esc(`${kratkiDatum(d)}: poruka nije izabrana — ako ostane tako, ide poruka ${br} (nastavak kruga)`)}">
+        ${datum}
+        <span class="kal-dan__izaberi">+ Izaberi</span>
+        <span class="kal-dan__inace">inače ${br} · ${esc(imeKnjige(p.knjiga))}</span>
+      </button>`);
+      continue;
+    }
+
+    let prije = 0, poslije = 0;
+    for (let x = j - 1; x >= 0; x--) if (dani[x] === p) { prije = j - x; break; }
+    for (let x = j + 1; x < dani.length; x++) if (dani[x] === p) { poslije = x - j; break; }
+    const opis = [
+      `${DANI_KRATKO[sedmica]}, ${kratkiDatum(d)}: poruka ${br}, ${imeKnjige(p.knjiga)}`,
+      iz ? '' : 'nije bila izabrana — išao je nastavak kruga',
+      prije ? `ista poruka ${prijeDana(prije)}` : 'ranije nije bila poruka dana',
+      poslije ? `ponovo ${zaDana(poslije)}` : '',
+      zaklj && k === danas ? `poslana u ${SAT_PORUKE} h — više se ne mijenja` : '',
+    ].filter(Boolean).join(' · ');
+    celije.push(`<button type="button" class="${klase}" data-dan="${k}" data-poruka="${p.id}"
+        style="--knjiga:${bojaKnjige(p.knjiga)}" title="${esc(opis)}"${zaklj ? ' disabled' : ''}>
+      ${datum}
+      <span class="kal-dan__br">${br}</span>
+      <span class="kal-dan__knjiga">${esc(imeKnjige(p.knjiga))}</span>
+      <p>${esc(p.tekst)}</p>
+      <span class="kal-dan__ponovo${prije && prije < n ? ' brzo' : ''}">${prije ? `↻ ${prije} d` : ''}</span>
+    </button>`);
+  }
+  $('#kal').innerHTML = DANI_KRATKO.map(d => `<span class="kal__ime">${d}</span>`).join('') + celije.join('');
+  $('#kal-legenda').innerHTML = izvor.knjige
+    .map(k => `<span><i class="kal-knjiga" style="--knjiga:${bojaKnjige(k.id)}"></i>${esc(k.naslov)}</span>`).join('');
+}
+$('#kal-nazad').addEventListener('click', () => { kalMjesec.setMonth(kalMjesec.getMonth() - 1); crtajKalendar(); });
+$('#kal-naprijed').addEventListener('click', () => { kalMjesec.setMonth(kalMjesec.getMonth() + 1); crtajKalendar(); });
+$('#kal-danas').addEventListener('click', () => { const d = new Date(); kalMjesec = new Date(d.getFullYear(), d.getMonth(), 1); crtajKalendar(); });
+$('#kal').addEventListener('click', e => {
+  if (poslijeVuce) return;
+  const b = e.target.closest('[data-dan]');
+  if (b && !b.disabled) otvoriDan(b.dataset.dan);
+});
+
+/* Prelaz mišem preko dana istakne sve dane tog mjeseca s istom porukom —
+   ponavljanje se vidi bez čitanja brojeva. */
+$('#kal').addEventListener('mouseover', e => {
+  if (vuca?.aktivno) return;
+  const id = e.target.closest('[data-poruka]')?.dataset.poruka;
+  $$('#kal [data-poruka]').forEach(c => c.classList.toggle('ista', !!id && c.dataset.poruka === id));
+});
+$('#kal').addEventListener('mouseleave', () => $$('#kal .ista').forEach(c => c.classList.remove('ista')));
+
+/** Upisuje izbor za više dana odjednom: { 'YYYY-MM-DD': id ili null } (null
+    briše izbor — dan tada nastavlja krug). Kalendar se mijenja odmah, ne
+    čeka server; ako upis padne, raspored se ponovo čita iz baze. Vraća
+    prethodno stanje tih dana — za „Poništi“. */
+async function upisiDane(promjene) {
+  const lista = aktivni();
+  const prije = {}, cisto = {};
+  for (const [k, id] of Object.entries(promjene)) {
+    prije[k] = raspored[k] ?? null;
+    cisto[k] = id != null && lista.some(c => c.id === id) ? id : null;   // obrisana poruka = bez izbora
+    if (cisto[k] == null) delete raspored[k]; else raspored[k] = cisto[k];
+  }
+  if (porukeLokalno) { pisiLokalno(); return prije; }
+  try {
+    await apiPoruke('PUT', '?raspored=1', { dani: cisto });
+  } catch (e) {
+    await procitajPoruke();
+    throw e;
+  }
+  return prije;
+}
+
+/* Obavijest s dugmetom „Poništi“ — svaka izmjena rasporeda se može vratiti. */
+function obavijestPonisti(tekst, ponisti) {
+  const el = $('#poruka');
+  document.body.append(el);
+  el.classList.remove('greska');
+  el.innerHTML = `<span>${esc(tekst)}</span><button type="button" class="tiho">Poništi</button>`;
+  el.classList.add('on', 'sa-dugmetom');
+  el.querySelector('button').addEventListener('click', async () => {
+    el.classList.remove('on', 'sa-dugmetom');
+    try { await ponisti(); crtajPoruke(); obavijest('Vraćeno kako je bilo'); } catch (e) { obavijest(e.message, true); }
+  }, { once: true });
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('on', 'sa-dugmetom'), 7000);
+}
+
+/* ---------- kalendar: prevlačenje ----------
+   Dan se prevuče na drugi i poruke ta dva dana zamijene mjesta (oba dana
+   time dobiju izbor). Mišem kreće čim se pomjeri par piksela; prstom tek
+   poslije kratkog držanja, da obično povlačenje ostane skrolanje. Prošli
+   dani, i danas od 10 h, se ne pomjeraju. */
+const PRAG = 6;          // px — dotle je to klik
+const DRZANJE = 320;     // ms — prst
+let vuca = null;
+let poslijeVuce = false; // klik koji završi prevlačenje ne otvara dan
+
+const celijaIz = el => el?.closest?.('#kal .kal-dan[data-dan]:not(:disabled)') || null;
+
+$('#kal').addEventListener('pointerdown', e => {
+  const celija = celijaIz(e.target);
+  if (!celija || e.button > 0 || !e.isPrimary) return;
+  vuca = { celija, x: e.clientX, y: e.clientY, dodir: e.pointerType !== 'mouse', aktivno: false, cilj: null };
+  if (vuca.dodir) vuca.timer = setTimeout(zapocniVucu, DRZANJE);
+});
+$('#kal').addEventListener('contextmenu', e => { if (celijaIz(e.target)) e.preventDefault(); });
+// dok prst vuče dan, stranica ne smije skrolati ispod njega
+addEventListener('touchmove', e => { if (vuca?.aktivno) e.preventDefault(); }, { passive: false });
+
+function zapocniVucu() {
+  const v = vuca;
+  if (!v || v.aktivno) return;
+  v.aktivno = true;
+  const r = v.celija.getBoundingClientRect();
+  const duh = v.celija.cloneNode(true);
+  duh.classList.add('kal-duh');
+  duh.removeAttribute('data-dan');
+  Object.assign(duh.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+  document.body.append(duh);
+  v.duh = duh;
+  v.celija.classList.add('kal-dan--izvor');
+  document.documentElement.classList.add('vuce');
+  $$('#kal .ista').forEach(c => c.classList.remove('ista'));
+  if (v.dodir) navigator.vibrate?.(12);
+  // podizanje ide preko `scale`/`rotate`, a praćenje kroz `transform` — bez kašnjenja
+  requestAnimationFrame(() => duh.classList.add('podignut'));
+}
+const LETI = 'transform .34s cubic-bezier(.3, .7, .2, 1), scale .34s, rotate .34s';
+
+addEventListener('pointermove', e => {
+  const v = vuca;
+  if (!v) return;
+  const dx = e.clientX - v.x, dy = e.clientY - v.y;
+  if (!v.aktivno) {
+    if (Math.hypot(dx, dy) < PRAG) return;
+    if (v.dodir) { clearTimeout(v.timer); vuca = null; return; }   // prst krenuo prije držanja — to je skrol
+    zapocniVucu();
+  }
+  v.duh.style.transform = `translate(${dx}px, ${dy}px)`;
+  const cilj = celijaIz(document.elementFromPoint(e.clientX, e.clientY));
+  const novi = cilj && cilj !== v.celija ? cilj : null;
+  if (novi !== v.cilj) {
+    v.cilj?.classList.remove('kal-dan--cilj');
+    v.cilj = novi;
+    v.cilj?.classList.add('kal-dan--cilj');
+    if (novi && v.dodir) navigator.vibrate?.(6);
+  }
+  // blizu ruba ekrana stranica skrola sama (na telefonu je mjesec duga lista)
+  if (e.clientY < 80) scrollBy(0, -14);
+  else if (e.clientY > innerHeight - 80) scrollBy(0, 14);
+});
+addEventListener('pointerup', () => zavrsiVucu(true));
+addEventListener('pointercancel', () => zavrsiVucu(false));
+
+function zavrsiVucu(spusti) {
+  const v = vuca;
+  if (!v) return;
+  vuca = null;
+  clearTimeout(v.timer);
+  if (!v.aktivno) return;
+  poslijeVuce = true;
+  setTimeout(() => { poslijeVuce = false; }, 80);
+  document.documentElement.classList.remove('vuce');
+  v.cilj?.classList.remove('kal-dan--cilj');
+  if (spusti && v.cilj) zamijeniDane(v); else vratiDuha(v);
+}
+
+function vratiDuha(v) {
+  v.duh.style.transition = LETI;
+  v.duh.classList.remove('podignut');
+  v.duh.style.transform = '';
+  setTimeout(() => { v.duh.remove(); v.celija.classList.remove('kal-dan--izvor'); }, 340);
+}
+
+/* Zamjena: prevučeni dan sleti na cilj, a cilj u isto vrijeme preleti na
+   njegovo mjesto; tek onda se kalendar iscrta s novim rasporedom i oba dana
+   kratko zasvijetle. */
+async function zamijeniDane(v) {
+  const a = v.celija.dataset.dan, b = v.cilj.dataset.dan;
+  const pa = porukaNaDan(a), pb = porukaNaDan(b);
+  if (pa === pb || zakljucan(a) || zakljucan(b)) return vratiDuha(v);
+  const ra = v.celija.getBoundingClientRect(), rb = v.cilj.getBoundingClientRect();
+  const duh2 = v.cilj.cloneNode(true);
+  duh2.classList.add('kal-duh', 'kal-duh--drugi');
+  duh2.removeAttribute('data-dan');
+  Object.assign(duh2.style, { left: `${rb.left}px`, top: `${rb.top}px`, width: `${rb.width}px`, height: `${rb.height}px` });
+  document.body.append(duh2);
+  v.cilj.classList.add('kal-dan--izvor');
+  v.duh.style.transition = duh2.style.transition = LETI;
+  v.duh.classList.remove('podignut');
+  requestAnimationFrame(() => {
+    v.duh.style.transform = `translate(${rb.left - ra.left}px, ${rb.top - ra.top}px)`;
+    duh2.style.transform = `translate(${ra.left - rb.left}px, ${ra.top - rb.top}px)`;
+  });
+  await new Promise(r => setTimeout(r, 340));
+
+  const posao = upisiDane({ [a]: pb.id, [b]: pa.id });   // raspored se mijenja odmah, upis ide iza
+  crtajKalendar();
+  v.duh.remove();
+  duh2.remove();
+  for (const k of [a, b]) $(`#kal [data-dan="${k}"]`)?.classList.add('kal-dan--novo');
+  try {
+    const prije = await posao;
+    obavijestPonisti(`${kratkiDatum(izKljucaD(a))} ↔ ${kratkiDatum(izKljucaD(b))} — poruke su zamijenile mjesta`, () => upisiDane(prije));
+  } catch (e) {
+    obavijest(e.message, true);
+    crtajPoruke();
+  }
+}
+
+/* ---------- poruka za dan ----------
+   Izbor poruke iz liste (s tabovima po knjigama) za jedan dan, ili nova
+   poruka napisana baš za taj dan — ona se sačuva u bazu kao i svaka druga
+   i odmah izabere za taj dan. */
+const danModal = $('#dan-modal');
+danModal.addEventListener('click', e => { if (e.target === danModal) danModal.close(); });
+let danKljuc = null, danIzbor = null, danKnjiga = '';
+let novaZaDan = null;     // dan za koji se piše nova poruka (citat modal)
+
+function otvoriDan(k) {
+  if (zakljucan(k)) return obavijest('Poruka tog dana je već otišla — ne mijenja se', true);
+  danKljuc = k;
+  danIzbor = porukaNaDan(k).id;
+  danKnjiga = '';
+  const d = izKljucaD(k);
+  const ime = danUSedmici(k);
+  $('#dan-naslov').textContent = `${ime[0].toUpperCase()}${ime.slice(1)}, ${d.getDate()}. ${MJESECI[d.getMonth()]} ${d.getFullYear()}.`;
+  $('#dan-trazi').value = '';
+  $('#dan-vrati').hidden = !izabrana(k);
+  crtajIzbor();
+  danModal.showModal();
+}
+
+function crtajIzbor() {
+  const lista = aktivni();
+  const k = danKljuc;
+  const sad = izabrana(k, lista);
+  const inace = nastavak(k, lista);
+  $('#dan-napomena').innerHTML = [
+    sad ? `Izabrana je poruka ${lista.indexOf(sad) + 1}.`
+      : `Za ovaj dan još nije izabrana poruka — ako ostane tako, ide nastavak kruga: poruka ${lista.indexOf(inace) + 1}.`,
+    k === danasK() ? `Današnja poruka se može mijenjati do ${SAT_PORUKE} h.` : '',
+  ].filter(Boolean).join(' ');
+  crtajTaboveKnjiga($('#dan-knjige'), lista, danKnjiga);
+
+  // za svaku poruku: kad je zadnji put bila i kad dolazi, gledano od ovog dana
+  // (bez njega, jer se on upravo bira)
+  const dani = niz(pomakni(k, -NAZAD), 2 * NAZAD + 1);
+  dani[NAZAD] = null;
+  const q = $('#dan-trazi').value.trim().toLowerCase();
+  $('#dan-lista').innerHTML = lista
+    .filter(c => (!danKnjiga || c.knjiga === danKnjiga)
+      && (!q || [c.tekst, c.poglavlje, imeKnjige(c.knjiga)].join(' ').toLowerCase().includes(q)))
+    .map(c => {
+      const prije = dani.lastIndexOf(c, NAZAD - 1);
+      const poslije = dani.indexOf(c, NAZAD + 1);
+      const meta = [
+        !sad && c === inace ? '<b>nastavak kruga</b>' : '',
+        prije >= 0 ? `bila ${prijeDana(NAZAD - prije)}` : 'ranije nije bila',
+        poslije >= 0 ? `dolazi ${zaDana(poslije - NAZAD)}` : '',
+      ].filter(Boolean).join(' · ');
+      return `<button type="button" class="dan-izbor" data-izbor="${c.id}" aria-pressed="${c.id === danIzbor}" style="--knjiga:${bojaKnjige(c.knjiga)}">
+        <span class="citat__br">${lista.indexOf(c) + 1}.</span>
+        <p>${esc(c.tekst)}</p>
+        <span class="sitno"><b class="citat__knjiga">${esc(imeKnjige(c.knjiga))}</b> · ${meta}</span>
+      </button>`;
+    }).join('') || '<p class="prazno">Nijedna poruka ne odgovara pretrazi.</p>';
+}
+$('#dan-trazi').addEventListener('input', crtajIzbor);
+$('#dan-knjige').addEventListener('click', e => {
+  const b = e.target.closest('[data-knjiga]');
+  if (!b) return;
+  danKnjiga = danKnjiga === b.dataset.knjiga ? '' : b.dataset.knjiga;
+  crtajIzbor();
+});
+$('#dan-lista').addEventListener('click', e => {
+  const b = e.target.closest('[data-izbor]');
+  if (!b) return;
+  danIzbor = Number(b.dataset.izbor);
+  $$('[data-izbor]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+});
+$('#dan-odustani').addEventListener('click', () => danModal.close());
+// nova poruka baš za ovaj dan: otvara uređivanje poruke, a „Sačuvaj“ je i izabere
+$('#dan-nova').addEventListener('click', () => {
+  novaZaDan = danKljuc;
+  otvoriCitat(null, danKnjiga);
+});
+
+async function sacuvajDan(id) {
+  const dugmad = $$('#dan-sacuvaj, #dan-vrati');
+  dugmad.forEach(b => { b.disabled = true; });
+  try {
+    const prije = await upisiDane({ [danKljuc]: id });
+    danModal.close();
+    crtajPoruke();
+    const dan = kratkiDatum(izKljucaD(danKljuc));
+    obavijestPonisti(id == null ? `${dan}: izbor je uklonjen — ide nastavak kruga` : `${dan}: poruka je izabrana`, () => upisiDane(prije));
+  } catch (e) {
+    crtajPoruke();
+    obavijest(e.message, true);
+  } finally {
+    dugmad.forEach(b => { b.disabled = false; });
+  }
+}
+$('#dan-sacuvaj').addEventListener('click', () => sacuvajDan(danIzbor));
+$('#dan-vrati').addEventListener('click', () => sacuvajDan(null));
+
+/* ---------- uređivanje poruke ---------- */
 const citatModal = $('#citat-modal');
 citatModal.addEventListener('click', e => { if (e.target === citatModal) citatModal.close(); });   // klik pored kartice zatvara
+citatModal.addEventListener('close', () => { novaZaDan = null; });
 
-function otvoriCitat(c = null) {
+function otvoriCitat(c = null, knjiga = '') {
   urediCitat = c;
-  $('#citat-naslov').textContent = c ? 'Uredi poruku' : 'Nova poruka';
+  const d = novaZaDan && izKljucaD(novaZaDan);
+  $('#citat-naslov').textContent = c ? 'Uredi poruku' : d ? `Nova poruka za ${kratkiDatum(d)}` : 'Nova poruka';
   $('#citat-tekst').value = c?.tekst || '';
-  $('#citat-knjiga').value = c?.knjiga || izvor.knjige[0]?.id || '';
+  $('#citat-knjiga').value = c?.knjiga || knjiga || izvor.knjige[0]?.id || '';
   $('#citat-poglavlje').value = c?.poglavlje || c?.tema || '';
   $('#citat-obrisi').hidden = !c;
   citatModal.showModal();
@@ -841,31 +1339,71 @@ $('#citati').addEventListener('click', e => {
 });
 $('#citat-odustani').addEventListener('click', () => citatModal.close());
 
-function pisiCitate() {
-  try { localStorage.setItem(CITATI, JSON.stringify(citati)); } catch { obavijest('Preglednik ne da da se sačuva', true); }
-  crtajCitate();
+/* Nova ili obrisana poruka mijenja broj poruka u krugu, a time i današnju.
+   Ona je možda već otišla u notifikaciji, pa se prije promjene zakaže za
+   danas — krug se pomjera tek od sutra. (Na serveru isto radi /api/poruke.) */
+function zadrziDanasnjuLokalno() {
+  const k = danasK();
+  if (raspored[k] == null && aktivni().length) raspored[k] = porukaNaDan(k).id;
 }
-$('#citat-sacuvaj').addEventListener('click', () => {
+
+async function radiSPorukom(dugme, posao, poruka) {
+  dugme.disabled = true;
+  try {
+    const tekst = await posao();
+    citatModal.close();
+    crtajPoruke();
+    obavijest(tekst || poruka);
+  } catch (e) {
+    obavijest(e.message, true);
+  } finally {
+    dugme.disabled = false;
+  }
+}
+
+$('#citat-sacuvaj').addEventListener('click', e => {
   const tekst = $('#citat-tekst').value.trim();
   if (!tekst) return obavijest('Tekst poruke je prazan', true);
-  const polja = { tekst, knjiga: $('#citat-knjiga').value, poglavlje: $('#citat-poglavlje').value.trim() || undefined };
-  if (urediCitat) Object.assign(urediCitat, polja);
-  else citati.push({ id: Math.max(0, ...citati.map(c => Number(c.id) || 0)) + 1, ...polja });
-  citatModal.close();
-  pisiCitate();
-  obavijest(urediCitat ? 'Poruka je izmijenjena' : 'Poruka je dodana');
+  const polja = { tekst, knjiga: $('#citat-knjiga').value, poglavlje: $('#citat-poglavlje').value.trim() || null };
+  const c = urediCitat, zaDan = c ? null : novaZaDan;
+  radiSPorukom(e.currentTarget, async () => {
+    let novaId = null;
+    if (porukeLokalno) {
+      if (c) Object.assign(c, polja);
+      else {
+        zadrziDanasnjuLokalno();
+        novaId = Math.max(0, ...citati.map(x => Number(x.id) || 0)) + 1;
+        citati.push({ id: novaId, redoslijed: Math.max(0, ...citati.map(x => x.redoslijed || 0)) + 1, ...polja });
+      }
+      pisiLokalno();
+    } else {
+      const d = await apiPoruke(c ? 'PUT' : 'POST', c ? `?id=${c.id}` : '', polja);
+      novaId = d?.poruka?.id ?? null;
+      await procitajPoruke();
+    }
+    // nova poruka napisana za određeni dan: odmah je i izabrana za taj dan
+    if (zaDan && novaId != null) {
+      await upisiDane({ [zaDan]: novaId });
+      danModal.close();
+      return `Nova poruka je sačuvana i izabrana za ${kratkiDatum(izKljucaD(zaDan))}`;
+    }
+    return null;
+  }, c ? 'Poruka je sačuvana' : 'Poruka je dodana na kraj kruga');
 });
-$('#citat-obrisi').addEventListener('click', () => {
-  if (!urediCitat || !confirm('Obrisati ovu poruku?')) return;
-  citati = citati.filter(c => c !== urediCitat);
-  citatModal.close();
-  pisiCitate();
-});
-$('#citati-ponisti').addEventListener('click', () => {
-  if (!confirm('Vratiti poruke na verziju sa servera? Izmjene iz ovog preglednika se gube.')) return;
-  localStorage.removeItem(CITATI);
-  citati = izvor.poruke.slice();
-  crtajCitate();
+
+$('#citat-obrisi').addEventListener('click', e => {
+  const c = urediCitat;
+  if (!c || !confirm('Obrisati ovu poruku? Više neće biti poruka dana; ko ju je sačuvao u aplikaciji, i dalje je ima.')) return;
+  radiSPorukom(e.currentTarget, async () => {
+    if (porukeLokalno) {
+      if (aktivni().length <= 1) throw new Error('Mora ostati bar jedna poruka');
+      zadrziDanasnjuLokalno();
+      c.obrisana = true;
+      return pisiLokalno();
+    }
+    await apiPoruke('DELETE', `?id=${c.id}`);
+    await procitajPoruke();
+  }, 'Poruka je obrisana');
 });
 
 /* ---------- start ---------- */

@@ -24,7 +24,7 @@
    curl -H "x-cron-secret: <CRON_SECRET>" "https://<domen>/api/send?nadoknadi=1"  */
 import {
   svePretplate, kojiNemaju, skiniPretplate, bazaSpremna, zabiljeziIsporuke, ocistiIsporuke, ocistiDogadjaje,
-  obrisiProslaPredavanja, uzmiBravu, pustiBravu,
+  obrisiProslaPredavanja, uzmiBravu, pustiBravu, rasporedDo,
 } from './_lib/baza.js';
 import { ovlascen, odbij } from './_lib/auth.js';
 import {
@@ -156,7 +156,11 @@ async function posao({ nadoknadi, samoPredavanja, svima, nacin, dan, pocetak, dn
   let r = { poslano: 0, palo: 0, preskoceno: 0, drugiKrug: 0, mrtve: [], greske: {}, upisPao: false };
   if (pretplate.length) {
     const podaci = await jos(() => ucitajPoruke(req));
-    poruka = porukaZaDatum(podaci, sada);
+    // izbor admina za danas, ili nastavak kruga od zadnjeg izabranog dana;
+    // bez baze — po redoslijedu, kao ranije
+    let raspored = {};
+    try { raspored = await rasporedDo(dan); } catch { /* po redoslijedu */ }
+    poruka = porukaZaDatum(podaci, dan, raspored);
     // isti payload za sve — serijalizuje se jednom, ne po uređaju
     const sadrzaj = JSON.stringify({ ...napraviSadrzaj(podaci, poruka), kljuc });
     r = await razasalji(pretplate, sadrzaj, {

@@ -116,6 +116,7 @@ const LS = {
   aktivnoDan: 'pd.aktivnoDan',   // dan kad je uređaj zadnji put javio da je aplikacija otvorena (pregled)
   predavanja: 'pd.predavanja',   // zastavica PREDAVANJA uključena na ovom uređaju
   predavanjaObavijesti: 'pd.predavanjaObavijesti',   // obavijest o novom predavanju (postavka u modulu)
+  porukeBaza: 'pd.porukeBaza',   // poruke i raspored iz baze, zadnji odgovor — za offline
 };
 
 /* ---------- 2. HELPERI ---------- */
@@ -245,20 +246,57 @@ if (!FORMATI.some(x => x.id === stanje.format)) stanje.format = 'objava';
 
 /* ---------- 5. PODACI ---------- */
 async function ucitajPodatke() {
-  const r = await fetch('/data/poruke.json', { cache: 'no-cache' });
+  const [r, baza] = await Promise.all([fetch('/data/poruke.json', { cache: 'no-cache' }), ucitajIzBaze()]);
   if (!r.ok) throw new Error(`Podaci nisu dostupni (HTTP ${r.status})`);
   const d = await r.json();
   if (!Array.isArray(d.poruke) || !d.poruke.length) throw new Error('Lista poruka je prazna');
+  // poruke iz baze (bez obrisanih) zamjenjuju listu iz JSON-a; `sve` drži i
+  // obrisane, jer se sačuvane poruke vežu za id
+  const aktivne = Array.isArray(baza?.poruke) ? baza.poruke.filter(p => !p.obrisana) : [];
+  d.sve = aktivne.length ? baza.poruke : d.poruke;
+  if (aktivne.length) d.poruke = aktivne;
+  d.raspored = (aktivne.length && baza.raspored) || {};
   return d;
 }
 
-const knjigaPo = id => stanje.podaci.knjige.find(k => k.id === id) || null;
-const porukaPo = id => stanje.podaci.poruke.find(p => p.id === id) || null;
+/* Poruke i raspored po datumima uređuje admin, pa stižu iz baze
+   (/api/poruke); poruke.json nosi autora i knjige, a njegova lista je
+   rezerva. Odgovor se pamti za offline. Ne stigne li za 3 s, ide zapamćeni —
+   otvaranje aplikacije ne čeka bazu. Lokalno (bez /api) se čita ono što je
+   admin sačuvao u ovom pregledniku. */
+async function ucitajIzBaze() {
+  try {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 3000);
+    const r = await fetch('/api/poruke', { signal: ctl.signal }).finally(() => clearTimeout(t));
+    const b = r.ok && (r.headers.get('content-type') || '').includes('json') ? await r.json() : null;
+    if (Array.isArray(b?.poruke)) { pisi(LS.porukeBaza, b); return b; }
+  } catch { /* offline ili spor odgovor */ }
+  if (RAZVOJ) {
+    const lokalno = cita('pd.adminCitati', null);
+    if (lokalno) return { poruke: lokalno, raspored: cita('pd.rasporedLokalno', {}) };
+  }
+  return cita(LS.porukeBaza, null);
+}
 
-/** Poruka je vezana za datum: isti dan uvijek daje istu poruku. */
+const knjigaPo = id => stanje.podaci.knjige.find(k => k.id === id) || null;
+const porukaPo = id => stanje.podaci.sve.find(p => p.id === id) || null;
+
+/** Poruka je vezana za datum: isti dan uvijek daje istu poruku. Pravilo je
+    isto kao u slanju (porukaZaDatum u api/_lib/push.js): poruka koju je admin
+    izabrao za taj dan; inače krug se nastavlja od zadnjeg izabranog dana;
+    dok ništa nije izabrano — broj dana % broj poruka. */
 function porukaZa(d) {
-  const n = stanje.podaci.poruke.length;
-  return stanje.podaci.poruke[((brojDana(d) % n) + n) % n];
+  const lista = stanje.podaci.poruke, n = lista.length, rasp = stanje.podaci.raspored;
+  const k = kljuc(d);
+  const mjesto = id => (id == null ? -1 : lista.findIndex(p => p.id === id));
+  const i = mjesto(rasp[k]);
+  if (i >= 0) return lista[i];
+  for (const x of Object.keys(rasp).filter(y => y < k).sort().reverse()) {
+    const j = mjesto(rasp[x]);
+    if (j >= 0) return lista[(j + brojDana(d) - brojDana(izKljuca(x))) % n];
+  }
+  return lista[((brojDana(d) % n) + n) % n];
 }
 
 /* ---------- 6. KARTICA ---------- */

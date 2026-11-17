@@ -1,7 +1,8 @@
 /* Test notifikacija na jedan uređaj — samo za razvoj.
    Na deployu je zatvoren: bez njega bi svako ko zna endpoint pretplate mogao
    gurati notifikacije korisnicima. Otvara se lokalno ili uz CRON_SECRET. */
-import { postaviVapid, vapidSpreman, ucitajPoruke, porukaZaDatum, napraviSadrzaj, posalji, citajTijelo } from './_lib/push.js';
+import { postaviVapid, vapidSpreman, ucitajPoruke, porukaZaDatum, napraviSadrzaj, posalji, citajTijelo, danSarajevo } from './_lib/push.js';
+import { rasporedDo } from './_lib/baza.js';
 import { ovlascen, jeLokalno } from './_lib/auth.js';
 
 export default async function handler(req, res) {
@@ -15,7 +16,9 @@ export default async function handler(req, res) {
   try {
     postaviVapid();
     const podaci = await ucitajPoruke(req);
-    const sadrzaj = napraviSadrzaj(podaci, porukaZaDatum(podaci));
+    const dan = danSarajevo();
+    const raspored = await rasporedDo(dan).catch(() => ({}));
+    const sadrzaj = napraviSadrzaj(podaci, porukaZaDatum(podaci, dan, raspored));
     sadrzaj.title = 'Test · Poruka dana';
     sadrzaj.tag = 'poruka-test';
 
