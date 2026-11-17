@@ -333,7 +333,7 @@ const TAB_RASPORED = 'raspored_poruka';
 
 /** Sve poruke po redoslijedu, i obrisane — aplikaciji trebaju za sačuvane. */
 export const svePoruke = () =>
-  sveStranice(`${TAB_PORUKE}?select=id,tekst,knjiga,poglavlje,redoslijed,obrisana&order=redoslijed,id`);
+  sveStranice(`${TAB_PORUKE}?select=id,tekst,knjiga,poglavlje,redoslijed,obrisana,napravljeno,izmijenjeno&order=redoslijed,id`);
 
 /** Nova poruka ide na kraj kruga, s prvim slobodnim id-em (i obrisane ga drže). */
 export async function dodajPoruku(p, sve) {

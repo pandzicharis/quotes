@@ -30,8 +30,9 @@ export async function ucitajPoruke(req) {
   if (!r.ok) throw new Error(`poruke.json HTTP ${r.status}`);
   const podaci = await r.json();
   try {
-    const aktivne = (await svePoruke()).filter(p => !p.obrisana);
-    if (aktivne.length) podaci.poruke = aktivne;
+    const sve = oznaciKrug(await svePoruke());
+    const aktivne = sve.filter(p => !p.obrisana);
+    if (aktivne.length) { podaci.poruke = aktivne; podaci.sve = sve; }
   } catch { /* baza ne odgovara — lista iz poruke.json */ }
   return podaci;
 }
@@ -39,29 +40,55 @@ export async function ucitajPoruke(req) {
 const p2 = n => String(n).padStart(2, '0');
 /** 'YYYY-MM-DD' po kalendaru datuma `d` (na serveru UTC). */
 export const kljucDana = (d = new Date()) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
-/** Današnji dan u Sarajevu, 'YYYY-MM-DD'. */
-export const danSarajevo = (d = new Date()) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Sarajevo' }).format(d);
+/** Dan u Sarajevu, 'YYYY-MM-DD' — složen iz dijelova, jer format 'en-CA'
+    zavisi od verzije ICU-a (negdje daje 11/17/2026). */
+const SARAJEVO = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Sarajevo', year: 'numeric', month: '2-digit', day: '2-digit' });
+export const danSarajevo = (d = new Date()) => {
+  const x = Object.fromEntries(SARAJEVO.formatToParts(d).map(p => [p.type, p.value]));
+  return `${x.year}-${x.month}-${x.day}`;
+};
 
 const brojDana = k => { const [g, m, d] = k.split('-').map(Number); return Math.floor(Date.UTC(g, m - 1, d) / DAN_MS); };
 
+/** Od kojeg dana je poruka u krugu (`_od`) i do kojeg (`_do`, isključivo).
+    Početne poruke (upisane zajedno, prvim upisom) su u krugu oduvijek; nova
+    tek od sutra (dan kad je dodana zadržava staru poruku, vidi /api/poruke),
+    a obrisana do dana brisanja. Tako se prošlost ne preračunava kad se lista
+    promijeni — nova poruka nikad ne ispadne „bila prije X dana“. Poruke bez
+    vremena (poruke.json) su u krugu uvijek. Isto u js/app.js i admin.js. */
+export function oznaciKrug(sve) {
+  const t = p => Date.parse(p.napravljeno);
+  // početne: upisane zajedno, prvim upisom — ili, kad neke nemaju vrijeme (poruke.json), baš te
+  const prvi = sve.some(p => !Number.isFinite(t(p))) ? NaN : Math.min(...sve.map(t));
+  for (const p of sve) {
+    p._od = Number.isFinite(t(p)) && t(p) !== prvi ? danSarajevo(new Date(t(p))) : '';
+    p._do = !p.obrisana ? null : Number.isFinite(Date.parse(p.izmijenjeno)) ? danSarajevo(new Date(p.izmijenjeno)) : '';
+  }
+  return sve;
+}
+const uKrugu = (p, k) => (p._od ?? '') < k && (p._do == null || k < p._do);
+
 /** Poruka dana za dan `d` (Date ili 'YYYY-MM-DD') — isto pravilo u
     aplikaciji (js/app.js, porukaZa) i adminu (porukaNaDan):
-      1. poruka koju je admin izabrao za taj dan, ako je još u krugu;
+      1. poruka koju je admin izabrao za taj dan, ako je još aktivna;
       2. inače krug se nastavlja od zadnjeg izabranog dana prije njega:
          dan poslije poruke X dobija poruku iza X, i tako redom;
       3. dok ništa nije izabrano — broj dana % broj poruka, kao ranije.
+    Za 2. i 3. krug čine poruke koje su tog dana postojale (oznaciKrug).
     `raspored` je { 'YYYY-MM-DD': id } — dovoljno je da ima dane do `d`. */
 export function porukaZaDatum(podaci, d = new Date(), raspored = {}) {
-  const lista = podaci.poruke, n = lista.length;
+  const lista = podaci.poruke;
   const kljuc = typeof d === 'string' ? d : kljucDana(d);
-  const mjesto = id => (id == null ? -1 : lista.findIndex(p => p.id === id));
-  const i = mjesto(raspored[kljuc]);
-  if (i >= 0) return lista[i];
+  const z = raspored[kljuc] != null && lista.find(p => p.id === raspored[kljuc]);
+  if (z) return z;
+  let krug = (podaci.sve || lista).filter(p => uKrugu(p, kljuc));
+  if (!krug.length) krug = lista;
+  const n = krug.length;
   for (const k of Object.keys(raspored).filter(x => x < kljuc).sort().reverse()) {
-    const j = mjesto(raspored[k]);
-    if (j >= 0) return lista[(j + brojDana(kljuc) - brojDana(k)) % n];
+    const j = krug.findIndex(p => p.id === raspored[k]);
+    if (j >= 0) return krug[(j + brojDana(kljuc) - brojDana(k)) % n];
   }
-  return lista[((brojDana(kljuc) % n) + n) % n];
+  return krug[((brojDana(kljuc) % n) + n) % n];
 }
 
 /** Koliko karaktera najviše ide u notifikaciju. */

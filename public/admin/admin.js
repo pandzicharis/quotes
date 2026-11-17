@@ -798,6 +798,10 @@ async function apiPoruke(metoda = 'GET', upit = '', tijelo) {
 }
 
 async function procitajPoruke() {
+  await procitajIzvor();
+  oznaciKrug(citati);
+}
+async function procitajIzvor() {
   porukeNapomena = '';
   try {
     const d = await apiPoruke('GET', '?svjeze=1');
@@ -823,6 +827,7 @@ async function procitajPoruke() {
 }
 
 function pisiLokalno() {
+  oznaciKrug(citati);
   try {
     localStorage.setItem(CITATI, JSON.stringify(citati));
     localStorage.setItem(RASPORED_LOK, JSON.stringify(raspored));
@@ -857,31 +862,59 @@ const SAT_PORUKE = 10;
 const satSarajevo = () => Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Sarajevo', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
 const zakljucan = k => k < danasK() || (k === danasK() && satSarajevo() >= SAT_PORUKE);
 
-/** Poruka izabrana za dan, ako je još u krugu. */
+/* Krug na određeni dan čine poruke koje su tada postojale: početne oduvijek,
+   nova od dana poslije dodavanja, obrisana do dana brisanja. Tako se
+   prošlost ne preračunava kad se lista promijeni — nova poruka nikad ne
+   ispadne „bila prije X dana“. Isto kao oznaciKrug u api/_lib/push.js. */
+const DAN_SARAJEVO = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Sarajevo', year: 'numeric', month: '2-digit', day: '2-digit' });
+const danSarajevoT = t => {
+  const x = Object.fromEntries(DAN_SARAJEVO.formatToParts(new Date(t)).map(p => [p.type, p.value]));
+  return `${x.year}-${x.month}-${x.day}`;
+};
+function oznaciKrug(sve) {
+  const t = p => Date.parse(p.napravljeno);
+  // početne: upisane zajedno, prvim upisom — ili, kad neke nemaju vrijeme (poruke.json), baš te
+  const prvi = sve.some(p => !Number.isFinite(t(p))) ? NaN : Math.min(...sve.map(t));
+  for (const p of sve) {
+    p._od = Number.isFinite(t(p)) && t(p) !== prvi ? danSarajevoT(t(p)) : '';
+    p._do = !p.obrisana ? null : Number.isFinite(Date.parse(p.izmijenjeno)) ? danSarajevoT(p.izmijenjeno) : '';
+  }
+  return sve;
+}
+const uKrugu = (p, k) => (p._od ?? '') < k && (p._do == null || k < p._do);
+const krugDana = k => { const krug = citati.filter(c => uKrugu(c, k)); return krug.length ? krug : aktivni(); };
+
+/** Poruka izabrana za dan, ako je još aktivna. */
 const izabrana = (k, lista = aktivni()) => (raspored[k] != null && lista.find(c => c.id === raspored[k])) || null;
 
 /** Šta ide na dan bez izbora: nastavak kruga od zadnjeg izabranog dana. */
-function nastavak(k, lista = aktivni()) {
-  const n = lista.length;
+function nastavak(k) {
+  const krug = krugDana(k), n = krug.length;
   if (!n) return null;
   for (const x of Object.keys(raspored).filter(y => y < k).sort().reverse()) {
-    const j = lista.findIndex(c => c.id === raspored[x]);
-    if (j >= 0) return lista[(j + brojDanaK(k) - brojDanaK(x)) % n];
+    const j = krug.findIndex(c => c.id === raspored[x]);
+    if (j >= 0) return krug[(j + brojDanaK(k) - brojDanaK(x)) % n];
   }
-  return lista[((brojDanaK(k) % n) + n) % n];
+  return krug[((brojDanaK(k) % n) + n) % n];
 }
-const porukaNaDan = (k, lista = aktivni()) => izabrana(k, lista) || nastavak(k, lista);
+const porukaNaDan = (k, lista = aktivni()) => izabrana(k, lista) || nastavak(k);
 
 /** Poruke za `n` uzastopnih dana od `od`, u jednom prolazu: dan bez izbora je
-    poruka iza one od prethodnog dana — isto što i nastavak kruga. */
+    poruka iza one od prethodnog dana (u krugu tog dana) — isto što i
+    nastavak kruga. */
 function niz(od, n) {
-  const lista = aktivni(), m = lista.length, dani = [];
-  if (!m) return dani;
-  let k = od, prije = -1;
+  const lista = aktivni(), dani = [];
+  if (!lista.length) return dani;
+  let k = od, prije = null;
   for (let i = 0; i < n; i++, k = pomakni(k, 1)) {
-    const p = izabrana(k, lista) || (i === 0 ? nastavak(k, lista) : lista[(prije + 1) % m]);
+    let p = izabrana(k, lista);
+    if (!p) {
+      const krug = prije ? krugDana(k) : null;
+      const j = krug ? krug.indexOf(prije) : -1;
+      p = j >= 0 ? krug[(j + 1) % krug.length] : nastavak(k);
+    }
     dani.push(p);
-    prije = lista.indexOf(p);
+    prije = p;
   }
   return dani;
 }
@@ -972,10 +1005,10 @@ $$('[data-poruke-pogled]').forEach(b => b.addEventListener('click', () => {
 }));
 
 /* ---------- kalendar ----------
-   Mjesec po danima. Dan s izabranom porukom pokazuje knjigu, tekst i koliko
-   je dana prošlo od prošlog puta iste poruke. Dan bez izbora je prazan, s
-   „Izaberi“ — a sitno piše šta ide ako ostane prazan (nastavak kruga), da
-   slanje nikad ne ostane bez poruke. Na telefonu je mjesec lista dana. */
+   Mjesec po danima: knjiga, tekst i koliko je dana prošlo od prošlog puta
+   iste poruke. Dan bez izbora pokazuje poruku koja automatski ide po
+   redoslijedu (isto šalje i server), uz blago isprekidan okvir; klik bira
+   drugu. Na telefonu je mjesec lista dana. */
 let kalMjesec = (() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); })();
 const DANI_KRATKO = ['Pon', 'Uto', 'Sri', 'Čet', 'Pet', 'Sub', 'Ned'];
 const NAZAD = 400;   // koliko dana unazad se traži prethodno pojavljivanje
@@ -1006,28 +1039,17 @@ function crtajKalendar() {
     const datum = `<span class="kal-dan__datum"><b>${d.getDate()}</b><small>${DANI_KRATKO[sedmica]}</small></span>`;
     const klase = `kal-dan${k === danas ? ' danas' : ''}${sedmica === 0 ? ' pon' : ''}`;
 
-    // dan bez izbora, koji se još može mijenjati: prazan
-    if (!iz && !zaklj) {
-      celije.push(`<button type="button" class="${klase} kal-dan--bez" data-dan="${k}" data-poruka=""
-          title="${esc(`${kratkiDatum(d)}: poruka nije izabrana — ako ostane tako, ide poruka ${br} (nastavak kruga)`)}">
-        ${datum}
-        <span class="kal-dan__izaberi">+ Izaberi</span>
-        <span class="kal-dan__inace">inače ${br} · ${esc(imeKnjige(p.knjiga))}</span>
-      </button>`);
-      continue;
-    }
-
     let prije = 0, poslije = 0;
     for (let x = j - 1; x >= 0; x--) if (dani[x] === p) { prije = j - x; break; }
     for (let x = j + 1; x < dani.length; x++) if (dani[x] === p) { poslije = x - j; break; }
     const opis = [
       `${DANI_KRATKO[sedmica]}, ${kratkiDatum(d)}: poruka ${br}, ${imeKnjige(p.knjiga)}`,
-      iz ? '' : 'nije bila izabrana — išao je nastavak kruga',
+      iz ? '' : zaklj ? 'nije bila izabrana — išla je po redoslijedu' : 'automatski, po redoslijedu — klik za drugu poruku',
       prije ? `ista poruka ${prijeDana(prije)}` : 'ranije nije bila poruka dana',
       poslije ? `ponovo ${zaDana(poslije)}` : '',
       zaklj && k === danas ? `poslana u ${SAT_PORUKE} h — više se ne mijenja` : '',
     ].filter(Boolean).join(' · ');
-    celije.push(`<button type="button" class="${klase}" data-dan="${k}" data-poruka="${p.id}"
+    celije.push(`<button type="button" class="${klase}${!iz && !zaklj ? ' auto' : ''}" data-dan="${k}" data-poruka="${p.id}"
         style="--knjiga:${bojaKnjige(p.knjiga)}" title="${esc(opis)}"${zaklj ? ' disabled' : ''}>
       ${datum}
       <span class="kal-dan__br">${br}</span>
@@ -1239,16 +1261,18 @@ function otvoriDan(k) {
   $('#dan-vrati').hidden = !izabrana(k);
   crtajIzbor();
   danModal.showModal();
+  // predložena (ili izabrana) poruka odmah u vidnom polju liste
+  requestAnimationFrame(() => $('#dan-lista [aria-pressed="true"]')?.scrollIntoView({ block: 'center' }));
 }
 
 function crtajIzbor() {
   const lista = aktivni();
   const k = danKljuc;
   const sad = izabrana(k, lista);
-  const inace = nastavak(k, lista);
+  const inace = nastavak(k);
   $('#dan-napomena').innerHTML = [
     sad ? `Izabrana je poruka ${lista.indexOf(sad) + 1}.`
-      : `Za ovaj dan još nije izabrana poruka — ako ostane tako, ide nastavak kruga: poruka ${lista.indexOf(inace) + 1}.`,
+      : `Za ovaj dan nije izabrana poruka, pa automatski ide po redoslijedu: poruka ${lista.indexOf(inace) + 1}. Izaberi drugu ako želiš.`,
     k === danasK() ? `Današnja poruka se može mijenjati do ${SAT_PORUKE} h.` : '',
   ].filter(Boolean).join(' ');
   crtajTaboveKnjiga($('#dan-knjige'), lista, danKnjiga);
@@ -1265,7 +1289,7 @@ function crtajIzbor() {
       const prije = dani.lastIndexOf(c, NAZAD - 1);
       const poslije = dani.indexOf(c, NAZAD + 1);
       const meta = [
-        !sad && c === inace ? '<b>nastavak kruga</b>' : '',
+        !sad && c === inace ? '<b>po redoslijedu</b>' : '',
         prije >= 0 ? `bila ${prijeDana(NAZAD - prije)}` : 'ranije nije bila',
         poslije >= 0 ? `dolazi ${zaDana(poslije - NAZAD)}` : '',
       ].filter(Boolean).join(' · ');
@@ -1373,7 +1397,7 @@ $('#citat-sacuvaj').addEventListener('click', e => {
       else {
         zadrziDanasnjuLokalno();
         novaId = Math.max(0, ...citati.map(x => Number(x.id) || 0)) + 1;
-        citati.push({ id: novaId, redoslijed: Math.max(0, ...citati.map(x => x.redoslijed || 0)) + 1, ...polja });
+        citati.push({ id: novaId, redoslijed: Math.max(0, ...citati.map(x => x.redoslijed || 0)) + 1, napravljeno: new Date().toISOString(), ...polja });
       }
       pisiLokalno();
     } else {
@@ -1399,6 +1423,7 @@ $('#citat-obrisi').addEventListener('click', e => {
       if (aktivni().length <= 1) throw new Error('Mora ostati bar jedna poruka');
       zadrziDanasnjuLokalno();
       c.obrisana = true;
+      c.izmijenjeno = new Date().toISOString();
       return pisiLokalno();
     }
     await apiPoruke('DELETE', `?id=${c.id}`);

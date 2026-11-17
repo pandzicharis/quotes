@@ -16,7 +16,7 @@
 
    Dan čija je poruka već otišla (prošli dani, i danas od 10 h) se ne mijenja. */
 import { ovlascenAdmin, odbijAdmin } from './_lib/auth.js';
-import { citajTijelo, porukaZaDatum, danSarajevo } from './_lib/push.js';
+import { citajTijelo, porukaZaDatum, danSarajevo, oznaciKrug } from './_lib/push.js';
 import {
   bazaSpremna, svePoruke, dodajPoruku, izmijeniPoruku,
   rasporedPoruka, zakaziPoruke, otkaziPoruke,
@@ -56,7 +56,7 @@ async function zadrziDanasnju(sve) {
   const raspored = await rasporedPoruka();
   const aktivne = sve.filter(p => !p.obrisana);
   if (!aktivne.length || aktivne.some(p => p.id === raspored[dan])) return;
-  await zakaziPoruke([{ dan, poruka: porukaZaDatum({ poruke: aktivne }, dan, raspored).id }]);
+  await zakaziPoruke([{ dan, poruka: porukaZaDatum({ poruke: aktivne, sve: oznaciKrug(sve) }, dan, raspored).id }]);
 }
 
 export default async function handler(req, res) {

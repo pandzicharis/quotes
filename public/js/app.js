@@ -253,7 +253,7 @@ async function ucitajPodatke() {
   // poruke iz baze (bez obrisanih) zamjenjuju listu iz JSON-a; `sve` drži i
   // obrisane, jer se sačuvane poruke vežu za id
   const aktivne = Array.isArray(baza?.poruke) ? baza.poruke.filter(p => !p.obrisana) : [];
-  d.sve = aktivne.length ? baza.poruke : d.poruke;
+  d.sve = oznaciKrug(aktivne.length ? baza.poruke : d.poruke);
   if (aktivne.length) d.poruke = aktivne;
   d.raspored = (aktivne.length && baza.raspored) || {};
   return d;
@@ -282,21 +282,45 @@ async function ucitajIzBaze() {
 const knjigaPo = id => stanje.podaci.knjige.find(k => k.id === id) || null;
 const porukaPo = id => stanje.podaci.sve.find(p => p.id === id) || null;
 
+/* Od kojeg dana je poruka u krugu (`_od`) i do kojeg (`_do`, isključivo):
+   početne su oduvijek, nova od dana poslije dodavanja, obrisana do dana
+   brisanja — prošli dani ostaju kakvi su bili kad se lista promijeni.
+   Isto kao oznaciKrug u api/_lib/push.js. */
+const SARAJEVO = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Sarajevo', year: 'numeric', month: '2-digit', day: '2-digit' });
+const danSarajevo = t => {
+  const x = Object.fromEntries(SARAJEVO.formatToParts(new Date(t)).map(p => [p.type, p.value]));
+  return `${x.year}-${x.month}-${x.day}`;
+};
+function oznaciKrug(sve) {
+  const t = p => Date.parse(p.napravljeno);
+  // početne: upisane zajedno, prvim upisom — ili, kad neke nemaju vrijeme (poruke.json), baš te
+  const prvi = sve.some(p => !Number.isFinite(t(p))) ? NaN : Math.min(...sve.map(t));
+  for (const p of sve) {
+    p._od = Number.isFinite(t(p)) && t(p) !== prvi ? danSarajevo(t(p)) : '';
+    p._do = !p.obrisana ? null : Number.isFinite(Date.parse(p.izmijenjeno)) ? danSarajevo(p.izmijenjeno) : '';
+  }
+  return sve;
+}
+const uKrugu = (p, k) => (p._od ?? '') < k && (p._do == null || k < p._do);
+
 /** Poruka je vezana za datum: isti dan uvijek daje istu poruku. Pravilo je
     isto kao u slanju (porukaZaDatum u api/_lib/push.js): poruka koju je admin
-    izabrao za taj dan; inače krug se nastavlja od zadnjeg izabranog dana;
-    dok ništa nije izabrano — broj dana % broj poruka. */
+    izabrao za taj dan; inače krug (poruke koje su tog dana postojale) se
+    nastavlja od zadnjeg izabranog dana; dok ništa nije izabrano — broj
+    dana % broj poruka. */
 function porukaZa(d) {
-  const lista = stanje.podaci.poruke, n = lista.length, rasp = stanje.podaci.raspored;
+  const lista = stanje.podaci.poruke, rasp = stanje.podaci.raspored;
   const k = kljuc(d);
-  const mjesto = id => (id == null ? -1 : lista.findIndex(p => p.id === id));
-  const i = mjesto(rasp[k]);
-  if (i >= 0) return lista[i];
+  const z = rasp[k] != null && lista.find(p => p.id === rasp[k]);
+  if (z) return z;
+  let krug = stanje.podaci.sve.filter(p => uKrugu(p, k));
+  if (!krug.length) krug = lista;
+  const n = krug.length;
   for (const x of Object.keys(rasp).filter(y => y < k).sort().reverse()) {
-    const j = mjesto(rasp[x]);
-    if (j >= 0) return lista[(j + brojDana(d) - brojDana(izKljuca(x))) % n];
+    const j = krug.findIndex(p => p.id === rasp[x]);
+    if (j >= 0) return krug[(j + brojDana(d) - brojDana(izKljuca(x))) % n];
   }
-  return lista[((brojDana(d) % n) + n) % n];
+  return krug[((brojDana(d) % n) + n) % n];
 }
 
 /* ---------- 6. KARTICA ---------- */
