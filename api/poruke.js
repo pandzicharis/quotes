@@ -14,12 +14,19 @@
    idu samo one bez `obrisana`. `raspored` je { 'YYYY-MM-DD': id }. Kako se
    iz toga dobije poruka dana — vidi porukaZaDatum u _lib/push.js.
 
-   Dan čija je poruka već otišla (prošli dani, i danas od 10 h) se ne mijenja. */
+   Dan čija je poruka već otišla (prošli dani, i danas od 10 h) se ne mijenja.
+
+   Poruke van knjiga (dizajner u adminu) — nisu poruke dana, pa sve traži admina:
+     GET    ?vlastite=1                       { poruke }, zadnje mijenjane prve
+     POST   ?vlastite=1 { tekst, stil }        nova
+     PUT    ?vlastite=1&id=… { tekst, stil }   izmjena
+     DELETE ?vlastite=1&id=…                   brisanje (za stalno) */
 import { ovlascenAdmin, odbijAdmin } from './_lib/auth.js';
 import { citajTijelo, porukaZaDatum, danSarajevo, oznaciKrug } from './_lib/push.js';
 import {
   bazaSpremna, svePoruke, dodajPoruku, izmijeniPoruku,
   rasporedPoruka, zakaziPoruke, otkaziPoruke,
+  sveVlastite, dodajVlastitu, izmijeniVlastitu, obrisiVlastitu,
 } from './_lib/baza.js';
 
 const DAN = /^\d{4}-\d{2}-\d{2}$/;
@@ -59,11 +66,51 @@ async function zadrziDanasnju(sve) {
   await zakaziPoruke([{ dan, poruka: porukaZaDatum({ poruke: aktivne, sve: oznaciKrug(sve) }, dan, raspored).id }]);
 }
 
+/* ---------- poruke van knjiga ---------- */
+const STILOVI_SLIKE = ['zelena', 'krem'];
+// dužina nije ograničena za pisanje — slika smanji slova da poruka stane;
+// ovo je samo zaštita od pogrešno zalijepljenog teksta (isto kao u bazi)
+const NAJVISE_ZNAKOVA = 10000;
+
+function ocistiVlastitu(t) {
+  const tekst = typeof t?.tekst === 'string' ? t.tekst.trim() : '';
+  if (!tekst) return { greska: 'Tekst poruke je prazan' };
+  if (tekst.length > NAJVISE_ZNAKOVA) return { greska: `Poruka je duža od ${NAJVISE_ZNAKOVA} znakova` };
+  return { tekst, stil: STILOVI_SLIKE.includes(t.stil) ? t.stil : 'zelena' };
+}
+
+async function vlastite(req, res, id) {
+  if (!ovlascenAdmin(req)) return odbijAdmin(res);
+  res.setHeader('Cache-Control', 'no-store');
+  try {
+    if (req.method === 'GET') return res.status(200).json({ poruke: await sveVlastite() });
+    if (req.method === 'POST' || (req.method === 'PUT' && id)) {
+      const p = ocistiVlastitu(citajTijelo(req));
+      if (p.greska) return res.status(400).json(p);
+      if (req.method === 'POST') return res.status(201).json({ poruka: await dodajVlastitu(p) });
+      const red = await izmijeniVlastitu(id, p);
+      return red ? res.status(200).json({ poruka: red }) : res.status(404).json({ greska: 'Poruka ne postoji' });
+    }
+    if (req.method === 'DELETE' && id) {
+      return await obrisiVlastitu(id) ? res.status(200).json({ ok: true }) : res.status(404).json({ greska: 'Poruka ne postoji' });
+    }
+    res.setHeader('Allow', 'GET, POST, PUT, DELETE');
+    return res.status(405).json({ greska: 'Metoda nije podržana' });
+  } catch (e) {
+    // tabela još nije napravljena: pokrene se sql/shema.sql
+    if (/PGRST205|42P01/.test(e.message)) {
+      return res.status(503).json({ greska: 'U bazi nema tabele vlastite_poruke — pokreni sql/shema.sql u Supabase' });
+    }
+    return res.status(500).json({ greska: e.message });
+  }
+}
+
 export default async function handler(req, res) {
   if (!bazaSpremna()) return res.status(503).json({ greska: 'Baza nije konfigurisana' });
 
   const url = new URL(req.url, 'http://x');
   const id = Number(url.searchParams.get('id'));
+  if (url.searchParams.has('vlastite')) return vlastite(req, res, id);
 
   try {
     if (req.method === 'GET') {

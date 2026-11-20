@@ -8,6 +8,8 @@
    a uz donji rub sajt i mreže, kao na kartici u aplikaciji.
    Van BiH iz gornjeg lijevog ugla izlazi zastava.
    Svi razmaci su udio širine, pa story, objava i A3 drže isti ritam.
+   Istom rukom se crtaju i raspored predavanja i poruka iz dizajnera u
+   adminu (na dnu fajla).
    ============================================================ */
 import {
   SERIF, DISPLAY, SANS, STILOVI,
@@ -237,11 +239,12 @@ function razmaknuto(c, tekst, x, y, razmak) {
 
 /* --- dijelovi zajednički plakatu i rasporedu --- */
 
-/** Zaglavlje — natpis, ispod logo — i gdje mu je dno; blok ispod smije do njega. */
-function zaglavlje(W, m2, U, F, tip) {
+/** Zaglavlje — natpis, ispod logo — i gdje mu je dno; blok ispod smije do njega.
+    Bez natpisa (poruka) logo se penje na njegovo mjesto. */
+function zaglavlje(W, m2, U, F, tip, natpis = true) {
   const yP = m2 + U * 3 + F.nad / 2;
   const visLoga = W * 0.08 * tip;              // logo je potpis plakata — mora se vidjeti i u malom pregledu
-  const yLogo = yP + F.nad / 2 + U * 1.6;
+  const yLogo = natpis ? yP + F.nad / 2 + U * 1.6 : m2 + U * 3;
   return { yP, yLogo, visLoga, dno: yLogo + visLoga };
 }
 
@@ -267,10 +270,10 @@ function praznoLijevo(img) {
 function crtajZaglavlje(c, z, x0, W, F, s, znak, natpis) {
   c.fillStyle = s.gold;
   c.font = `700 ${F.nad}px ${SANS}`;
-  razmaknuto(c, natpis, x0, z.yP, W * 0.016);
+  if (natpis) razmaknuto(c, natpis, x0, z.yP, W * 0.016);
   if (!znak) return;
   // lijevi rub crteža slova P — slovo ima svoj mali odmak od x0
-  const xP = x0 - c.measureText(natpis[0]).actualBoundingBoxLeft;
+  const xP = natpis ? x0 - c.measureText(natpis[0]).actualBoundingBoxLeft : x0;
   const lw = z.visLoga * znak.naturalWidth / znak.naturalHeight;
   c.drawImage(znak, xP - lw * praznoLijevo(znak), z.yLogo, lw, z.visLoga);
 }
@@ -802,3 +805,186 @@ export async function plakatBlob(p, o = {}) {
 
 export const imePlakata = (p, format = 'objava') =>
   `predavanje-${p.datum || 'novo'}-${(p.grad || 'plakat').toLowerCase().replace(/[^a-z0-9šđčćž]+/g, '-')}-${format}.${format.startsWith('a3') ? 'jpg' : 'png'}`;
+
+/* ============================================================
+   PORUKA — hafizova poruka van knjiga, za objavu i story
+   ------------------------------------------------------------
+   Ista ruka i ista mreža kao plakat: gore logo, u pozadini desno
+   utopljeni hafiz, a dolje, gdje plakat ima naslov, navodnik i poruka,
+   poravnata lijevo, pa sajt i mreže uz donji rub.
+   ============================================================ */
+
+/**
+ * Poruka složena u redove, poravnata lijevo. Pasus se lomi tako da redovi
+ * budu što ujednačenije dužine (cijena praznog kraja reda raste s kubom,
+ * kao u TeX-u), pa desni rub nema rupa, a jedna riječ sama u zadnjem redu
+ * se izbjegava kad može. Novi red iz teksta je novi pasus, prazan red predah
+ * od pola reda (`null`); `siroko` znači da je neka riječ šira od reda.
+ * @returns {{redovi: Array<{rijeci: string[]}|null>, siroko: boolean}}
+ */
+function slogPoruke(c, tekst, maxW) {
+  const sp = c.measureText(' ').width, redovi = [];
+  let siroko = false;
+  for (const dio of tekst.split('\n')) {
+    const rijeci = dio.trim().split(/\s+/).filter(Boolean);
+    if (!rijeci.length) {
+      if (redovi.length && redovi.at(-1) !== null) redovi.push(null);
+      continue;
+    }
+    const n = rijeci.length, sir = rijeci.map(r => c.measureText(r).width);
+    if (sir.some(x => x > maxW)) siroko = true;
+    // cijena[i]: najjeftiniji slog prvih i riječi; od[i]: riječ kojom počinje njegov zadnji red
+    const cijena = [0], od = [0];
+    for (let i = 1; i <= n; i++) {
+      cijena[i] = Infinity;
+      for (let j = i - 1, w = -sp; j >= 0; j--) {
+        w += sir[j] + sp;
+        if (w > maxW && j < i - 1) break;
+        const g = i - 1 - j;                                   // razmaka u redu
+        const k = i === n ? (g || n === 1 ? 0 : 1000)          // zadnji red smije biti kratak; sama riječ u njemu je ružna
+          : g ? (1 + 100 * ((maxW - w) / (g * sp)) ** 3) ** 2
+          : 1e9;                                               // jedna riječ sama u redu samo kad mora
+        if (cijena[j] + k < cijena[i]) { cijena[i] = cijena[j] + k; od[i] = j; }
+      }
+    }
+    const pasus = [];
+    for (let i = n; i > 0; i = od[i]) {
+      pasus.unshift({ rijeci: rijeci.slice(od[i], i) });
+    }
+    redovi.push(...pasus);
+  }
+  while (redovi.at(-1) === null) redovi.pop();
+  return { redovi, siroko };
+}
+
+/** Slovo poruke za veličinu fs (px): tanak kurziv, izražajan i kad je teksta puno. */
+const SLOVO_PORUKE = fs => `italic 300 ${fs}px "Cormorant Garamond", ${SERIF}`;
+
+/**
+ * Crta poruku u zadano platno.
+ *   gore      logo, na mjestu natpisa s plakata
+ *   pozadina  hafiz desno, utopljen
+ *   dolje     “ poruka, poravnata lijevo
+ *             ─────────────────────────────
+ *             sajt · Facebook · Instagram
+ * Kratka poruka je krupna; duža se smanjuje dok blok ne stane ispod zaglavlja.
+ *
+ * @param {HTMLCanvasElement} cv
+ * @param {{tekst: string}} p
+ * @param {{format?: string, stil?: string, mjerilo?: number, zamjena?: string, slovo?: (fs: number) => string}} o
+ *        `zamjena` se crta blijedo dok poruke nema; `slovo` daje CSS font poruke za veličinu
+ * @returns {Promise<{stalo: boolean}>} `stalo` je `false` kad poruka ne stane ni najsitnija
+ */
+export async function nacrtajPoruku(cv, p, {
+  format = 'objava', stil = 'zelena', mjerilo = 1, zamjena = '', slovo = SLOVO_PORUKE,
+} = {}) {
+  const f = PLAKAT_FORMATI.find(x => x.id === format) || PLAKAT_FORMATI[1];
+  const s = stilPlakata(stil);
+
+  await Promise.all([...FONTOVI, slovo(40)].map(x => document.fonts?.load(x).catch(() => {})));
+  const [znak, foto, mreze] = await Promise.all([
+    ucitajSliku(`/assets/brand/ammar_basic_logo_${s.logo}_1.png`).catch(() => null),
+    ucitajSliku('/assets/brand/author.jpg').catch(() => null),
+    ucitajMreze(),
+  ]);
+
+  const W = Math.round(f.w * mjerilo), H = Math.round(f.h * mjerilo), odnos = H / W;
+  cv.width = W; cv.height = H;
+  const c = cv.getContext('2d');
+  const rast = odnos / 1.25, tip = 1 + (rast - 1) * .35;
+  const U = W * 0.012 * rast * (odnos < 1.5 ? .8 : 1);
+  const F = Object.fromEntries(Object.entries({
+    nad: 0.023, poruka: 0.064, link: 0.0215,
+  }).map(([k, v]) => [k, W * v * tip]));
+
+  podloga(c, W, H, s);
+  if (foto) fotoNaPlatno(c, W, H, foto, FOTO[s.id] ?? FOTO.zelena);
+
+  const m2 = W * 0.078, x0 = m2 + W * 0.025, sirina = W - x0 - (m2 + W * 0.045);
+  c.textAlign = 'left';
+  c.textBaseline = 'middle';
+
+  const z = zaglavlje(W, m2, U, F, tip, false);
+  const dno = H - m2 - U * 3;
+  const lk = mjereLinkova(c, mreze, F.link, U, sirina);
+
+  const prava = (p.tekst || '').trim();
+  const tekst = prava || zamjena;
+
+  /* --- poruka: krupno koliko god stane. Duža poruka ima sitnija slova, ali
+     cijeli blok uvijek stane između zaglavlja i dna — dužina nije
+     ograničena. Veličina se traži raspolovljavanjem, a svaki pokušaj složi
+     redove istim slogom kojim se poslije crta (slogPoruke), pa blok stane
+     tačno. Riječ šira od reda (npr. link) smanjuje slova dok ne stane. --- */
+  c.save();                                        // navodnik je 2,2 × slovo — mjeri se jednom, na 100px,
+  c.font = `700 220px ${DISPLAY}`;                 // od iste osnovne linije kojom se crta
+  c.textBaseline = 'alphabetic';
+  const n0 = c.measureText('“');
+  c.restore();
+  const nav = k => ({
+    vis: (n0.actualBoundingBoxAscent + n0.actualBoundingBoxDescent) * k / 100,
+    lijevo: n0.actualBoundingBoxLeft * k / 100, gore: n0.actualBoundingBoxAscent * k / 100,
+  });
+  const visTeksta = fs => {                         // predah između pasusa je pola reda
+    c.font = slovo(fs);
+    const { redovi, siroko } = slogPoruke(c, tekst, sirina);
+    return siroko ? Infinity : redovi.reduce((v, r) => v + (r ? 1 : .5), 0) * fs * 1.3;
+  };
+  const visBlokaZa = fs => nav(fs).vis + U * 1.4 + visTeksta(fs) + U * 4 + lk.vis;
+  const prostor = dno - z.dno - U * 4, najmanje = W * 0.006;
+  let fs = F.poruka, stalo = true;
+  if (visBlokaZa(fs) > prostor) {
+    let manje = najmanje, vece = fs;
+    if (visBlokaZa(manje) > prostor) stalo = false;
+    else for (let i = 0; i < 16; i++) { const k = (manje + vece) / 2; if (visBlokaZa(k) <= prostor) manje = k; else vece = k; }
+    fs = manje;
+  }
+  const visBloka = visBlokaZa(fs), lh = fs * 1.3, n = nav(fs);
+  c.font = slovo(fs);
+  const { redovi } = slogPoruke(c, tekst, sirina);
+
+  /* --- crtanje, odozgo nadolje od vrha bloka --- */
+  const vrhBloka = dno - visBloka;
+  await ispodSloga(c, W, H, s, vrhBloka, { foto });
+  crtajZaglavlje(c, z, x0, W, F, s, znak, '');
+
+  // navodnik: lijevi rub crteža na lijevoj liniji, vrh crteža na vrhu bloka
+  let y = vrhBloka;
+  c.save();
+  c.textBaseline = 'alphabetic';
+  c.font = `700 ${fs * 2.2}px ${DISPLAY}`;
+  c.fillStyle = saAlfom(s.navod, .5);
+  c.fillText('“', x0 + n.lijevo, y + n.gore);
+  c.restore();
+  y += n.vis + U * 1.4;
+
+  c.save();
+  c.fillStyle = s.ink;
+  c.font = slovo(fs);
+  if (!prava) c.globalAlpha = .38;
+  for (const r of redovi) {
+    if (r === null) { y += lh * .5; continue; }
+    c.fillText(r.rijeci.join(' '), x0, y + lh / 2);   // red cio: prirodni razmaci, arapske riječi zadrže redoslijed
+    y += lh;
+  }
+  c.restore();
+
+  crtajLinkove(c, mreze, lk, { x0, sirina, dno, fl: F.link, U, W, s });
+  return { stalo };
+}
+
+/** Poruka kao slika — PNG u duploj veličini, kao plakat. */
+export async function porukaBlob(p, o = {}) {
+  const cv = document.createElement('canvas');
+  await nacrtajPoruku(cv, p, { mjerilo: IZVOZ_MJERILO(o.format), ...o });
+  return new Promise(res => cv.toBlob(res, 'image/png'));
+}
+
+/** poruka-ko-se-allaha-boji-objava-zelena.png — bez kvačica, za svaki sistem. */
+export function imePoruke(p, format = 'objava', stil = 'zelena') {
+  const pocetak = (p.tekst || '').trim().split(/\s+/).slice(0, 4).join(' ').toLowerCase()
+    .replace(/đ/g, 'dj').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').slice(0, 32).replace(/^-|-$/g, '');
+  const naziv = (PLAKAT_FORMATI.find(x => x.id === format)?.naziv || format).toLowerCase();
+  return `${['poruka', pocetak, naziv, stil].filter(Boolean).join('-')}.png`;
+}

@@ -199,3 +199,25 @@ revoke all on public.poruke          from anon, authenticated;
 revoke all on public.raspored_poruka from anon, authenticated;
 grant select, insert, update, delete on public.poruke          to service_role;
 grant select, insert, update, delete on public.raspored_poruka to service_role;
+
+-- ---------- poruke van knjiga (dizajner u adminu) ----------
+-- Hafizove poruke koje nisu iz knjiga: admin ih piše u dizajneru i od njih
+-- pravi slike za objavu i story. Nisu poruke dana — ne idu u krug i
+-- aplikacija ih ne čita. `stil` je boja slike.
+create table if not exists public.vlastite_poruke (
+  id           bigint      generated always as identity primary key,
+  tekst        text        not null,
+  stil         text        not null default 'zelena' check (stil in ('zelena', 'krem')),
+  napravljeno  timestamptz not null default now(),
+  izmijenjeno  timestamptz not null default now()
+);
+-- Dužina se ne ograničava (slika smanji slova da poruka stane); 10 000 znakova
+-- je samo zaštita, ista kao u /api/poruke. Ovako i tabela napravljena ranije,
+-- s granicom od 2000, dobije novu.
+alter table public.vlastite_poruke drop constraint if exists vlastite_poruke_tekst_check;
+alter table public.vlastite_poruke add constraint vlastite_poruke_tekst_check
+  check (length(tekst) between 1 and 10000);
+
+alter table public.vlastite_poruke enable row level security;
+revoke all on public.vlastite_poruke from anon, authenticated;
+grant select, insert, update, delete on public.vlastite_poruke to service_role;

@@ -81,6 +81,22 @@ Poredak se lako provjeri razvojnom trakom (vidi „Razvojne alatke“).
 Knjige imaju svoj `url` (`/knjiga/...`), pa klik na izvor vodi direktno na
 tu knjigu. `autor.knjige_url` je fallback (`/shop`).
 
+### Poruka van knjiga: dizajner
+
+Tab „Dizajner“ u `/admin` je lista sačuvanih poruka van knjiga. „Nova
+poruka“ ili dodir na poruku otvara dizajner u draweru: hafiz upiše poruku, a
+pregled odmah crta objavu 4:5 i story 9:16, zelenu ili krem, istom rukom kao
+plakat predavanja (`nacrtajPoruku` u `js/plakat.js`): logo gore, hafiz
+diskretno u pozadini, dolje poruka tankim kurzivom (Cormorant Garamond Light
+Italic), poravnata lijevo i bez potpisa. Duža
+poruka dobije sitnija slova i uvijek cijela stane. Slika se preuzima u duploj
+veličini (2160 × 2700 i 2160 × 3840), a na telefonu ide kroz meni za
+dijeljenje (Instagram, Viber, „Sačuvaj sliku“).
+
+„Sačuvaj“ upisuje poruku u tabelu `vlastite_poruke` (`sql/shema.sql`,
+`/api/poruke?vlastite=1`), odvojeno od poruka dana: ne ide u krug i
+aplikacija je ne vidi. Lokalno, bez servera, čuvaju se u pregledniku.
+
 ---
 
 ## Deploy na Vercel

@@ -382,6 +382,39 @@ export async function otkaziPoruke(dani) {
   await zahtjev(`${TAB_RASPORED}?dan=in.(${dani.join(',')})`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
 }
 
+/* ---------- poruke van knjiga (dizajner u adminu) ----------
+   Odvojene od poruka dana: ne idu u krug, aplikacija ih ne čita. Vidi
+   `vlastite_poruke` u sql/shema.sql. */
+const TAB_VLASTITE = 'vlastite_poruke';
+const POLJA_VLASTITE = 'id,tekst,stil,napravljeno,izmijenjeno';
+
+/** Sve, zadnje mijenjane prve. */
+export const sveVlastite = () =>
+  sveStranice(`${TAB_VLASTITE}?select=${POLJA_VLASTITE}&order=izmijenjeno.desc,id.desc`);
+
+export async function dodajVlastitu(p) {
+  const r = await zahtjev(`${TAB_VLASTITE}?select=${POLJA_VLASTITE}`, {
+    method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(p),
+  });
+  return (await r.json())[0];
+}
+
+export async function izmijeniVlastitu(id, p) {
+  const r = await zahtjev(`${TAB_VLASTITE}?id=eq.${id}&select=${POLJA_VLASTITE}`, {
+    method: 'PATCH', headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ ...p, izmijenjeno: new Date().toISOString() }),
+  });
+  return (await r.json())[0] || null;
+}
+
+/** Briše za stalno — ništa se ne veže za njih. Vraća je li bilo šta obrisano. */
+export async function obrisiVlastitu(id) {
+  const r = await zahtjev(`${TAB_VLASTITE}?id=eq.${id}&select=id`, {
+    method: 'DELETE', headers: { Prefer: 'return=representation' },
+  });
+  return (await r.json()).length > 0;
+}
+
 /* ---------- brojanje instalacija ---------- */
 /* Isto što je ranije radio `SADD` u skup: uređaj šalje nasumičnu oznaku koju
    sam napravi i čuva, pa ponovno otvaranje ne diže brojku. Ovdje to nosi

@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,300&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap">
 <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
@@ -41,6 +41,8 @@
     <symbol id="i-ponisti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h11a5 5 0 0 1 0 10H9"/><path d="M8 5L4 9l4 4"/></symbol>
     <symbol id="i-grafikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 1.7)" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M7 16v-4M12 16V7M17 16v-6"/></symbol>
     <symbol id="i-iskra" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/></symbol>
+    <symbol id="i-pero" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 1.7)" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5l1.2-4.4L15.8 5a2.1 2.1 0 0 1 3 0l.2.2a2.1 2.1 0 0 1 0 3L8.9 18.3z"/><path d="M13.8 7l3.2 3.2M4.5 19.5h15"/></symbol>
+    <symbol id="i-dijeli" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M8 7l4-4 4 4M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></symbol>
   </defs>
 </svg>
 
@@ -67,6 +69,7 @@
     <nav>
       <button data-tab="lista" aria-current="true" title="Predavanja"><svg class="ik"><use href="#i-kalendar"/></svg><span>Predavanja</span></button>
       <button data-tab="citati" title="Poruke"><svg class="ik"><use href="#i-navod"/></svg><span>Poruke</span></button>
+      <button data-tab="dizajner" title="Dizajner poruke"><svg class="ik"><use href="#i-pero"/></svg><span>Dizajner</span></button>
       <button data-tab="statistika" title="Statistika"><svg class="ik"><use href="#i-grafikon"/></svg><span>Statistika</span></button>
       <button data-tab="grafike" title="Grafike"><svg class="ik"><use href="#i-plakat"/></svg><span>Grafike</span></button>
     </nav>
@@ -126,6 +129,19 @@
         <div class="kal" id="kal"></div>
         <div class="kal-legenda sitno" id="kal-legenda"></div>
       </div>
+    </section>
+
+    <!-- dizajner: lista sačuvanih poruka van knjiga (tabela vlastite_poruke,
+         odvojeno od poruka dana); nova ili dodirnuta se otvara u draweru -->
+    <section data-pogled="dizajner" hidden>
+      <header class="glava">
+        <div><span class="nad">Objava i story</span><h1>Dizajner poruke</h1></div>
+        <div class="glava__akcije">
+          <button class="zlatno" id="dz-nova"><svg class="ik"><use href="#i-plus"/></svg><span>Nova poruka</span></button>
+        </div>
+      </header>
+      <p class="sitno poruke-napomena" id="dz-napomena"></p>
+      <div class="povrsina redovi" id="dz-lista"></div>
     </section>
 
     <!-- grafike za mreže: stranica /grafike, ugrađena; preuzimanje i dijeljenje rade i odavde -->
@@ -289,6 +305,38 @@
       <button type="button" class="zlatno" id="dan-sacuvaj"><svg class="ik"><use href="#i-kvaka"/></svg> Sačuvaj</button>
     </div>
   </form>
+</dialog>
+
+<!-- ===== DIZAJNER PORUKE: tekst i boja lijevo, objava i story desno;
+     na telefonu drawer preko skoro cijelog ekrana ===== -->
+<dialog class="dijalog dijalog--dz" id="dz-modal" aria-labelledby="dz-naslov">
+  <i class="rucka" aria-hidden="true"></i>
+  <header class="um__glava">
+    <span class="glava__ikona"><svg class="ik"><use href="#i-pero"/></svg></span>
+    <div class="glava__naslov"><span class="nad">Dizajner poruke</span><h2 id="dz-naslov">Nova poruka</h2></div>
+    <button type="button" class="tiho ikona-dugme glava__x" id="dz-zatvori" title="Zatvori" aria-label="Zatvori"><svg class="ik"><use href="#i-x"/></svg></button>
+  </header>
+  <div class="dz-tijelo">
+    <div class="dz">
+      <form class="dz__forma povrsina" id="dz-forma" autocomplete="off">
+        <label>Poruka <textarea id="dz-tekst" rows="7" placeholder="Napiši poruku…"></textarea></label>
+        <p class="sitno dz__upozorenje" id="dz-upozorenje"></p>
+        <div class="dizajner__grupa">
+          <span class="dizajner__nas">Boja</span>
+          <div class="karte karte--2" id="dz-boje">
+            <button type="button" data-stil="zelena"><i class="uzorak" style="--a:#204234;--b:#0D1C15;--z:#E3C489">“</i><span>Zelena</span></button>
+            <button type="button" data-stil="krem"><i class="uzorak" style="--a:#F7F1E2;--b:#E6D9BC;--z:#8E6C28">“</i><span>Krem</span></button>
+          </div>
+        </div>
+      </form>
+      <div class="dz__pregled" id="dz-pregled"></div>
+    </div>
+  </div>
+  <div class="dz-dno">
+    <button type="button" class="tiho opasno" id="dz-obrisi" hidden><svg class="ik"><use href="#i-kanta"/></svg> Obriši</button>
+    <span class="razmak"></span>
+    <button type="button" class="zlatno" id="dz-sacuvaj" disabled><svg class="ik"><use href="#i-kvaka"/></svg> <span>Sačuvaj poruku</span></button>
+  </div>
 </dialog>
 
 <!-- ===== IZVOZ ===== -->

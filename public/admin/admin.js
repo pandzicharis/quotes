@@ -1,12 +1,16 @@
 /* ============================================================
-   ADMIN — naredna predavanja, uređivanje s plakatom u modalu, poruke
+   ADMIN — naredna predavanja, uređivanje s plakatom u modalu, poruke,
+   dizajner poruke za mreže
    ============================================================ */
 import {
   ZEMLJE, ZONE, SARAJEVO, OPCIJE, MJESECI, MJESECI_KRATKO,
   zemlja, imeZemlje, proslo, linkPlakata, danUSedmici, punDatumP,
   ucitajPredavanja, sacuvajPredavanje, obrisiPredavanjeId, radiLokalno,
 } from '/js/predavanja-jezgro.js';
-import { PLAKAT_FORMATI, nacrtajPlakat, plakatBlob, imePlakata, nacrtajRaspored, rasporedBlob, mjeriloEkrana } from '/js/plakat.js';
+import {
+  PLAKAT_FORMATI, nacrtajPlakat, plakatBlob, imePlakata, nacrtajRaspored, rasporedBlob, mjeriloEkrana,
+  nacrtajPoruku, porukaBlob, imePoruke,
+} from '/js/plakat.js';
 
 const $ = (s, k = document) => k.querySelector(s);
 const $$ = (s, k = document) => [...k.querySelectorAll(s)];
@@ -81,7 +85,7 @@ $('#odjava').addEventListener('click', () => { localStorage.removeItem(TAJNA); l
 /* ---------- pogledi ----------
    Otvoreni ekran stoji u adresi (#poruke, #statistika…), pa ga osvježavanje
    stranice ne vraća na predavanja. */
-const ADRESE = { lista: 'predavanja', citati: 'poruke', statistika: 'statistika', grafike: 'grafike' };
+const ADRESE = { lista: 'predavanja', citati: 'poruke', dizajner: 'dizajner', statistika: 'statistika', grafike: 'grafike' };
 const pogledIzAdrese = () => Object.keys(ADRESE).find(k => `#${ADRESE[k]}` === location.hash) || 'lista';
 
 function pogled(ime) {
@@ -90,6 +94,7 @@ function pogled(ime) {
   history.replaceState(null, '', `${location.pathname}${location.search}#${ADRESE[ime]}`);
   scrollTo({ top: 0 });
   if (ime === 'citati') ucitajCitate();
+  if (ime === 'dizajner') dzOtvori();               // sad se vidi — crta se po stvarnoj širini
   if (ime === 'statistika') ucitajStatistiku();
   if (ime === 'grafike') ucitajGrafike();
 }
@@ -1114,8 +1119,9 @@ async function upisiDane(promjene) {
   return prije;
 }
 
-/* Obavijest s dugmetom „Poništi“ — svaka izmjena rasporeda se može vratiti. */
-function obavijestPonisti(tekst, ponisti) {
+/* Obavijest s dugmetom „Poništi“ — svaka izmjena rasporeda se može vratiti.
+   `poslije` osvježi ekran kad je vraćeno (zadano: poruke). */
+function obavijestPonisti(tekst, ponisti, poslije = crtajPoruke) {
   const el = $('#poruka');
   document.body.append(el);
   el.classList.remove('greska');
@@ -1123,7 +1129,7 @@ function obavijestPonisti(tekst, ponisti) {
   el.classList.add('on', 'sa-dugmetom');
   el.querySelector('button').addEventListener('click', async () => {
     el.classList.remove('on', 'sa-dugmetom');
-    try { await ponisti(); crtajPoruke(); obavijest('Vraćeno kako je bilo'); } catch (e) { obavijest(e.message, true); }
+    try { await ponisti(); poslije(); obavijest('Vraćeno kako je bilo'); } catch (e) { obavijest(e.message, true); }
   }, { once: true });
   clearTimeout(el._t);
   el._t = setTimeout(() => el.classList.remove('on', 'sa-dugmetom'), 7000);
@@ -1441,6 +1447,334 @@ $('#citat-obrisi').addEventListener('click', e => {
     await apiPoruke('DELETE', `?id=${c.id}`);
     await procitajPoruke();
   }, 'Poruka je obrisana');
+});
+
+/* ---------- dizajner poruke ----------
+   Tab je lista sačuvanih poruka van knjiga; „Nova poruka“ ili dodir na
+   poruku otvara dizajner u draweru: tekst i boja, a objava i story crtaju
+   se istom rukom kao plakat (nacrtajPoruku u js/plakat.js). „Sačuvaj“
+   upisuje u bazu (/api/poruke?vlastite=1, tabela vlastite_poruke) —
+   odvojeno od poruka dana: ne ide u krug i aplikacija je ne vidi. Lokalno,
+   bez servera, sve ostaje u ovom pregledniku. */
+const DZ = 'pd.adminDizajner';          // ono što se piše dok je drawer otvoren
+const DZ_LOKALNO = 'pd.adminVlastite';  // sačuvane, kad nema servera
+const DZ_FORMATI = ['objava', 'prica'].map(id => PLAKAT_FORMATI.find(f => f.id === id));
+const dzMoze = !!(navigator.canShare && window.File &&
+  navigator.canShare({ files: [new File([''], 'a.png', { type: 'image/png' })] }));
+// na telefonu je dijeljenje glavna radnja — u meniju je i „Sačuvaj sliku“
+const dzTelefon = dzMoze && matchMedia('(pointer: coarse)').matches;
+const dzModal = $('#dz-modal');
+let dzStil = 'zelena';
+let dzSacuvane = [];       // [{ id, tekst, stil, napravljeno, izmijenjeno }], zadnje mijenjane prve
+let dzId = null;           // poruka otvorena u draweru; null = nova
+let dzLokalno = false;     // bez servera: sačuvane su u ovom pregledniku
+
+$('#dz-pregled').innerHTML = DZ_FORMATI.map(f => `
+  <figure class="dz__karta" data-f="${f.id}">
+    <canvas width="${f.w}" height="${f.h}" style="aspect-ratio: ${f.w} / ${f.h}" aria-label="${f.naziv}"></canvas>
+    <figcaption>
+      <span class="dz__ime"><b>${f.naziv}</b><small>${f.opis} · ${f.w * 2} × ${f.h * 2} px</small></span>
+      ${dzMoze ? `<button type="button" class="${dzTelefon ? 'zlatno' : ''}" data-dz="dijeli">${ikona('i-dijeli')} Podijeli</button>` : ''}
+      ${dzTelefon ? '' : `<button type="button" class="zlatno" data-dz="preuzmi">${ikona('i-preuzmi')} Preuzmi</button>`}
+    </figcaption>
+  </figure>`).join('');
+
+const dzPoruka = () => ({ tekst: $('#dz-tekst').value.trim() });
+
+function dzPostaviStil(s) {
+  dzStil = s;
+  $$('#dz-boje button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.stil === s)));
+}
+
+/* Dok je drawer otvoren, ono što se piše stoji i u pregledniku: ako se
+   stranica ugasi usred pisanja (telefon zna ugasiti karticu u pozadini),
+   drawer se idući put sam otvori s tim. Zatvaranje i čuvanje to brišu. */
+function dzPamti() {
+  try { localStorage.setItem(DZ, JSON.stringify({ tekst: $('#dz-tekst').value, stil: dzStil, id: dzId })); } catch { /* tiho */ }
+}
+function dzZaboravi() {
+  try { localStorage.removeItem(DZ); } catch { /* tiho */ }
+}
+
+/* Slika u punoj veličini, jednom po sadržaju. Na telefonu se pripremi čim
+   se izađe iz teksta: iOS dijeli samo odmah po dodiru, a pravljenje velike
+   slike traje — ovako je fajl već tu kad se dodirne „Podijeli“. Dok se
+   kuca, ne pravi se ništa, da tipkanje ne zapinje. */
+const dzKes = new Map();
+function dzFajl(format) {
+  const p = dzPoruka(), stil = dzStil, k = JSON.stringify([p, stil, format]);
+  if (!dzKes.has(k)) {
+    if (dzKes.size >= 4) dzKes.clear();
+    dzKes.set(k, porukaBlob(p, { format, stil })
+      .then(b => new File([b], imePoruke(p, format, stil), { type: 'image/png' }))
+      .catch(e => { dzKes.delete(k); throw e; }));
+  }
+  return dzKes.get(k);
+}
+let dzPriprema = 0;
+function dzPripremi() {
+  clearTimeout(dzPriprema);
+  if (!dzTelefon || !dzModal.open || !dzPoruka().tekst || document.activeElement === $('#dz-tekst')) return;
+  dzPriprema = setTimeout(() => DZ_FORMATI.forEach(f => dzFajl(f.id).catch(() => {})), 400);
+}
+
+let dzPotez = 0, dzTajmer = 0;
+function dzOsvjezi(odmah = false) {
+  const prazno = !$('#dz-tekst').value.trim();
+  $$('[data-dz]').forEach(b => { b.disabled = prazno; });
+  dzStanjeDugmadi();
+  clearTimeout(dzTajmer);
+  dzTajmer = setTimeout(dzCrtaj, odmah ? 0 : 120);
+}
+
+/* Pregled tačno po ekranu, da je oštar. Crta se u zasebno platno pa
+   prepiše — brzo kucanje ne miješa dva crtanja u istom platnu. */
+async function dzCrtaj() {
+  if (!dzModal.open) return;
+  const potez = ++dzPotez, p = dzPoruka();
+  let stalo = true;
+  for (const f of DZ_FORMATI) {
+    const pr = $(`.dz__karta[data-f="${f.id}"] canvas`), cv = document.createElement('canvas');
+    const r = await nacrtajPoruku(cv, p, {
+      format: f.id, stil: dzStil, zamjena: 'Napiši poruku…', mjerilo: mjeriloEkrana(f.id, pr.clientWidth || 300),
+    });
+    if (potez !== dzPotez) return;
+    pr.width = cv.width; pr.height = cv.height;
+    pr.getContext('2d').drawImage(cv, 0, 0);
+    stalo &&= r.stalo;
+  }
+  const upoz = $('#dz-upozorenje');
+  upoz.textContent = stalo ? '' : 'Poruka je preduga — skrati je.';
+  upoz.classList.toggle('greska', !stalo);
+  dzPripremi();
+}
+
+$('#dz-forma').addEventListener('submit', e => e.preventDefault());
+$('#dz-forma').addEventListener('input', () => { dzOsvjezi(); dzPamti(); });
+$('#dz-tekst').addEventListener('blur', dzPripremi);
+$$('#dz-boje button').forEach(b => b.addEventListener('click', () => { dzPostaviStil(b.dataset.stil); dzOsvjezi(true); dzPamti(); }));
+
+/* ---- sačuvane poruke ---- */
+
+/** /api/poruke?vlastite=1, uvijek sa šifrom. Lokalno (statični server, nema JSON-a) vraća null. */
+async function apiVlastite(metoda = 'GET', upit = '', tijelo) {
+  const r = await fetch(`/api/poruke?vlastite=1${upit}`, {
+    method: metoda,
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${tajna}`, ...(tijelo ? { 'Content-Type': 'application/json' } : {}) },
+    body: tijelo ? JSON.stringify(tijelo) : undefined,
+  });
+  if (!(r.headers.get('content-type') || '').includes('json')) {
+    if (jeLokalniHost) return null;
+    throw new Error(`Server je vratio ${r.status}`);
+  }
+  const d = await r.json();
+  if (!r.ok) throw Object.assign(new Error(d.greska || `Greška ${r.status}`), { status: r.status });
+  return d;
+}
+
+function dzCitajLokalno() {
+  try { return JSON.parse(localStorage.getItem(DZ_LOKALNO)) || []; } catch { return []; }
+}
+function dzPisiLokalno(lista) {
+  try { localStorage.setItem(DZ_LOKALNO, JSON.stringify(lista)); }
+  catch { throw new Error('Preglednik ne da da se sačuva'); }
+}
+
+const dzSacuvana = () => (dzId == null ? null : dzSacuvane.find(x => x.id === dzId) || null);
+const dzStanje = () => ({ id: dzId, tekst: $('#dz-tekst').value, stil: dzStil });
+/** Ima li u draweru nešto što nije sačuvano. */
+function dzIzmijenjeno() {
+  const s = dzSacuvana(), t = $('#dz-tekst').value.trim();
+  return s ? s.tekst !== t || s.stil !== dzStil : !!t;
+}
+
+function dzStanjeDugmadi() {
+  const s = dzSacuvana(), izmjene = dzIzmijenjeno(), b = $('#dz-sacuvaj');
+  b.disabled = !$('#dz-tekst').value.trim() || !izmjene;
+  $('span', b).textContent = !s ? 'Sačuvaj poruku' : izmjene ? 'Sačuvaj izmjene' : 'Sačuvano';
+  $('#dz-obrisi').hidden = !s;
+  $('#dz-naslov').textContent = s ? 'Sačuvana poruka' : 'Nova poruka';
+}
+
+const DZ_BOJE = { zelena: ['#204234', '#0D1C15', '#E3C489'], krem: ['#F7F1E2', '#E6D9BC', '#8E6C28'] };
+const dzKad = iso => {
+  const d = new Date(iso);
+  return isNaN(d) ? '' : `${kratkiDatum(d)}${d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}.` : ''}`;
+};
+
+function dzCrtajListu() {
+  $('#dz-lista').innerHTML = dzSacuvane.map(p => {
+    const [a, b, z] = DZ_BOJE[p.stil] || DZ_BOJE.zelena;
+    return `<div class="dz-red" data-dz-id="${p.id}">
+      <i class="dz-red__boja" style="--a:${a};--b:${b};--z:${z}">“</i>
+      <p>${esc(p.tekst)}</p>
+      <span class="sitno">${dzKad(p.izmijenjeno)}</span>
+    </div>`;
+  }).join('') || '<p class="prazno">Još nema sačuvanih poruka.</p>';
+}
+
+async function dzUcitajSacuvane() {
+  let napomena = '';
+  try {
+    const d = await apiVlastite();
+    dzLokalno = !d;
+    dzSacuvane = d ? d.poruke : dzCitajLokalno();
+    if (!d) napomena = 'Lokalni režim — poruke se čuvaju u ovom pregledniku';
+    // otvorena je u međuvremenu obrisana (npr. s drugog uređaja) — ostaje kao nova
+    if (dzId != null && !dzSacuvane.some(x => x.id === dzId)) dzId = null;
+  } catch (e) {
+    napomena = `Sačuvane poruke nisu stigle: ${e.message}`;
+  }
+  $('#dz-napomena').textContent = napomena;
+  dzCrtajListu();
+  if (dzModal.open) dzStanjeDugmadi();
+}
+
+/** Drawer s porukom — novom (`id` null) ili sačuvanom. */
+function dzOtvoriModal({ id = null, tekst = '', stil = dzStil } = {}) {
+  dzId = id;
+  $('#dz-tekst').value = tekst;
+  dzPostaviStil(stil);
+  if (!dzModal.open) dzModal.showModal();
+  $('.dz-tijelo', dzModal).scrollTop = 0;
+  dzOsvjezi(true);
+  // nova: odmah se piše (na telefonu ne — tastatura bi prekrila pregled)
+  if (!tekst && !matchMedia('(pointer: coarse)').matches) $('#dz-tekst').focus();
+}
+
+/** Tab se otvorio: lista se osvježi (možda je mijenjana drugdje), a ako se
+    stranica ugasila usred pisanja, drawer se otvori s tim — jednom. */
+let dzObnovljeno = false;
+async function dzOtvori() {
+  dzCrtajListu();
+  await dzUcitajSacuvane();
+  if (dzObnovljeno || dzModal.open) return;
+  dzObnovljeno = true;
+  let n = null;
+  try { n = JSON.parse(localStorage.getItem(DZ)); } catch { /* nema */ }
+  const tekst = typeof n?.tekst === 'string' ? n.tekst : '';
+  if (!tekst.trim()) return;
+  const s = dzSacuvane.find(x => x.id === n.id), stil = n.stil === 'krem' ? 'krem' : 'zelena';
+  if (s && s.tekst === tekst.trim() && s.stil === stil) return;   // ništa nije ostalo nesačuvano
+  dzOtvoriModal({ id: s ? s.id : null, tekst, stil });
+}
+
+$('#dz-nova').addEventListener('click', () => dzOtvoriModal({ id: null, tekst: '' }));
+$('#dz-lista').addEventListener('click', e => {
+  const p = dzSacuvane.find(x => String(x.id) === e.target.closest('[data-dz-id]')?.dataset.dzId);
+  if (p) dzOtvoriModal({ id: p.id, tekst: p.tekst, stil: p.stil });
+});
+
+/* Zatvaranje (x, Esc, povlačenje nadolje) s nesačuvanim tekstom ne gubi ga
+   bez traga: „Poništi“ vraća drawer kakav je bio. Poslije čuvanja i
+   brisanja zatvara se tiho. */
+let dzTiho = false;
+$('#dz-zatvori').addEventListener('click', () => dzModal.close());
+dzModal.addEventListener('close', () => {
+  const bilo = dzStanje(), gubi = !dzTiho && dzIzmijenjeno();
+  dzTiho = false;
+  clearTimeout(dzPriprema);
+  dzZaboravi();
+  if (gubi) obavijestPonisti('Poruka nije sačuvana', () => dzOtvoriModal(bilo), () => {});
+});
+
+/** Upisuje poruku iz drawera — novu ili izmjenu otvorene — i vraća sačuvan red. */
+async function dzUpisi(p) {
+  if (!dzLokalno) {
+    const d = await apiVlastite(dzId != null ? 'PUT' : 'POST', dzId != null ? `&id=${dzId}` : '', p);
+    if (d) return d.poruka;
+    dzLokalno = true;
+  }
+  // iz preglednika, ne iz liste na ekranu — ona možda još nije učitana
+  const sada = new Date().toISOString(), lista = dzCitajLokalno(), staro = lista.find(x => x.id === dzId);
+  const red = staro ? { ...staro, ...p, izmijenjeno: sada }
+    : { id: Math.max(0, ...lista.map(x => x.id)) + 1, ...p, napravljeno: sada, izmijenjeno: sada };
+  dzPisiLokalno([red, ...lista.filter(x => x.id !== red.id)]);
+  return red;
+}
+
+$('#dz-sacuvaj').addEventListener('click', async e => {
+  const b = e.currentTarget, p = { tekst: $('#dz-tekst').value.trim(), stil: dzStil };
+  if (!p.tekst) return;
+  const nova = dzId == null;
+  b.disabled = true;
+  try {
+    const red = await dzUpisi(p);
+    dzSacuvane = dzLokalno ? dzCitajLokalno() : [red, ...dzSacuvane.filter(x => x.id !== red.id)];
+    dzId = red.id;
+    dzZaboravi();
+    dzCrtajListu();
+    // sačuvano je — drawer se zatvara, poruka je na vrhu liste
+    dzTiho = true;
+    dzModal.close();
+    obavijest(nova ? 'Poruka je sačuvana' : 'Izmjene su sačuvane');
+  } catch (err) {
+    // obrisana s drugog uređaja: tekst ostaje, sačuva se kao nova
+    if (err.status === 404) { dzSacuvane = dzSacuvane.filter(x => x.id !== dzId); dzId = null; dzCrtajListu(); }
+    obavijest(err.status === 404 ? 'Ta poruka je u međuvremenu obrisana — sačuvaj je kao novu' : err.message, true);
+  } finally {
+    dzStanjeDugmadi();
+  }
+});
+
+$('#dz-obrisi').addEventListener('click', async e => {
+  const id = dzId;
+  if (id == null || !confirm('Obrisati ovu poruku iz sačuvanih?')) return;
+  const b = e.currentTarget;
+  b.disabled = true;
+  try {
+    let lokalno = dzLokalno;
+    if (!lokalno) {
+      try { lokalno = !(await apiVlastite('DELETE', `&id=${id}`)); }
+      catch (err) { if (err.status !== 404) throw err; }      // već obrisana — isto
+    }
+    if (lokalno) { dzLokalno = true; dzPisiLokalno(dzCitajLokalno().filter(x => x.id !== id)); }
+    dzSacuvane = lokalno ? dzCitajLokalno() : dzSacuvane.filter(x => x.id !== id);
+    dzId = null;
+    dzCrtajListu();
+    dzTiho = true;
+    dzModal.close();
+    obavijest('Poruka je obrisana');
+  } catch (err) {
+    obavijest(err.message, true);
+  } finally {
+    b.disabled = false;
+  }
+});
+
+$('#dz-pregled').addEventListener('click', async e => {
+  const b = e.target.closest('[data-dz]');
+  if (!b || b.disabled) return;
+  const format = b.closest('.dz__karta').dataset.f, sadrzaj = b.innerHTML;
+  b.disabled = true;
+  b.textContent = 'Pravim…';
+  try {
+    const fajl = await dzFajl(format);
+    if (b.dataset.dz === 'dijeli') {
+      try { await navigator.share({ files: [fajl] }); }
+      catch (err) {
+        if (err.name === 'AbortError') return;          // odustao je u meniju
+        spusti(fajl, fajl.name);
+        obavijest('Dijeljenje nije uspjelo — slika je preuzeta');
+      }
+    } else {
+      spusti(fajl, fajl.name);
+      obavijest('Slika je preuzeta');
+    }
+  } catch (err) {
+    obavijest(`Slika nije napravljena: ${err.message}`, true);
+  } finally {
+    b.innerHTML = sadrzaj;
+    b.disabled = !$('#dz-tekst').value.trim();
+  }
+});
+
+let dzSirina = 0;
+addEventListener('resize', () => {
+  if (innerWidth === dzSirina) return;                  // telefon: traka adrese mijenja samo visinu
+  dzSirina = innerWidth;
+  if (dzModal.open) dzOsvjezi();
 });
 
 /* ---------- start ---------- */

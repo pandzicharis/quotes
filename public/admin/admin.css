@@ -623,3 +623,71 @@ html.vuce, html.vuce * { cursor: grabbing !important; -webkit-user-select: none;
 /* izmjena predavanja: sakrij / obriši, umjesto prekidača za obavijest */
 .upravljanje { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 4px; }
 .upravljanje button { display: inline-flex; align-items: center; gap: 8px; }
+
+/* ---------- dizajner poruke ----------
+   Tab je lista sačuvanih poruka; poruka se piše u draweru: lijevo tekst i
+   boja (stoje na mjestu dok se pregled skrola), desno objava i story jedno
+   do drugog, iste visine — kolone su u omjeru njihovih širina, 4:5 prema
+   9:16 = 64 : 45. Na telefonu je drawer preko skoro cijelog ekrana, sve je
+   jedno ispod drugog, a „Sačuvaj“ stoji u traci pri dnu. */
+
+/* lista: tekst u tri reda, uz sličicu boje */
+.dz-red { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 14px; padding: 14px 18px; cursor: pointer; transition: background .15s; }
+.dz-red:hover { background: var(--hover); }
+.dz-red__boja { grid-row: span 2; width: 34px; height: 42px; display: grid; place-items: center; border-radius: 6px;
+  font: 700 20px/1 var(--display); font-style: normal; color: var(--z);
+  background: linear-gradient(150deg, var(--a), var(--b)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.dz-red p { margin: 0; font-family: var(--serif); font-size: 17px; line-height: 1.45; white-space: pre-line;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* drawer: zaglavlje i podnožje stoje, sredina skrola */
+.dijalog.dijalog--dz { width: min(1240px, calc(100% - 48px)); max-height: calc(100% - 48px); }
+.dijalog--dz[open] { display: flex; flex-direction: column; overflow: hidden; }
+.dz-tijelo { flex: 1; min-height: 0; overflow: auto; padding: 20px; scrollbar-width: thin; }
+.dz-dno { flex: none; display: flex; align-items: center; gap: 10px; padding: 12px 20px;
+  border-top: 1px solid var(--line-soft); background: var(--bg-2); }
+.dz-dno button { height: 40px; padding: 0 20px; }
+
+.dz { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.dz__forma { display: grid; gap: 14px; padding: 18px; position: sticky; top: 0; }
+.dz__forma textarea { min-height: 210px; font-family: var(--serif); font-size: 18px; line-height: 1.5; }
+.dz__upozorenje { margin: -6px 0 0; color: var(--gold); }
+.dz__upozorenje:empty { display: none; }
+.dz__upozorenje.greska { color: var(--greska); }
+
+/* pregled visok koliko stane u drawer bez skrolanja (zaglavlje, podnožje, natpisi ispod slika) */
+.dz__pregled { display: grid; grid-template-columns: 64fr 45fr; gap: 18px;
+  max-width: calc(max(300px, min(100vh - 330px, 620px)) * 1.3625 + 18px); }
+.dz__karta { margin: 0; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.dz__karta canvas { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--bg);
+  box-shadow: 0 24px 50px -30px #000, 0 0 0 1px var(--line-soft); }
+.dz__karta figcaption { display: flex; flex-wrap: wrap; gap: 8px; }
+.dz__ime { flex-basis: 100%; padding: 0 2px; }
+.dz__ime b { display: block; font-family: var(--serif); font-size: 18px; font-weight: 500; }
+.dz__ime small { font-size: 11.5px; color: var(--ink-mute); }
+.dz__karta figcaption button { flex: 1; white-space: nowrap; }
+
+@media (max-width: 980px) {
+  .dz { grid-template-columns: minmax(0, 1fr); }
+  .dz__forma { position: static; }
+  .dz__pregled { max-width: none; }
+}
+@media (max-width: 720px) {
+  .dijalog.dijalog--dz { width: 100%; height: calc(100% - 10px - env(safe-area-inset-top)); max-height: none; border-radius: 22px 22px 0 0; }
+  .dz-tijelo { padding: 16px; }
+  .dz-dno { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .dz-dno .razmak { display: none; }
+  .dz-dno .zlatno { flex: 1; }
+  .dz-dno button { height: auto; padding: 13px 18px; font-size: 15px; }
+}
+/* telefon: svaka slika preko širine, story ne viši od ekrana */
+@media (max-width: 600px) {
+  .dz { gap: 26px; }
+  .dz__forma { padding: 16px; }
+  .dz__forma textarea { min-height: 150px; }
+  .dz__pregled { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+  .dz__karta[data-f="prica"] canvas { width: min(100%, calc(70vh * 9 / 16)); margin: 0 auto; }
+  .dz__karta button { padding: 12px; font-size: 14.5px; }
+  .dz-red { padding: 12px 14px; }
+  .dz-red p { font-size: 16px; }
+}
