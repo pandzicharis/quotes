@@ -9,7 +9,7 @@ import {
 } from '/js/predavanja-jezgro.js';
 import {
   PLAKAT_FORMATI, nacrtajPlakat, plakatBlob, imePlakata, nacrtajRaspored, rasporedBlob, mjeriloEkrana,
-  nacrtajPoruku, porukaBlob, imePoruke,
+  nacrtajPoruku, porukaBlob, imePoruke, FONTOVI_PORUKE, IZGLED_TEKSTA, urediIzgled, bezOznaka,
 } from '/js/plakat.js';
 
 const $ = (s, k = document) => k.querySelector(s);
@@ -1469,8 +1469,17 @@ let dzSacuvane = [];       // [{ id, tekst, stil, napravljeno, izmijenjeno }], z
 let dzId = null;           // poruka otvorena u draweru; null = nova
 let dzLokalno = false;     // bez servera: sačuvane su u ovom pregledniku
 
-$('#dz-pregled').innerHTML = DZ_FORMATI.map(f => `
-  <figure class="dz__karta" data-f="${f.id}">
+/* Pregled: tabovi Objava / Story, vidi se i crta jedna slika — zadnja
+   izabrana se pamti na uređaju. */
+const DZ_FORMAT = 'pd.adminDzFormat';
+let dzFormat = 'objava';
+try { if (localStorage.getItem(DZ_FORMAT) === 'prica') dzFormat = 'prica'; } catch { /* zadano */ }
+
+$('#dz-pregled').innerHTML = `
+  <div class="dz-segment dz-tabovi" role="tablist" aria-label="Format slike">
+    ${DZ_FORMATI.map(f => `<button type="button" role="tab" data-dz-f="${f.id}">${f.naziv}<small>${f.opis}</small></button>`).join('')}
+  </div>` + DZ_FORMATI.map(f => `
+  <figure class="dz__karta" data-f="${f.id}" role="tabpanel">
     <canvas width="${f.w}" height="${f.h}" style="aspect-ratio: ${f.w} / ${f.h}" aria-label="${f.naziv}"></canvas>
     <figcaption>
       <span class="dz__ime"><b>${f.naziv}</b><small>${f.opis} · ${f.w * 2} × ${f.h * 2} px</small></span>
@@ -1479,7 +1488,271 @@ $('#dz-pregled').innerHTML = DZ_FORMATI.map(f => `
     </figcaption>
   </figure>`).join('');
 
-const dzPoruka = () => ({ tekst: $('#dz-tekst').value.trim() });
+function dzPokaziFormat(id) {
+  dzFormat = id;
+  $$('[data-dz-f]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.dzF === id)));
+  $$('.dz__karta').forEach(k => { k.hidden = k.dataset.f !== id; });
+  try { localStorage.setItem(DZ_FORMAT, id); } catch { /* tiho */ }
+}
+dzPokaziFormat(dzFormat);
+$('#dz-pregled').addEventListener('click', e => {
+  const t = e.target.closest('[data-dz-f]');
+  if (!t || t.dataset.dzF === dzFormat) return;
+  dzPokaziFormat(t.dataset.dzF);
+  dzOsvjezi(true);
+});
+
+/* ---- uređivač: poruka se piše kao obično, a bold / italic / podvučeno /
+   zlatno se vidi odmah. U bazu ide tekst s oznakama (**bold**, *italic*,
+   __podvučeno__, ==zlatno==) koje slika razumije — vidi rastaviOznake u
+   js/plakat.js. ---- */
+const dzUrednik = $('#dz-tekst');
+const DZ_ZLATNO = '#e9c77e';
+const rgb = hex => `rgb(${hex.slice(1).match(/../g).map(x => parseInt(x, 16)).join(', ')})`;
+const dzZlatnoRgb = rgb(DZ_ZLATNO);
+const DZ_OZNAKE = [['b', '**'], ['i', '*'], ['u', '__'], ['z', '==']];
+
+/** Tekst s oznakama → HTML za uređivač. */
+function dzUHtml(t) {
+  return (t || '').split('\n').map(red => {
+    const o = { b: false, i: false, u: false, z: false };
+    let iz = '', dio = '';
+    const isprazni = () => {
+      if (!dio) return;
+      let h = esc(dio);
+      if (o.z) h = `<span style="color:${DZ_ZLATNO}">${h}</span>`;
+      if (o.u) h = `<u>${h}</u>`;
+      if (o.i) h = `<i>${h}</i>`;
+      if (o.b) h = `<b>${h}</b>`;
+      iz += h; dio = '';
+    };
+    for (let j = 0; j < red.length; j++) {
+      if (red[j] === '\\' && j + 1 < red.length) { dio += red[++j]; continue; }
+      const dvije = DZ_OZNAKE.find(([, m]) => m.length === 2 && red.startsWith(m, j));
+      if (dvije) { isprazni(); o[dvije[0]] = !o[dvije[0]]; j++; continue; }
+      if (red[j] === '*') { isprazni(); o.i = !o.i; continue; }
+      dio += red[j];
+    }
+    isprazni();
+    return iz;
+  }).join('<br>');
+}
+
+/** Je li tekst u elementu podvučen — podvlaka se ne nasljeđuje u stilu,
+    pa se gleda i element i sve iznad njega do uređivača. */
+function dzPodvuceno(el) {
+  for (; el && el !== dzUrednik; el = el.parentElement) {
+    if (getComputedStyle(el).textDecorationLine.includes('underline')) return true;
+  }
+  return false;
+}
+
+/** Uređivač → tekst s oznakama. Oznaka se čita iz izgleda slova, pa je
+    svejedno kakve je elemente preglednik napravio (b, strong, span…). */
+function dzTekst() {
+  const komadi = [];
+  const blok = /^(DIV|P|LI|H[1-6])$/;
+  (function hodaj(n) {
+    for (const d of n.childNodes) {
+      if (d.nodeType === 3) {
+        // uz pre-wrap preglednik novi red zna upisati kao znak, a ne kao <br>
+        const el = d.parentElement, cs = getComputedStyle(el);
+        const o = { b: parseInt(cs.fontWeight, 10) >= 600, i: cs.fontStyle === 'italic', u: dzPodvuceno(el), z: cs.color === dzZlatnoRgb };
+        d.data.replace(/\r/g, '').replace(/ /g, ' ').split('\n').forEach((t, j) => {
+          if (j) komadi.push('\n');
+          komadi.push({ t, ...o });
+        });
+      } else if (d.nodeName === 'BR') komadi.push('\n');
+      else if (d.nodeType === 1) {
+        if (blok.test(d.nodeName) && komadi.length && komadi.at(-1) !== '\n') komadi.push('\n');
+        hodaj(d);
+      }
+    }
+  })(dzUrednik);
+  const o = { b: false, i: false, u: false, z: false };
+  const zatvori = () => DZ_OZNAKE.map(([k, m]) => { const z = o[k] ? m : ''; o[k] = false; return z; }).join('');
+  let iz = '';
+  for (const k of komadi) {
+    if (k === '\n') { iz += `${zatvori()}\n`; continue; }
+    if (!k.t) continue;
+    for (const [x, m] of DZ_OZNAKE) if (k[x] !== o[x]) { iz += m; o[x] = k[x]; }
+    iz += k.t.replace(/[\\*=_]/g, '\\$&');
+  }
+  iz += zatvori();
+  return iz.replace(/\n+$/, '');
+}
+const dzImaTeksta = () => !!bezOznaka(dzTekst()).trim();
+
+function dzPostaviTekst(t) {
+  dzOdabir = null;
+  dzUrednik.innerHTML = dzUHtml(t);
+  dzUrednik.classList.toggle('prazno', !dzImaTeksta());
+}
+
+/* Dugmad su ispod poruke, u postavkama: zadnji odabir u poruci se pamti i
+   vrati prije oznake, da ostane označen i kad se do dugmadi skrola. */
+let dzOdabir = null;
+const dzUPoruci = () => { const s = document.getSelection(); return s?.rangeCount && dzUrednik.contains(s.anchorNode); };
+
+function dzOznaci(o) {
+  if (!dzUPoruci() && dzOdabir) {
+    dzUrednik.focus({ preventScroll: true });
+    const s = document.getSelection();
+    s.removeAllRanges(); s.addRange(dzOdabir);
+  } else dzUrednik.focus({ preventScroll: true });
+  document.execCommand('styleWithCSS', false, false);
+  if (o === 'b') document.execCommand('bold');
+  else if (o === 'i') document.execCommand('italic');
+  else if (o === 'u') document.execCommand('underline');
+  else if (o === 'z') {
+    const vec = document.queryCommandValue('foreColor').replace(/\s/g, '') === dzZlatnoRgb.replace(/\s/g, '');
+    document.execCommand('styleWithCSS', false, true);
+    document.execCommand('foreColor', false, vec ? getComputedStyle(dzUrednik).color : DZ_ZLATNO);
+  } else document.execCommand('removeFormat');
+  dzStanjeAlata();
+}
+
+function dzStanjeAlata() {
+  if (!dzModal.open) return;
+  const u = dzUPoruci();
+  if (u) dzOdabir = document.getSelection().getRangeAt(0).cloneRange();
+  else return;                                   // odabir je otišao iz poruke — dugmad pokazuju zadnji
+  $('[data-oznaka="b"]').setAttribute('aria-pressed', String(u && document.queryCommandState('bold')));
+  $('[data-oznaka="i"]').setAttribute('aria-pressed', String(u && document.queryCommandState('italic')));
+  $('[data-oznaka="u"]').setAttribute('aria-pressed', String(u && document.queryCommandState('underline')));
+  $('[data-oznaka="z"]').setAttribute('aria-pressed', String(u &&
+    document.queryCommandValue('foreColor').replace(/\s/g, '') === dzZlatnoRgb.replace(/\s/g, '')));
+}
+
+// dugmad ne uzimaju fokus — označeni tekst ostaje označen
+$('#dz-alati').addEventListener('pointerdown', e => { if (e.target.closest('button')) e.preventDefault(); });
+$('#dz-alati').addEventListener('click', e => {
+  const b = e.target.closest('[data-oznaka]');
+  if (b) dzOznaci(b.dataset.oznaka);
+});
+document.addEventListener('selectionchange', dzStanjeAlata);
+// Enter je novi red (ne novi blok), a zalijepljeno ulazi kao čist tekst
+dzUrednik.addEventListener('beforeinput', e => {
+  if (e.inputType === 'insertParagraph') { e.preventDefault(); document.execCommand('insertLineBreak'); }
+});
+dzUrednik.addEventListener('paste', e => {
+  e.preventDefault();
+  const t = (e.clipboardData?.getData('text/plain') || '').replace(/\r\n?/g, '\n');
+  t.split('\n').forEach((red, j) => {
+    if (j) document.execCommand('insertLineBreak');
+    if (red) document.execCommand('insertText', false, red);
+  });
+});
+dzUrednik.addEventListener('input', () => dzUrednik.classList.toggle('prazno', !dzImaTeksta()));
+
+/* ---- izgled teksta: font, debljina, veličina, prored, razmak slova,
+   poravnanje. Čuva se uz poruku; zadnji korišteni se pamti sam i nova
+   poruka počinje s njim, a izgledi sačuvanih poruka su na dodir. ---- */
+const DZ_IZGLED = 'pd.adminDzIzgled';   // zadnji izgled na ovom uređaju, s vremenom
+let dzIzgled = urediIzgled(null);
+let dzUdio = .5;                         // veličina slova zadnje slike, kao udio Max (za „Auto“)
+const dzKljucIzgleda = iz => JSON.stringify(urediIzgled(iz));
+const TEZINE = { 100: 'Tanko', 200: 'Vrlo lako', 300: 'Lako', 400: 'Obično', 500: 'Srednje', 600: 'Poludebelo', 700: 'Debelo', 800: 'Vrlo debelo', 900: 'Crno' };
+const DZ_KLIZACI = [
+  /* veličina je udio najveće pri kojoj cijela poruka stane: kraj klizača je
+     „Max“. Bez izbora je „Auto“ (null) — klizač tad pokazuje gdje je slika. */
+  { k: 'slova', naziv: 'Veličina slova', min: .2, max: 1, korak: .01, ikone: true,
+    prikaz: v => (v == null ? 'Auto' : v >= 1 ? 'Max' : `${Math.round(v * 100)} %`) },
+  { k: 'prored', naziv: 'Prored', min: 1, max: 2, korak: .05, prikaz: v => v.toFixed(2).replace('.', ',') },
+  { k: 'razmak', naziv: 'Razmak slova', min: -.05, max: .2, korak: .01, prikaz: v => `${Math.round(v * 100)} %` },
+];
+const dzCssIzgleda = iz => {
+  const f = FONTOVI_PORUKE.find(x => x.id === iz.font);
+  return `font-family:${f.porodica.replace(/"/g, "'")}, serif;font-weight:${iz.tezina}`;
+};
+
+/** Izgled s kojim počinje nova poruka: zadnji korišteni — ovdje ili u
+    zadnjoj sačuvanoj poruci (možda s drugog uređaja), šta je novije. */
+function dzZadnjiIzgled() {
+  let lokalno = null;
+  try { lokalno = JSON.parse(localStorage.getItem(DZ_IZGLED)); } catch { /* nema */ }
+  const zadnja = dzSacuvane.find(p => p.izgled);
+  const kadBaza = zadnja ? Date.parse(zadnja.izmijenjeno) || 0 : -1;
+  if (lokalno?.izgled && (lokalno.kad || 0) >= kadBaza) return urediIzgled(lokalno.izgled);
+  return urediIzgled(zadnja?.izgled);
+}
+
+/** Izgledi sačuvanih poruka, bez ponavljanja, zadnji korišteni prvi. */
+function dzIzgledi() {
+  const vidjeni = new Set(), lista = [];
+  for (const p of dzSacuvane) {
+    if (!p.izgled) continue;
+    const iz = urediIzgled(p.izgled), k = JSON.stringify(iz);
+    if (vidjeni.has(k)) continue;
+    vidjeni.add(k); lista.push(iz);
+    if (lista.length === 8) break;
+  }
+  return lista;
+}
+
+function dzCrtajIzgled() {
+  const iz = dzIzgled, f = FONTOVI_PORUKE.find(x => x.id === iz.font), k = JSON.stringify(iz);
+  const izgledi = dzIzgledi();
+  $('#dz-izgledi').hidden = !izgledi.length;
+  $('#dz-izgledi .dz-cipovi').innerHTML = izgledi.map((x, j) => `
+    <button type="button" data-izgled="${j}" aria-pressed="${JSON.stringify(x) === k}" title="Izgled sačuvane poruke">
+      <span style="${dzCssIzgleda(x)}">Aa</span><small>${esc(FONTOVI_PORUKE.find(y => y.id === x.font).naziv)}</small>
+    </button>`).join('');
+  $('#dz-fontovi').innerHTML = FONTOVI_PORUKE.map(x => `
+    <button type="button" data-font="${x.id}" aria-pressed="${x.id === iz.font}" style="font-family:${x.porodica.replace(/"/g, "'")}, serif">${esc(x.naziv)}</button>`).join('');
+  $('#dz-tezine').innerHTML = f.tezine.map(w => `
+    <button type="button" data-tezina="${w}" aria-pressed="${w === iz.tezina}" title="${TEZINE[w]}">
+      <span style="font-family:${f.porodica.replace(/"/g, "'")}, serif;font-weight:${w}">Aa</span><small>${TEZINE[w]}</small>
+    </button>`).join('');
+  $$('[data-poravnanje]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.poravnanje === iz.poravnanje)));
+  for (const s of DZ_KLIZACI) {
+    const el = $(`[data-klizac="${s.k}"]`);
+    el.value = iz[s.k] ?? dzUdio;
+    $(`[data-vrijednost="${s.k}"]`).textContent = s.prikaz(iz[s.k]);
+  }
+  $('#dz-zadano').disabled = k === JSON.stringify(urediIzgled(IZGLED_TEKSTA));
+}
+
+$('#dz-klizaci').innerHTML = DZ_KLIZACI.map(s => {
+  // div, ne label: klik na natpis bi inače pritisnuo prvo dugme u njemu
+  const klizac = `<input type="range" data-klizac="${s.k}" min="${s.min}" max="${s.max}" step="${s.korak}" aria-label="${s.naziv}">`;
+  return `
+  <div class="dz-klizac"><span>${s.naziv}<output data-vrijednost="${s.k}"></output></span>
+    ${s.ikone ? `<span class="dz-klizac__red">
+      <button type="button" class="dz-klizac__a" data-slova="${s.min}" title="Najmanja" aria-label="Najmanja">A</button>
+      ${klizac}
+      <button type="button" class="dz-klizac__a dz-klizac__a--max" data-slova="${s.max}" title="Max — najveća pri kojoj cijela poruka stane" aria-label="Max">A</button>
+    </span>` : klizac}</div>`;
+}).join('');
+
+function dzPromijeniIzgled(promjena, crtaj = true) {
+  dzIzgled = urediIzgled({ ...dzIzgled, ...promjena });
+  if (crtaj) dzCrtajIzgled();
+  dzOsvjezi(true);
+  dzPamti();
+}
+
+$('#dz-izgled').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.font) dzPromijeniIzgled({ font: b.dataset.font });
+  else if (b.dataset.tezina) dzPromijeniIzgled({ tezina: +b.dataset.tezina });
+  else if (b.dataset.poravnanje) dzPromijeniIzgled({ poravnanje: b.dataset.poravnanje });
+  else if (b.dataset.slova) dzPromijeniIzgled({ slova: +b.dataset.slova });
+  else if (b.dataset.izgled) dzPromijeniIzgled(dzIzgledi()[+b.dataset.izgled] || {});
+  else if (b.id === 'dz-zadano') dzPromijeniIzgled(IZGLED_TEKSTA);
+});
+$('#dz-izgled').addEventListener('input', e => {
+  const k = e.target.dataset.klizac;
+  if (k) {
+    // klizač se ne crta ponovo dok se vuče — samo broj uz njega
+    dzIzgled = urediIzgled({ ...dzIzgled, [k]: +e.target.value });
+    $(`[data-vrijednost="${k}"]`).textContent = DZ_KLIZACI.find(s => s.k === k).prikaz(dzIzgled[k]);
+    $('#dz-zadano').disabled = JSON.stringify(dzIzgled) === JSON.stringify(urediIzgled(IZGLED_TEKSTA));
+  }
+});
+
+const dzPoruka = () => ({ tekst: dzTekst().trim(), izgled: dzIzgled });
 
 function dzPostaviStil(s) {
   dzStil = s;
@@ -1488,9 +1761,13 @@ function dzPostaviStil(s) {
 
 /* Dok je drawer otvoren, ono što se piše stoji i u pregledniku: ako se
    stranica ugasi usred pisanja (telefon zna ugasiti karticu u pozadini),
-   drawer se idući put sam otvori s tim. Zatvaranje i čuvanje to brišu. */
+   drawer se idući put sam otvori s tim. Zatvaranje i čuvanje to brišu.
+   Izgled se pamti i odvojeno — nova poruka počinje s njim. */
 function dzPamti() {
-  try { localStorage.setItem(DZ, JSON.stringify({ tekst: $('#dz-tekst').value, stil: dzStil, id: dzId })); } catch { /* tiho */ }
+  try {
+    localStorage.setItem(DZ, JSON.stringify({ tekst: dzTekst(), stil: dzStil, id: dzId, izgled: dzIzgled }));
+    localStorage.setItem(DZ_IZGLED, JSON.stringify({ izgled: dzIzgled, kad: Date.now() }));
+  } catch { /* tiho */ }
 }
 function dzZaboravi() {
   try { localStorage.removeItem(DZ); } catch { /* tiho */ }
@@ -1520,7 +1797,7 @@ function dzPripremi() {
 
 let dzPotez = 0, dzTajmer = 0;
 function dzOsvjezi(odmah = false) {
-  const prazno = !$('#dz-tekst').value.trim();
+  const prazno = !dzImaTeksta();
   $$('[data-dz]').forEach(b => { b.disabled = prazno; });
   dzStanjeDugmadi();
   clearTimeout(dzTajmer);
@@ -1533,7 +1810,7 @@ async function dzCrtaj() {
   if (!dzModal.open) return;
   const potez = ++dzPotez, p = dzPoruka();
   let stalo = true;
-  for (const f of DZ_FORMATI) {
+  for (const f of DZ_FORMATI.filter(x => x.id === dzFormat)) {     // crta se samo slika iz taba
     const pr = $(`.dz__karta[data-f="${f.id}"] canvas`), cv = document.createElement('canvas');
     const r = await nacrtajPoruku(cv, p, {
       format: f.id, stil: dzStil, zamjena: 'Napiši poruku…', mjerilo: mjeriloEkrana(f.id, pr.clientWidth || 300),
@@ -1542,6 +1819,9 @@ async function dzCrtaj() {
     pr.width = cv.width; pr.height = cv.height;
     pr.getContext('2d').drawImage(cv, 0, 0);
     stalo &&= r.stalo;
+    // „Auto“: klizač veličine pokazuje gdje je slika između najmanje i Max
+    dzUdio = r.udio;
+    if (dzIzgled.slova == null && document.activeElement?.dataset.klizac !== 'slova') $('[data-klizac="slova"]').value = r.udio;
   }
   const upoz = $('#dz-upozorenje');
   upoz.textContent = stalo ? '' : 'Poruka je preduga — skrati je.';
@@ -1582,16 +1862,17 @@ function dzPisiLokalno(lista) {
 }
 
 const dzSacuvana = () => (dzId == null ? null : dzSacuvane.find(x => x.id === dzId) || null);
-const dzStanje = () => ({ id: dzId, tekst: $('#dz-tekst').value, stil: dzStil });
+const dzStanje = () => ({ id: dzId, tekst: dzTekst(), stil: dzStil, izgled: dzIzgled });
 /** Ima li u draweru nešto što nije sačuvano. */
 function dzIzmijenjeno() {
-  const s = dzSacuvana(), t = $('#dz-tekst').value.trim();
-  return s ? s.tekst !== t || s.stil !== dzStil : !!t;
+  const s = dzSacuvana(), t = dzTekst().trim();
+  return s ? s.tekst !== t || s.stil !== dzStil || dzKljucIzgleda(s.izgled) !== dzKljucIzgleda(dzIzgled)
+    : !!bezOznaka(t).trim();
 }
 
 function dzStanjeDugmadi() {
   const s = dzSacuvana(), izmjene = dzIzmijenjeno(), b = $('#dz-sacuvaj');
-  b.disabled = !$('#dz-tekst').value.trim() || !izmjene;
+  b.disabled = !dzImaTeksta() || !izmjene;
   $('span', b).textContent = !s ? 'Sačuvaj poruku' : izmjene ? 'Sačuvaj izmjene' : 'Sačuvano';
   $('#dz-obrisi').hidden = !s;
   $('#dz-naslov').textContent = s ? 'Sačuvana poruka' : 'Nova poruka';
@@ -1608,7 +1889,7 @@ function dzCrtajListu() {
     const [a, b, z] = DZ_BOJE[p.stil] || DZ_BOJE.zelena;
     return `<div class="dz-red" data-dz-id="${p.id}">
       <i class="dz-red__boja" style="--a:${a};--b:${b};--z:${z}">“</i>
-      <p>${esc(p.tekst)}</p>
+      <p style="${dzCssIzgleda(urediIzgled(p.izgled))}">${esc(bezOznaka(p.tekst))}</p>
       <span class="sitno">${dzKad(p.izmijenjeno)}</span>
     </div>`;
   }).join('') || '<p class="prazno">Još nema sačuvanih poruka.</p>';
@@ -1631,16 +1912,19 @@ async function dzUcitajSacuvane() {
   if (dzModal.open) dzStanjeDugmadi();
 }
 
-/** Drawer s porukom — novom (`id` null) ili sačuvanom. */
-function dzOtvoriModal({ id = null, tekst = '', stil = dzStil } = {}) {
+/** Drawer s porukom — novom (`id` null) ili sačuvanom. Nova počinje sa
+    zadnjim izgledom; sačuvana bez izgleda ima zadani. */
+function dzOtvoriModal({ id = null, tekst = '', stil = dzStil, izgled } = {}) {
   dzId = id;
-  $('#dz-tekst').value = tekst;
+  dzPostaviTekst(tekst);
   dzPostaviStil(stil);
+  dzIzgled = izgled !== undefined ? urediIzgled(izgled) : dzZadnjiIzgled();
+  dzCrtajIzgled();
   if (!dzModal.open) dzModal.showModal();
   $('.dz-tijelo', dzModal).scrollTop = 0;
   dzOsvjezi(true);
   // nova: odmah se piše (na telefonu ne — tastatura bi prekrila pregled)
-  if (!tekst && !matchMedia('(pointer: coarse)').matches) $('#dz-tekst').focus();
+  if (!tekst && !matchMedia('(pointer: coarse)').matches) dzUrednik.focus();
 }
 
 /** Tab se otvorio: lista se osvježi (možda je mijenjana drugdje), a ako se
@@ -1654,16 +1938,18 @@ async function dzOtvori() {
   let n = null;
   try { n = JSON.parse(localStorage.getItem(DZ)); } catch { /* nema */ }
   const tekst = typeof n?.tekst === 'string' ? n.tekst : '';
-  if (!tekst.trim()) return;
+  if (!bezOznaka(tekst).trim()) return;
   const s = dzSacuvane.find(x => x.id === n.id), stil = n.stil === 'krem' ? 'krem' : 'zelena';
-  if (s && s.tekst === tekst.trim() && s.stil === stil) return;   // ništa nije ostalo nesačuvano
-  dzOtvoriModal({ id: s ? s.id : null, tekst, stil });
+  const izgled = urediIzgled(n.izgled);
+  if (s && s.tekst === tekst.trim() && s.stil === stil
+    && dzKljucIzgleda(s.izgled) === JSON.stringify(izgled)) return;   // ništa nije ostalo nesačuvano
+  dzOtvoriModal({ id: s ? s.id : null, tekst, stil, izgled });
 }
 
 $('#dz-nova').addEventListener('click', () => dzOtvoriModal({ id: null, tekst: '' }));
 $('#dz-lista').addEventListener('click', e => {
   const p = dzSacuvane.find(x => String(x.id) === e.target.closest('[data-dz-id]')?.dataset.dzId);
-  if (p) dzOtvoriModal({ id: p.id, tekst: p.tekst, stil: p.stil });
+  if (p) dzOtvoriModal({ id: p.id, tekst: p.tekst, stil: p.stil, izgled: p.izgled ?? null });
 });
 
 /* Zatvaranje (x, Esc, povlačenje nadolje) s nesačuvanim tekstom ne gubi ga
@@ -1695,8 +1981,8 @@ async function dzUpisi(p) {
 }
 
 $('#dz-sacuvaj').addEventListener('click', async e => {
-  const b = e.currentTarget, p = { tekst: $('#dz-tekst').value.trim(), stil: dzStil };
-  if (!p.tekst) return;
+  const b = e.currentTarget, p = { tekst: dzTekst().trim(), stil: dzStil, izgled: dzIzgled };
+  if (!bezOznaka(p.tekst).trim()) return;
   const nova = dzId == null;
   b.disabled = true;
   try {
@@ -1766,7 +2052,7 @@ $('#dz-pregled').addEventListener('click', async e => {
     obavijest(`Slika nije napravljena: ${err.message}`, true);
   } finally {
     b.innerHTML = sadrzaj;
-    b.disabled = !$('#dz-tekst').value.trim();
+    b.disabled = !dzImaTeksta();
   }
 });
 

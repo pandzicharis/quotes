@@ -386,7 +386,7 @@ export async function otkaziPoruke(dani) {
    Odvojene od poruka dana: ne idu u krug, aplikacija ih ne čita. Vidi
    `vlastite_poruke` u sql/shema.sql. */
 const TAB_VLASTITE = 'vlastite_poruke';
-const POLJA_VLASTITE = 'id,tekst,stil,napravljeno,izmijenjeno';
+const POLJA_VLASTITE = 'id,tekst,stil,izgled,napravljeno,izmijenjeno';
 
 /** Sve, zadnje mijenjane prve. */
 export const sveVlastite = () =>

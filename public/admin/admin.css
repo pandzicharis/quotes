@@ -650,15 +650,89 @@ html.vuce, html.vuce * { cursor: grabbing !important; -webkit-user-select: none;
 
 .dz { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 24px; align-items: start; }
 .dz__forma { display: grid; gap: 14px; padding: 18px; position: sticky; top: 0; }
-.dz__forma textarea { min-height: 210px; font-family: var(--serif); font-size: 18px; line-height: 1.5; }
 .dz__upozorenje { margin: -6px 0 0; color: var(--gold); }
+
+/* uređivač: piše se kao u polju, a debelo / kurziv / zlatno se vidi odmah */
+.dz-pisanje { display: grid; gap: 8px; }
+.dz-alati { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.dz-alati u { text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.dz-urednik u { text-decoration-thickness: from-font; }
+.dz-alati button { flex-direction: column; gap: 3px; padding: 8px 4px 6px; border-radius: 10px; background: var(--bg-2);
+  font: 600 18px/1 var(--serif); color: var(--ink-soft); }
+.dz-alati button small { font: 500 10.5px var(--sans); color: var(--ink-mute); }
+.dz-alati button:hover { background: var(--hover); color: var(--ink); }
+.dz-alati button[aria-pressed="true"] { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 12%, var(--bg-2)); color: var(--gold-l); }
+.dz-alati button[aria-pressed="true"] small { color: var(--gold); }
+.dz-alati b { font-weight: 700; }
+.dz-alati i { font-style: italic; }
+.dz-alati__zlatno { color: var(--gold-l); border-bottom: 2px solid var(--gold); line-height: .95; }
+.dz-alati s { color: var(--ink-mute); }
+.dz-urednik { min-height: 210px; max-height: 46vh; overflow-y: auto; padding: 12px 14px; border-radius: 10px;
+  background: var(--bg-2); border: 1px solid var(--line-soft); color: var(--ink);
+  font: 18px/1.5 var(--serif); white-space: pre-wrap; overflow-wrap: anywhere; cursor: text;
+  -webkit-user-select: text; user-select: text; transition: border-color .2s; }
+.dz-urednik:hover { border-color: var(--line); }
+.dz-urednik:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 18%, transparent); }
+.dz-urednik.prazno::before { content: attr(data-prazno); color: var(--ink-mute); pointer-events: none; float: left; height: 0; }
+.dz-urednik b, .dz-urednik strong { font-weight: 700; }
+.dz-pisanje__savjet { margin: 0; color: var(--ink-mute); }
+
+/* izgled teksta: čipovi za font, debljinu i sačuvane izglede, klizači za razmake */
+.dz-izgled { display: grid; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.dz-izgled summary { cursor: pointer; list-style: none; justify-content: space-between; }
+.dz-izgled summary::-webkit-details-marker { display: none; }
+.dz-izgled summary::after { content: '▾'; font-size: 13px; color: var(--ink-mute); transition: rotate .2s; }
+.dz-izgled:not([open]) summary::after { rotate: -90deg; }
+.dz-izgled__tijelo { display: grid; gap: 14px; padding-top: 12px; }
+.dz-izgled__red { display: grid; gap: 7px; }
+.dz-izgled__red[hidden] { display: none; }
+.dz-izgled__nas { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.dz-cipovi { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.dz-cipovi::-webkit-scrollbar { display: none; }
+.dz-cipovi button { flex: none; flex-direction: column; gap: 2px; min-width: 58px; padding: 7px 10px 6px; border-radius: 10px;
+  background: var(--bg-2); font-weight: 400; }
+.dz-cipovi button > span { font-size: 21px; line-height: 1.1; color: var(--ink); }
+.dz-cipovi button small { font: 500 10.5px var(--sans); color: var(--ink-mute); white-space: nowrap; }
+.dz-cipovi--font button { flex-direction: row; min-width: 0; padding: 9px 12px; font-size: 17px; font-weight: 400; }
+.dz-cipovi button[aria-pressed="true"] { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 9%, var(--bg-2)); }
+.dz-cipovi button[aria-pressed="true"] small { color: var(--gold); }
+.dz-izgled__dvoje { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dz-segment { display: flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--line-soft); }
+.dz-segment button { padding: 6px 12px; border-radius: 7px; border-color: transparent; background: none; font-size: 12.5px; color: var(--ink-soft); }
+.dz-segment button[aria-pressed="true"] { background: var(--surface-2); color: var(--gold-l); }
+.dz-segment__ikona { width: 40px; padding: 6px 0; }
+.dz-segment__ikona svg.ik { width: 18px; height: 18px; }
+.dz-klizaci { display: grid; gap: 10px; }
+.dz-klizac { display: grid; gap: 4px; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.dz-klizac > span { display: flex; justify-content: space-between; }
+.dz-klizac output { font-weight: 500; color: var(--gold); font-variant-numeric: tabular-nums; }
+.dz-klizac__red { display: flex; align-items: center; gap: 10px; }
+.dz-klizac__red input { flex: 1; min-width: 0; }
+.dz-klizac__a { flex: none; width: 30px; height: 30px; padding: 0; border-radius: 8px; background: var(--bg-2);
+  font: 500 12px/1 var(--serif); color: var(--ink-soft); }
+.dz-klizac__a--max { font-size: 21px; }
+.dz-klizac input[type="range"] { -webkit-appearance: none; appearance: none; height: 22px; padding: 0; border: 0; background: none; box-shadow: none; accent-color: var(--gold); cursor: pointer; }
+.dz-klizac input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: var(--surface-2); }
+.dz-klizac input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7px; border-radius: 50%;
+  background: var(--gold-l); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 25%, transparent); }
+.dz-klizac input[type="range"]::-moz-range-track { height: 4px; border-radius: 4px; background: var(--surface-2); }
+.dz-klizac input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 0; border-radius: 50%; background: var(--gold-l); }
+.dz-izgled__zadano { justify-self: start; padding: 6px 4px; font-size: 12.5px; }
 .dz__upozorenje:empty { display: none; }
 .dz__upozorenje.greska { color: var(--greska); }
 
 /* pregled visok koliko stane u drawer bez skrolanja (zaglavlje, podnožje, natpisi ispod slika) */
-.dz__pregled { display: grid; grid-template-columns: 64fr 45fr; gap: 18px;
-  max-width: calc(max(300px, min(100vh - 330px, 620px)) * 1.3625 + 18px); }
-.dz__karta { margin: 0; display: grid; gap: 12px; align-content: start; min-width: 0; }
+/* tabovi Objava / Story, ispod jedna slika visoka koliko stane u drawer */
+.dz__pregled { display: grid; gap: 16px; justify-items: center; }
+.dz-tabovi { justify-self: stretch; }
+.dz-tabovi button { flex: 1; gap: 8px; padding: 9px 14px; font-size: 14px; }
+.dz-tabovi button small { font: 500 11.5px var(--sans); color: var(--ink-mute); }
+.dz-tabovi button[aria-selected="true"] { background: var(--surface-2); color: var(--gold-l); }
+.dz-tabovi button[aria-selected="true"] small { color: var(--gold); }
+.dz__karta { margin: 0; display: grid; gap: 12px; align-content: start; min-width: 0;
+  width: min(100%, max(280px, calc((100vh - 330px) * .8))); }
+.dz__karta[data-f="prica"] { width: min(100%, max(240px, calc((100vh - 330px) * 9 / 16))); }
+.dz__karta[hidden] { display: none; }
 .dz__karta canvas { display: block; width: 100%; height: auto; border-radius: 10px; background: var(--bg);
   box-shadow: 0 24px 50px -30px #000, 0 0 0 1px var(--line-soft); }
 .dz__karta figcaption { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -670,7 +744,6 @@ html.vuce, html.vuce * { cursor: grabbing !important; -webkit-user-select: none;
 @media (max-width: 980px) {
   .dz { grid-template-columns: minmax(0, 1fr); }
   .dz__forma { position: static; }
-  .dz__pregled { max-width: none; }
 }
 @media (max-width: 720px) {
   .dijalog.dijalog--dz { width: 100%; height: calc(100% - 10px - env(safe-area-inset-top)); max-height: none; border-radius: 22px 22px 0 0; }
@@ -684,9 +757,10 @@ html.vuce, html.vuce * { cursor: grabbing !important; -webkit-user-select: none;
 @media (max-width: 600px) {
   .dz { gap: 26px; }
   .dz__forma { padding: 16px; }
-  .dz__forma textarea { min-height: 150px; }
-  .dz__pregled { grid-template-columns: minmax(0, 1fr); gap: 30px; }
-  .dz__karta[data-f="prica"] canvas { width: min(100%, calc(70vh * 9 / 16)); margin: 0 auto; }
+  .dz-urednik { min-height: 150px; font-size: 17px; }
+  .dz__pregled { gap: 14px; }
+  .dz__karta { width: 100%; }
+  .dz__karta[data-f="prica"] { width: min(100%, calc(70vh * 9 / 16)); }
   .dz__karta button { padding: 12px; font-size: 14.5px; }
   .dz-red { padding: 12px 14px; }
   .dz-red p { font-size: 16px; }

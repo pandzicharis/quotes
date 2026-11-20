@@ -72,11 +72,28 @@ const STILOVI_SLIKE = ['zelena', 'krem'];
 // ovo je samo zaštita od pogrešno zalijepljenog teksta (isto kao u bazi)
 const NAJVISE_ZNAKOVA = 10000;
 
+/* Izgled teksta iz dizajnera (font, debljina, veličina, razmaci…): samo poznati
+   ključevi, brojevi u granicama. Šta tačno znače — urediIzgled u js/plakat.js. */
+const IZGLED = {
+  tezina: [100, 900], slova: [.2, 1], prored: [1, 2], razmak: [-.05, .2],
+};
+function ocistiIzgled(iz) {
+  if (!iz || typeof iz !== 'object' || Array.isArray(iz)) return null;
+  const o = {};
+  if (typeof iz.font === 'string' && /^[a-z]{2,20}$/.test(iz.font)) o.font = iz.font;
+  for (const [k, [a, b]] of Object.entries(IZGLED)) {
+    if (typeof iz[k] === 'number' && Number.isFinite(iz[k])) o[k] = Math.min(b, Math.max(a, iz[k]));
+  }
+  if (['lijevo', 'centar', 'obostrano'].includes(iz.poravnanje)) o.poravnanje = iz.poravnanje;
+  return Object.keys(o).length ? o : null;
+}
+
 function ocistiVlastitu(t) {
   const tekst = typeof t?.tekst === 'string' ? t.tekst.trim() : '';
-  if (!tekst) return { greska: 'Tekst poruke je prazan' };
+  // oznake (**, *, __, ==, \) nisu tekst — poruka samo od njih je prazna
+  if (!tekst.replace(/\\(.)|\*\*|__|==|\*/g, '$1').trim()) return { greska: 'Tekst poruke je prazan' };
   if (tekst.length > NAJVISE_ZNAKOVA) return { greska: `Poruka je duža od ${NAJVISE_ZNAKOVA} znakova` };
-  return { tekst, stil: STILOVI_SLIKE.includes(t.stil) ? t.stil : 'zelena' };
+  return { tekst, stil: STILOVI_SLIKE.includes(t.stil) ? t.stil : 'zelena', izgled: ocistiIzgled(t.izgled) };
 }
 
 async function vlastite(req, res, id) {

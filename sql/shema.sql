@@ -218,6 +218,10 @@ alter table public.vlastite_poruke drop constraint if exists vlastite_poruke_tek
 alter table public.vlastite_poruke add constraint vlastite_poruke_tekst_check
   check (length(tekst) between 1 and 10000);
 
+-- izgled teksta iz dizajnera (font, debljina, kurziv, razmaci, poravnanje);
+-- null = zadani izgled. Tekst nosi oznake **debelo**, *kurziv*, ==zlatno==.
+alter table public.vlastite_poruke add column if not exists izgled jsonb;
+
 alter table public.vlastite_poruke enable row level security;
 revoke all on public.vlastite_poruke from anon, authenticated;
 grant select, insert, update, delete on public.vlastite_poruke to service_role;

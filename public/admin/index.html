@@ -8,7 +8,7 @@
 <link rel="icon" href="/assets/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,300&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&amp;family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600;1,700;1,800&amp;family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&amp;family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&amp;family=Montserrat:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&amp;family=IBM+Plex+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;1,100;1,200;1,300;1,400;1,500;1,600;1,700&amp;display=swap">
 <link rel="stylesheet" href="/admin/admin.css">
 </head>
 <body>
@@ -34,6 +34,9 @@
     <symbol id="i-izvoz" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 1.8)" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7 8l5-5 5 5M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5"/></symbol>
     <symbol id="i-kanta" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="stroke-width: var(--ik-sw, 1.8)" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
     <symbol id="i-izlaz" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></symbol>
+    <symbol id="i-ravnaj-lijevo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 10h10M4 14h16M4 18h10"/></symbol>
+    <symbol id="i-ravnaj-sredina" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M7 10h10M4 14h16M7 18h10"/></symbol>
+    <symbol id="i-ravnaj-obostrano" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 10h16M4 14h16M4 18h10"/></symbol>
     <symbol id="i-kvaka" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
     <symbol id="i-kopiraj" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
     <symbol id="i-raspon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/></symbol>
@@ -319,8 +322,50 @@
   <div class="dz-tijelo">
     <div class="dz">
       <form class="dz__forma povrsina" id="dz-forma" autocomplete="off">
-        <label>Poruka <textarea id="dz-tekst" rows="7" placeholder="Napiši poruku…"></textarea></label>
+        <div class="dz-pisanje">
+          <span class="dizajner__nas" id="dz-tekst-naslov">Poruka</span>
+          <div class="dz-urednik prazno" id="dz-tekst" contenteditable="true" role="textbox" aria-multiline="true"
+               aria-labelledby="dz-tekst-naslov" data-prazno="Napiši poruku…" spellcheck="true"></div>
+        </div>
         <p class="sitno dz__upozorenje" id="dz-upozorenje"></p>
+        <details class="dz-izgled" id="dz-izgled" open>
+          <summary class="dizajner__nas">Izgled teksta</summary>
+          <div class="dz-izgled__tijelo">
+            <div class="dz-izgled__red">
+              <span class="dz-izgled__nas">Označene riječi</span>
+              <div class="dz-alati" id="dz-alati" role="toolbar" aria-label="Oblikovanje označenog teksta">
+                <button type="button" data-oznaka="b" aria-pressed="false" title="Bold (⌘B)"><b>B</b><small>Bold</small></button>
+                <button type="button" data-oznaka="i" aria-pressed="false" title="Italic (⌘I)"><i>I</i><small>Italic</small></button>
+                <button type="button" data-oznaka="u" aria-pressed="false" title="Podvučeno (⌘U)"><u>U</u><small>Podvučeno</small></button>
+                <button type="button" data-oznaka="z" aria-pressed="false" title="Zlatno"><span class="dz-alati__zlatno">A</span><small>Zlatno</small></button>
+                <button type="button" data-oznaka="ocisti" title="Ukloni oblikovanje"><s>T</s><small>Očisti</small></button>
+              </div>
+              <span class="sitno dz-pisanje__savjet">Označi riječi u poruci, pa dodirni.</span>
+            </div>
+            <div class="dz-izgled__red" id="dz-izgledi" hidden>
+              <span class="dz-izgled__nas">Tvoji izgledi</span>
+              <div class="dz-cipovi"></div>
+            </div>
+            <div class="dz-izgled__red">
+              <span class="dz-izgled__nas">Font</span>
+              <div class="dz-cipovi dz-cipovi--font" id="dz-fontovi"></div>
+            </div>
+            <div class="dz-izgled__red">
+              <span class="dz-izgled__nas">Debljina</span>
+              <div class="dz-cipovi" id="dz-tezine"></div>
+            </div>
+            <div class="dz-izgled__dvoje">
+              <span class="dz-izgled__nas">Poravnanje</span>
+              <div class="dz-segment" role="group" aria-label="Poravnanje">
+                <button type="button" class="dz-segment__ikona" data-poravnanje="lijevo" title="Lijevo" aria-label="Lijevo"><svg class="ik"><use href="#i-ravnaj-lijevo"/></svg></button>
+                <button type="button" class="dz-segment__ikona" data-poravnanje="centar" title="Na sredini" aria-label="Na sredini"><svg class="ik"><use href="#i-ravnaj-sredina"/></svg></button>
+                <button type="button" class="dz-segment__ikona" data-poravnanje="obostrano" title="Obostrano (justify)" aria-label="Obostrano"><svg class="ik"><use href="#i-ravnaj-obostrano"/></svg></button>
+              </div>
+            </div>
+            <div class="dz-klizaci" id="dz-klizaci"></div>
+            <button type="button" class="tiho dz-izgled__zadano" id="dz-zadano">Vrati zadani izgled</button>
+          </div>
+        </details>
         <div class="dizajner__grupa">
           <span class="dizajner__nas">Boja</span>
           <div class="karte karte--2" id="dz-boje">

@@ -85,13 +85,23 @@ tu knjigu. `autor.knjige_url` je fallback (`/shop`).
 
 Tab „Dizajner“ u `/admin` je lista sačuvanih poruka van knjiga. „Nova
 poruka“ ili dodir na poruku otvara dizajner u draweru: hafiz upiše poruku, a
-pregled odmah crta objavu 4:5 i story 9:16, zelenu ili krem, istom rukom kao
-plakat predavanja (`nacrtajPoruku` u `js/plakat.js`): logo gore, hafiz
-diskretno u pozadini, dolje poruka tankim kurzivom (Cormorant Garamond Light
-Italic), poravnata lijevo i bez potpisa. Duža
+pregled odmah crta objavu 4:5 ili story 9:16 (tabovi), zelenu ili krem, istom
+rukom kao plakat predavanja (`nacrtajPoruku` u `js/plakat.js`): logo gore,
+hafiz diskretno u pozadini, dolje poruka s velikim providnim navodnicima koji
+vise uz početak i kraj rečenice (kao na kartici), bez potpisa. Redovi su kao u tekstu
+(prazan red je prazan red i na slici). Duža
 poruka dobije sitnija slova i uvijek cijela stane. Slika se preuzima u duploj
 veličini (2160 × 2700 i 2160 × 3840), a na telefonu ide kroz meni za
 dijeljenje (Instagram, Viber, „Sačuvaj sliku“).
+
+Poruka se piše u uređivaču: označene riječi mogu biti bold, italic,
+podvučene ili zlatne (u bazi kao `**…**`, `*…*`, `__…__`, `==…==`). „Izgled
+teksta“ bira font (šest Google fontova s našim slovima), debljinu, veličinu,
+prored, razmak slova i poravnanje — lijevo, sredina ili obostrano
+(`urediIzgled` u `js/plakat.js`). Veličina slova ide do „Max“: najveća pri
+kojoj cijela poruka stane. Izgled
+se čuva uz poruku (kolona `izgled`); zadnji korišteni se pamti sam i nova
+poruka počinje s njim, a izgledi sačuvanih poruka su pod „Tvoji izgledi“.
 
 „Sačuvaj“ upisuje poruku u tabelu `vlastite_poruke` (`sql/shema.sql`,
 `/api/poruke?vlastite=1`), odvojeno od poruka dana: ne ide u krug i
