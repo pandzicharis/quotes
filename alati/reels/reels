@@ -1,0 +1,12 @@
+#!/bin/zsh
+# Reels iz hafizovog YouTube videa.
+#   ./reels                     ekran u pregledniku (http://localhost:8765)
+#   ./reels <link> [--napravi]  sve u terminalu
+cd "${0:A:h}"
+[[ -x .venv/bin/python ]] || ./postavi.sh || exit 1
+# YouTube često mijenja stvari — yt-dlp se osvježi najviše jednom sedmično
+if [[ -z $(find .venv/.yt-osvjezeno -mtime -7 2>/dev/null) ]]; then
+  uv pip install -q --python .venv/bin/python -U "yt-dlp[default]" 2>/dev/null && touch .venv/.yt-osvjezeno
+fi
+pgrep -xq ollama || brew services start ollama >/dev/null 2>&1
+exec .venv/bin/python reels.py "$@"

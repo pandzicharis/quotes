@@ -22,6 +22,7 @@
      PUT    ?vlastite=1&id=… { tekst, stil }   izmjena
      DELETE ?vlastite=1&id=…                   brisanje (za stalno) */
 import { ovlascenAdmin, odbijAdmin } from './_lib/auth.js';
+import { reels } from './_lib/reels.js';
 import { citajTijelo, porukaZaDatum, danSarajevo, oznaciKrug } from './_lib/push.js';
 import {
   bazaSpremna, svePoruke, dodajPoruku, izmijeniPoruku,
@@ -126,6 +127,7 @@ export default async function handler(req, res) {
   if (!bazaSpremna()) return res.status(503).json({ greska: 'Baza nije konfigurisana' });
 
   const url = new URL(req.url, 'http://x');
+  if (url.searchParams.has('reels')) return reels(req, res);   // reels iz predavanja — _lib/reels.js
   const id = Number(url.searchParams.get('id'));
   if (url.searchParams.has('vlastite')) return vlastite(req, res, id);
 

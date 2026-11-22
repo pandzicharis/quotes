@@ -1,0 +1,8 @@
+# Radnik u Dockeru (radnik.py). yt-dlp se osvježava pri svakom pokretanju i jednom dnevno.
+yt-dlp[default]
+deno
+numpy
+pillow
+requests
+opencv-python-headless<5     # 5.x više nema Haar detektor lica
+faster-whisper

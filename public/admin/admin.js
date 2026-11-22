@@ -11,6 +11,7 @@ import {
   PLAKAT_FORMATI, nacrtajPlakat, plakatBlob, imePlakata, nacrtajRaspored, rasporedBlob, mjeriloEkrana,
   nacrtajPoruku, porukaBlob, imePoruke, FONTOVI_PORUKE, IZGLED_TEKSTA, urediIzgled, bezOznaka,
 } from '/js/plakat.js';
+import { reelsOtvori } from './reels.js';
 
 const $ = (s, k = document) => k.querySelector(s);
 const $$ = (s, k = document) => [...k.querySelectorAll(s)];
@@ -85,16 +86,18 @@ $('#odjava').addEventListener('click', () => { localStorage.removeItem(TAJNA); l
 /* ---------- pogledi ----------
    Otvoreni ekran stoji u adresi (#poruke, #statistika…), pa ga osvježavanje
    stranice ne vraća na predavanja. */
-const ADRESE = { lista: 'predavanja', citati: 'poruke', dizajner: 'dizajner', statistika: 'statistika', grafike: 'grafike' };
-const pogledIzAdrese = () => Object.keys(ADRESE).find(k => `#${ADRESE[k]}` === location.hash) || 'lista';
+const ADRESE = { lista: 'predavanja', citati: 'poruke', dizajner: 'dizajner', reels: 'reels', statistika: 'statistika', grafike: 'grafike' };
+const pogledIzAdrese = () => Object.keys(ADRESE).find(k => `#${ADRESE[k]}` === location.hash.split('?')[0]) || 'lista';
 
 function pogled(ime) {
   $$('[data-pogled]').forEach(s => { s.hidden = s.dataset.pogled !== ime; });
   $$('[data-tab]').forEach(b => b.setAttribute('aria-current', String(b.dataset.tab === ime)));
-  history.replaceState(null, '', `${location.pathname}${location.search}#${ADRESE[ime]}`);
+  const upit = location.hash.split('?')[0] === `#${ADRESE[ime]}` ? location.hash.slice(location.hash.indexOf('?') + 1 || location.hash.length) : '';
+  history.replaceState(null, '', `${location.pathname}${location.search}#${ADRESE[ime]}${upit ? `?${upit}` : ''}`);   // #reels?id=… ostaje
   scrollTo({ top: 0 });
   if (ime === 'citati') ucitajCitate();
-  if (ime === 'dizajner') dzOtvori();               // sad se vidi — crta se po stvarnoj širini
+  if (ime === 'dizajner') dzOtvori();
+  if (ime === 'reels') reelsOtvori();               // sad se vidi — crta se po stvarnoj širini
   if (ime === 'statistika') ucitajStatistiku();
   if (ime === 'grafike') ucitajGrafike();
 }

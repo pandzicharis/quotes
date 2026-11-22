@@ -16,3 +16,10 @@ node_modules/
 .DS_Store
 *.log
 scratch/
+
+# alat za reelse: okruženje, fontovi, video, gotovi reelsi i ključevi radnika
+alati/reels/.venv/
+alati/reels/radno/
+alati/reels/fontovi/
+alati/reels/__pycache__/
+alati/reels/.env

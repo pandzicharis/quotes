@@ -1,2 +1,5 @@
 # izvor promo grafika — samo za izvoz u PNG (scripts/promo.sh), ne objavljuje se
 public/_promo
+
+# alati za laptop (reels) — ne idu na Vercel
+alati

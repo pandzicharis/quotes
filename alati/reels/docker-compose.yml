@@ -1,0 +1,17 @@
+# Radnik za reelse na laptopu: hafiz radi u adminu (tab „Reels“), a ovo obrađuje.
+#   cp .env.example .env   (upiši ključeve)
+#   docker compose up -d --build
+# Docker Desktop → Settings → General → „Start Docker Desktop when you sign in“:
+# tada je dovoljno otvoriti laptop.
+name: reels
+services:
+  radnik:
+    build:
+      context: ../..
+      dockerfile: alati/reels/Dockerfile
+    env_file: .env
+    restart: unless-stopped
+    volumes:
+      - podaci:/podaci          # transkripti, video (7 dana), modeli
+volumes:
+  podaci:

@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="bs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reels iz videa</title>
+<style>
+@font-face { font-family: "IBM Plex Sans"; src: url(/fontovi/IBMPlexSans.ttf); font-weight: 100 700; }
+@font-face { font-family: "EB Garamond"; src: url(/fontovi/EBGaramond-Italic.ttf); font-style: italic; font-weight: 400 800; }
+:root {
+  --bg: #0B1711; --bg-2: #0F1E18; --surface: #13261E; --surface-2: #183026;
+  --ink: #F2ECE0; --ink-soft: #B4BEB4; --ink-mute: #7F8D83;
+  --gold: #C6A968; --gold-l: #E9C77E; --line: rgba(198,169,104,.16); --line-soft: rgba(242,236,224,.07);
+  --greska: #E58B7B; --na-zlatu: #10231A;
+  --sans: "IBM Plex Sans", system-ui, sans-serif; --serif: "EB Garamond", Georgia, serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); font: 14px/1.5 var(--sans); background: var(--bg); }
+[hidden] { display: none !important; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 6px 11px; }
+button:hover { border-color: color-mix(in srgb, var(--gold) 50%, transparent); }
+button.glavno { background: var(--gold); color: var(--na-zlatu); border-color: var(--gold); font-weight: 600; padding: 9px 18px; }
+button:disabled { opacity: .45; cursor: default; }
+input[type=text], select { background: var(--bg-2); border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; }
+input[type=text]:focus { outline: none; border-color: var(--gold); }
+header { display: flex; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; }
+header h1 { margin: 0; font: italic 500 26px var(--serif); }
+header h1 b { color: var(--gold); font-weight: 500; }
+header .unos { display: flex; gap: 8px; flex: 1; min-width: 320px; }
+header .unos input { flex: 1; }
+header select { max-width: 340px; }
+.stanje { margin: 14px 24px 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.stanje .traka { height: 4px; background: var(--line-soft); border-radius: 4px; margin-top: 8px; overflow: hidden; }
+.stanje .traka i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .4s; }
+.stanje.neodredjeno .traka i { width: 30%; animation: klizi 1.4s infinite ease-in-out; }
+@keyframes klizi { from { margin-left: -30%; } to { margin-left: 100%; } }
+.stanje .greska { color: var(--greska); white-space: pre-wrap; margin: 6px 0 0; font-size: 13px; }
+main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(380px, 1fr); gap: 22px; padding: 18px 24px 40px; }
+.lijevo { position: sticky; top: 12px; align-self: start; }
+@media (max-width: 1000px) { main { grid-template-columns: 1fr; } .lijevo { position: static; } }
+.player { position: relative; background: #000; border-radius: 12px; overflow: hidden; }
+.player video { display: block; width: 100%; }
+.izrez916 { position: absolute; top: 0; bottom: 34px; border: 2px solid var(--gold-l); box-shadow: 0 0 0 9999px rgba(0,0,0,.45); pointer-events: none; transition: left .15s; }
+.ispod { display: flex; justify-content: space-between; color: var(--ink-mute); font-size: 12.5px; margin: 6px 2px 10px; }
+.naslov-videa { font: italic 500 20px var(--serif); margin: 0 0 4px; }
+.transkript { max-height: 34vh; overflow: auto; border: 1px solid var(--line-soft); border-radius: 12px; padding: 10px 12px; background: var(--bg-2); font-size: 13.5px; }
+.transkript span { cursor: pointer; border-radius: 4px; padding: 1px 2px; }
+.transkript span:hover { background: var(--surface-2); }
+.transkript span.u { background: color-mix(in srgb, var(--gold) 16%, transparent); }
+.transkript span.sad { outline: 1px solid var(--gold); }
+.transkript small { color: var(--ink-mute); font-size: 11px; margin-right: 3px; }
+.alatke { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+.alatke .razmak { flex: 1; }
+ol.isjecci { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.isj { border: 1px solid var(--line-soft); border-radius: 14px; padding: 12px 14px; background: var(--surface); }
+.isj.aktivan { border-color: var(--gold); }
+.isj.iskljucen { opacity: .55; }
+.isj .glava { display: flex; gap: 10px; align-items: center; color: var(--ink-mute); font-size: 12.5px; }
+.isj .glava .tip { text-transform: uppercase; letter-spacing: .12em; font-size: 10.5px; color: var(--gold); }
+.isj .glava .razmak { flex: 1; }
+.isj .glava button { padding: 2px 8px; }
+.isj input.naslov { width: 100%; margin: 8px 0 6px; font: italic 500 19px var(--serif); background: transparent; border-color: transparent; padding: 3px 6px; }
+.isj input.naslov:hover, .isj input.naslov:focus { border-color: var(--line); }
+.isj p { margin: 0 0 4px 6px; color: var(--ink-soft); font-size: 13px; }
+.isj p.zasto { color: var(--ink-mute); }
+.vrijeme { display: grid; grid-template-columns: 52px repeat(2, auto) 82px repeat(2, auto) auto; gap: 4px; align-items: center; margin-top: 8px; font-size: 12.5px; }
+.vrijeme button { padding: 3px 7px; font-size: 12px; }
+.vrijeme input { width: 82px; text-align: center; padding: 4px 6px; font-variant-numeric: tabular-nums; }
+.red { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-mute); }
+.red input[type=range] { accent-color: var(--gold); width: 120px; }
+.montaza { margin: 8px 0 0 6px; font-size: 12.5px; color: var(--ink-soft); }
+.montaza b { color: var(--gold); font-weight: 600; }
+.dijelovi { display: grid; gap: 4px; margin-top: 6px; }
+.dijelovi div { display: flex; gap: 4px; align-items: center; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.dijelovi button { padding: 2px 6px; font-size: 11.5px; }
+.dijelovi span { min-width: 140px; text-align: center; }
+.tema { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; font-size: 12.5px; color: var(--ink-mute); }
+.tema input { flex: 1; }
+details.titlovi { margin-top: 8px; font-size: 13px; }
+details.titlovi summary { cursor: pointer; color: var(--ink-mute); }
+details.titlovi .lista { display: grid; gap: 4px; margin-top: 6px; max-height: 260px; overflow: auto; }
+details.titlovi .lista div { display: grid; grid-template-columns: 52px 1fr; gap: 6px; align-items: center; }
+details.titlovi .lista small { color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+details.titlovi .lista input { padding: 3px 7px; }
+.dno { margin-top: 16px; display: flex; gap: 10px; align-items: center; }
+.gotovi { margin-top: 22px; }
+.gotovi h3 { font: italic 500 20px var(--serif); margin: 0 0 10px; }
+.gotovi .mreza { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.gotovi figure { margin: 0; }
+.gotovi video { width: 100%; aspect-ratio: 9/16; background: #000; border-radius: 10px; }
+.gotovi figcaption { font-size: 12px; color: var(--ink-soft); word-break: break-all; }
+.gotovi a { color: var(--gold); }
+.prazno { color: var(--ink-mute); padding: 40px 24px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Reels <b>iz videa</b></h1>
+  <form class="unos" id="forma">
+    <input type="text" id="url" placeholder="Zalijepi link hafizovog YouTube videa…" autocomplete="off">
+    <button class="glavno" id="obradi">Obradi</button>
+  </form>
+  <select id="projekti" title="Ranije obrađeni videi"><option value="">Ranije obrađeni…</option></select>
+</header>
+
+<div class="stanje" id="stanje" hidden>
+  <div><b id="faza">…</b> <span id="traje" style="color:var(--ink-mute)"></span></div>
+  <div class="traka"><i id="traka"></i></div>
+  <p class="greska" id="greska" hidden></p>
+</div>
+
+<p class="prazno" id="prazno">Zalijepi YouTube link i klikni <b>Obradi</b>. Alat preuzme video, napravi transkript, AI predloži 5–6 isječaka, a ti ih ovdje pregledaš, pomjeriš početak i kraj i napraviš reelse.</p>
+
+<main id="radno" hidden>
+  <section class="lijevo">
+    <p class="naslov-videa" id="naslov"></p>
+    <label class="tema">Tema na reelsima <input type="text" id="tema" placeholder="npr. Rješenje za tugu i brige"></label>
+    <div class="player">
+      <video id="v" controls preload="metadata"></video>
+      <div class="izrez916" id="izrez" hidden></div>
+    </div>
+    <div class="ispod"><span id="sad">00:00.0</span><span>Klik na rečenicu u transkriptu premota video.</span></div>
+    <div class="transkript" id="transkript"></div>
+  </section>
+  <section>
+    <div class="alatke">
+      <button id="dodaj" title="Novi isječak od trenutnog mjesta u videu">+ Isječak odavde</button>
+      <button id="ponovo" title="Ponovo pita AI (briše trenutne isječke)">Ponovo predloži (AI)</button>
+      <span class="razmak"></span>
+      <span id="sacuvano" style="color:var(--ink-mute);font-size:12px"></span>
+    </div>
+    <ol class="isjecci" id="isjecci"></ol>
+    <div class="dno">
+      <button class="glavno" id="napravi">Napravi reelse</button>
+      <span style="color:var(--ink-mute);font-size:12.5px">1080 × 1920, titlovi, glasnoća za Instagram</span>
+    </div>
+    <div class="gotovi" id="gotovi" hidden>
+      <h3>Gotovi reelsi <button id="folder" style="font:13px var(--sans);margin-left:8px">Otvori folder</button></h3>
+      <div class="mreza" id="mreza"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const v = $('#v');
+let proj = null, aktivan = -1, krajPustanja = null, cuvanjeT = null, anketa = null;
+
+const fmt = t => { t = Math.max(0, t); const m = Math.floor(t / 60), s = t - m * 60; return `${String(m).padStart(2, '0')}:${s.toFixed(1).padStart(4, '0')}`; };
+const parsiraj = s => { const d = String(s).trim().split(':').map(Number); if (d.some(isNaN)) return null; return d.length === 2 ? d[0] * 60 + d[1] : d[0]; };
+const api = async (put, tijelo) => {
+  const r = await fetch(put, tijelo ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tijelo) } : {});
+  return r.json();
+};
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function ucitajProjekte(izaberi) {
+  const lista = await api('/api/projekti');
+  $('#projekti').innerHTML = '<option value="">Ranije obrađeni…</option>' + lista.map(p => `<option value="${p.id}">${esc(p.naslov)}</option>`).join('');
+  if (izaberi) $('#projekti').value = izaberi;
+  return lista;
+}
+
+async function otvori(id) {
+  const p = await api('/api/projekat?id=' + id);
+  if (p.greska) return;
+  proj = p; aktivan = -1;
+  $('#prazno').hidden = true; $('#radno').hidden = false;
+  $('#naslov').textContent = p.naslov;
+  $('#tema').value = p.tema || '';
+  if (!v.src.endsWith(`/radno/${p.id}/izvor.mp4`)) v.src = `/radno/${p.id}/izvor.mp4`;
+  $('#projekti').value = p.id;
+  $('#transkript').innerHTML = p.recenice.map((r, i) => `<span data-i="${i}" data-t="${r.t0}"><small>${fmt(r.t0).slice(0, 5)}</small>${esc(r.tekst)}</span> `).join('');
+  crtajIsjecke(); crtajGotove();
+  if (proj.isjecci.length) izaberi(0, false);
+}
+
+const dijeloviOd = x => (x.dijelovi && x.dijelovi.length) ? x.dijelovi : [[x.od, x.do]];
+const trajanje = x => dijeloviOd(x).reduce((s, [a, b]) => s + (b - a), 0);
+
+function crtajIsjecke() {
+  const ol = $('#isjecci');
+  ol.innerHTML = proj.isjecci.map((x, i) => `
+    <li class="isj${i === aktivan ? ' aktivan' : ''}${x.ukljuci === false ? ' iskljucen' : ''}" data-i="${i}">
+      <div class="glava">
+        <label><input type="checkbox" data-p="ukljuci" ${x.ukljuci !== false ? 'checked' : ''}> #${i + 1}</label>
+        <span class="tip">${esc(x.tip || 'ručno')}</span>
+        <span class="trajanje">${trajanje(x).toFixed(0)} s</span>
+        <span class="razmak"></span>
+        <button data-a="pusti">▶ Pusti</button>
+        <button data-a="kraj" title="Pusti zadnje 4 sekunde">▶ kraj</button>
+        <button data-a="obrisi" title="Ukloni isječak">✕</button>
+      </div>
+      <input type="text" class="naslov" data-p="naslov" value="${esc(x.naslov)}" placeholder="Naslov na reelsu">
+      ${x.poenta ? `<p>${esc(x.poenta)}</p>` : ''}${x.zasto ? `<p class="zasto">Zašto: ${esc(x.zasto)}</p>` : ''}
+      ${dijeloviOd(x).length > 1 ? `<details class="montaza"><summary>✂ <b>${dijeloviOd(x).length} dijela</b>, izbačeno ${(x.do - x.od - trajanje(x)).toFixed(0)} s (pogledaj rezove)</summary>
+        ${x.rezovi ? `<p style="margin:6px 0 2px;color:var(--ink-mute)">${esc(x.rezovi)}</p>` : ''}
+        <div class="dijelovi">${dijeloviOd(x).map(([a, b], k) => `<div>
+          <button data-dio="${k}" data-kraj="0" data-d="-0.2">−.2</button><button data-dio="${k}" data-kraj="0" data-d="0.2">+.2</button>
+          <span>${fmt(a)} → ${fmt(b)}</span>
+          <button data-dio="${k}" data-kraj="1" data-d="-0.2">−.2</button><button data-dio="${k}" data-kraj="1" data-d="0.2">+.2</button>
+          <button data-dio="${k}" data-pusti-dio="1">▶</button><button data-dio="${k}" data-izbaci="1" title="Izbaci ovaj dio">✕</button></div>`).join('')}
+          <div><button data-a="bezrezova">Vrati bez rezova</button></div></div></details>` : ''}
+      <div class="vrijeme">
+        <span>Početak</span><button data-m="od" data-d="-1">−1</button><button data-m="od" data-d="-0.2">−.2</button>
+        <input type="text" data-t="od" value="${fmt(x.od)}"><button data-m="od" data-d="0.2">+.2</button><button data-m="od" data-d="1">+1</button>
+        <button data-sada="od" title="Postavi na trenutno mjesto u videu">= sada</button>
+        <span>Kraj</span><button data-m="do" data-d="-1">−1</button><button data-m="do" data-d="-0.2">−.2</button>
+        <input type="text" data-t="do" value="${fmt(x.do)}"><button data-m="do" data-d="0.2">+.2</button><button data-m="do" data-d="1">+1</button>
+        <button data-sada="do" title="Postavi na trenutno mjesto u videu">= sada</button>
+      </div>
+      <div class="red">
+        Kadar <select data-p="kadar">${[['traka', 'video gore, brend dole'], ['izrez', 'puni ekran 9:16'], ['okvir', 'cijeli kadar + zamućena pozadina']]
+          .map(([k, t]) => `<option value="${k}"${(x.kadar || 'traka') === k ? ' selected' : ''}>${t}</option>`).join('')}</select>
+        <span ${x.kadar === 'okvir' ? 'hidden' : ''} title="Pomjeri izrez lijevo-desno (zlatni okvir na videu)">pozicija <input type="range" min="0" max="1" step="0.01" data-p="pozicija" value="${x.pozicija ?? .5}"></span>
+        <label><input type="checkbox" data-p="titlovi_ukljuceni" ${x.titlovi_ukljuceni !== false ? 'checked' : ''}> titlovi</label>
+        <label title="Duge pauze u govoru se izrežu"><input type="checkbox" data-p="zbij_pauze" ${x.zbij_pauze !== false ? 'checked' : ''}> zbij pauze</label>
+      </div>
+      <details class="titlovi" data-i="${i}"><summary>Ispravi titlove</summary><div class="lista"></div></details>
+    </li>`).join('');
+  $('#napravi').textContent = `Napravi reelse (${proj.isjecci.filter(x => x.ukljuci !== false).length})`;
+  oznaciTranskript();
+}
+
+function izaberi(i, premotaj = true) {
+  aktivan = i;
+  document.querySelectorAll('.isj').forEach(li => li.classList.toggle('aktivan', +li.dataset.i === i));
+  if (premotaj && proj.isjecci[i]) v.currentTime = proj.isjecci[i].od;
+  oznaciTranskript(); crtajIzrez();
+}
+
+function crtajIzrez() {
+  const x = proj?.isjecci[aktivan], el = $('#izrez');
+  if (!x || x.kadar === 'okvir' || !proj.sirina) { el.hidden = true; return; }
+  const sir = Math.min(1, proj.visina * 1080 / (x.kadar === 'izrez' ? 1920 : 1500) / proj.sirina);   // isto kao u reels.py
+  const lijevo = Math.min(1 - sir, Math.max(0, (x.pozicija ?? .5) - sir / 2));
+  el.hidden = false; el.style.width = (sir * 100) + '%'; el.style.left = (lijevo * 100) + '%';
+}
+
+function oznaciTranskript() {
+  const x = proj?.isjecci[aktivan];
+  document.querySelectorAll('#transkript span').forEach(s => {
+    const r = proj.recenice[+s.dataset.i];
+    s.classList.toggle('u', !!x && r.t1 > x.od + 0.3 && r.t0 < x.do - 0.3);
+  });
+  const prvi = document.querySelector('#transkript span.u');
+  if (prvi) prvi.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+function sacuvaj() {
+  clearTimeout(cuvanjeT);
+  $('#sacuvano').textContent = '…';
+  cuvanjeT = setTimeout(async () => {
+    const r = await api('/api/sacuvaj', { id: proj.id, verzija: proj.verzija, isjecci: proj.isjecci, tema: proj.tema, tema_rucno: proj.tema_rucno });
+    if (r.greska) { alert(r.greska); return location.reload(); }
+    $('#sacuvano').textContent = 'Sačuvano';
+  }, 500);
+}
+
+function promijeniVrijeme(i, polje, t) {
+  const x = proj.isjecci[i];
+  t = Math.max(0, Math.min(proj.trajanje || 1e9, Math.round(t * 100) / 100));
+  x[polje] = t;
+  if (x.do <= x.od + 1) x[polje === 'od' ? 'do' : 'od'] = polje === 'od' ? t + 1 : Math.max(0, t - 1);
+  if (x.dijelovi && x.dijelovi.length) {   // prvi dio počinje na početku, zadnji završava na kraju
+    x.dijelovi = x.dijelovi.filter(([a, b]) => b > x.od + 0.3 && a < x.do - 0.3).map(([a, b]) => [Math.max(a, x.od), Math.min(b, x.do)]);
+    if (!x.dijelovi.length) x.dijelovi = [[x.od, x.do]];
+    x.dijelovi[0][0] = x.od; x.dijelovi[x.dijelovi.length - 1][1] = x.do;
+  }
+  x.titlovi = null;                     // titlovi se slažu iznova za novi raspon
+  const li = document.querySelector(`.isj[data-i="${i}"]`);
+  li.querySelector('[data-t="od"]').value = fmt(x.od);
+  li.querySelector('[data-t="do"]').value = fmt(x.do);
+  li.querySelector('.trajanje').textContent = trajanje(x).toFixed(0) + ' s';
+  const det = li.querySelector('details'); if (det.open) ucitajTitlove(i, det);
+  v.currentTime = polje === 'od' ? x.od : Math.max(x.od, x.do - 3);
+  oznaciTranskript(); sacuvaj();
+}
+
+async function ucitajTitlove(i, det) {
+  const x = proj.isjecci[i];
+  if (!x.titlovi) {
+    det.querySelector('.lista').innerHTML = '<small>AI provjerava riječi…</small>';
+    x.titlovi = await api('/api/titlovi', { id: proj.id, od: x.od, do: x.do, dijelovi: x.dijelovi, zbij_pauze: x.zbij_pauze });
+  }
+  det.querySelector('.lista').innerHTML = x.titlovi.map((g, k) =>
+    `<div><small>${fmt(g.t0)}</small><input type="text" data-titl="${k}" value="${esc(g.tekst)}"></div>`).join('');
+}
+
+let redPustanja = [];
+function pusti(od, d) { redPustanja = []; v.currentTime = od; krajPustanja = d; v.play(); }
+function pustiDijelove(dij) { redPustanja = dij.slice(1); v.currentTime = dij[0][0]; krajPustanja = dij[0][1]; v.play(); }
+
+$('#isjecci').addEventListener('click', e => {
+  const li = e.target.closest('.isj'); if (!li) return;
+  const i = +li.dataset.i, x = proj.isjecci[i], b = e.target.closest('button');
+  if (i !== aktivan) izaberi(i, !b && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT');
+  if (!b) return;
+  if (b.dataset.a === 'pusti') pustiDijelove(dijeloviOd(x));
+  else if (b.dataset.a === 'bezrezova') { x.dijelovi = null; x.titlovi = null; crtajIsjecke(); izaberi(i, false); sacuvaj(); }
+  else if (b.dataset.dio != null) {
+    const k = +b.dataset.dio, dij = dijeloviOd(x).map(p => [...p]);
+    if (b.dataset.pustiDio) pusti(dij[k][0], dij[k][1]);
+    else {
+      if (b.dataset.izbaci) { if (dij.length < 2) return; dij.splice(k, 1); }
+      else dij[k][+b.dataset.kraj] = Math.round((dij[k][+b.dataset.kraj] + +b.dataset.d) * 100) / 100;
+      x.dijelovi = dij; x.od = dij[0][0]; x.do = dij[dij.length - 1][1]; x.titlovi = null;
+      crtajIsjecke(); izaberi(i, false);
+      const det = document.querySelector(`.isj[data-i="${i}"] details.montaza`); if (det) det.open = true;
+      sacuvaj();
+    }
+  }
+  else if (b.dataset.a === 'kraj') pusti(Math.max(x.od, x.do - 4), x.do);
+  else if (b.dataset.a === 'obrisi') { if (confirm(`Ukloniti isječak #${i + 1}?`)) { proj.isjecci.splice(i, 1); aktivan = -1; crtajIsjecke(); crtajIzrez(); sacuvaj(); } }
+  else if (b.dataset.m) promijeniVrijeme(i, b.dataset.m, x[b.dataset.m] + +b.dataset.d);
+  else if (b.dataset.sada) promijeniVrijeme(i, b.dataset.sada, v.currentTime);
+});
+$('#isjecci').addEventListener('change', e => {
+  const li = e.target.closest('.isj'); if (!li) return;
+  const i = +li.dataset.i, x = proj.isjecci[i], el = e.target;
+  if (el.dataset.t) { const t = parsiraj(el.value); if (t == null) el.value = fmt(x[el.dataset.t]); else promijeniVrijeme(i, el.dataset.t, t); return; }
+  if (el.dataset.titl) { x.titlovi[+el.dataset.titl].tekst = el.value.trim(); sacuvaj(); return; }
+  const p = el.dataset.p; if (!p) return;
+  x[p] = el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.value;
+  if (p === 'zbij_pauze') { x.titlovi = null; li.querySelector('.trajanje').textContent = trajanje(x).toFixed(0) + ' s'; }
+  if (p === 'ukljuci' || p === 'kadar') crtajIsjecke();
+  crtajIzrez(); sacuvaj();
+});
+$('#isjecci').addEventListener('input', e => {
+  if (e.target.type !== 'range') return;
+  const i = +e.target.closest('.isj').dataset.i;
+  proj.isjecci[i].pozicija = +e.target.value; if (i === aktivan) crtajIzrez();
+});
+$('#isjecci').addEventListener('toggle', e => { if (e.target.open) ucitajTitlove(+e.target.dataset.i, e.target); }, true);
+
+$('#transkript').addEventListener('click', e => { const s = e.target.closest('span[data-t]'); if (s) { v.currentTime = +s.dataset.t; krajPustanja = null; } });
+v.addEventListener('timeupdate', () => {
+  $('#sad').textContent = fmt(v.currentTime);
+  if (krajPustanja != null && v.currentTime >= krajPustanja) {
+    if (redPustanja.length) { const [a, b] = redPustanja.shift(); v.currentTime = a; krajPustanja = b; }
+    else { v.pause(); krajPustanja = null; }
+  }
+  document.querySelectorAll('#transkript span.sad').forEach(s => s.classList.remove('sad'));
+  const i = proj?.recenice.findIndex(r => v.currentTime >= r.t0 && v.currentTime < r.t1);
+  if (i >= 0) document.querySelector(`#transkript span[data-i="${i}"]`)?.classList.add('sad');
+});
+v.addEventListener('seeking', () => { if (krajPustanja != null && !redPustanja.length && v.currentTime > krajPustanja + .5) krajPustanja = null; });
+
+$('#dodaj').onclick = () => {
+  const t = v.currentTime;
+  proj.isjecci.push({ od: t, do: Math.min(t + 45, proj.trajanje || t + 45), naslov: '', tip: '', poenta: '', zasto: '', ukljuci: true, kadar: 'traka', pozicija: .5 });
+  proj.isjecci.sort((a, b) => a.od - b.od);
+  crtajIsjecke(); izaberi(proj.isjecci.findIndex(x => x.od === t), false); sacuvaj();
+};
+$('#ponovo').onclick = async () => {
+  if (!confirm('AI će ponovo izabrati isječke, a trenutni (i tvoje izmjene) se brišu. Nastaviti?')) return;
+  const r = await api('/api/predlozi', { id: proj.id }); if (r.ok) prati();
+};
+$('#napravi').onclick = async () => {
+  const r = await api('/api/napravi', { id: proj.id, verzija: proj.verzija, isjecci: proj.isjecci, tema: proj.tema });
+  if (r.greska) { alert(r.greska); return location.reload(); }
+  if (r.ok) prati();
+};
+$('#tema').onchange = e => { proj.tema = e.target.value.trim(); proj.tema_rucno = true; sacuvaj(); };
+$('#folder').onclick = () => api('/api/otvori', { id: proj.id });
+$('#projekti').onchange = e => e.target.value && otvori(e.target.value);
+$('#forma').onsubmit = async e => {
+  e.preventDefault();
+  const url = $('#url').value.trim(); if (!url) return;
+  const r = await api('/api/obradi', { url });
+  if (r.greska) return alert(r.greska);
+  if (r.ok) prati(); else alert('Već nešto radi — sačekaj da završi.');
+};
+
+function crtajGotove() {
+  const g = proj.gotovi || [];
+  $('#gotovi').hidden = !g.length;
+  const t = Date.now();
+  $('#mreza').innerHTML = g.map(ime => `<figure><video src="/radno/${proj.id}/reels/${ime}?${t}" controls playsinline preload="metadata"></video>
+    <figcaption><a href="/radno/${proj.id}/reels/${ime}" download>${esc(ime)}</a></figcaption></figure>`).join('');
+}
+
+async function prati() {
+  clearInterval(anketa);
+  $('#stanje').hidden = false; $('#greska').hidden = true;
+  const korak = async () => {
+    const s = await api('/api/stanje');
+    $('#faza').textContent = s.faza;
+    $('#traje').textContent = s.traje ? `· ${Math.floor(s.traje / 60)} min ${s.traje % 60} s` : '';
+    $('#stanje').classList.toggle('neodredjeno', s.procenat == null && s.radi);
+    $('#traka').style.width = (s.procenat ?? (s.radi ? 0 : 100)) + '%';
+    document.querySelectorAll('#napravi,#ponovo,#obradi').forEach(b => b.disabled = s.radi);
+    if (s.greska) { $('#greska').hidden = false; $('#greska').textContent = s.greska; }
+    if (!s.radi) {
+      clearInterval(anketa);
+      if (!s.greska) setTimeout(() => { $('#stanje').hidden = true; }, 2500);
+      if (s.id) { await ucitajProjekte(s.id); await otvori(s.id); }
+    }
+  };
+  await korak(); anketa = setInterval(korak, 1000);
+}
+
+(async () => {
+  const lista = await ucitajProjekte();
+  const s = await api('/api/stanje');
+  if (s.radi) prati();
+  else if (lista.length) otvori(lista[0].id);
+})();
+</script>
+</body>
+</html>

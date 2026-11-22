@@ -415,6 +415,82 @@ export async function obrisiVlastitu(id) {
   return (await r.json()).length > 0;
 }
 
+/* ---------- reels (red poslova za radnika na laptopu, sql/reels.sql) ---------- */
+const TAB_REELS = 'reels_poslovi';
+const POLJA_REELS = 'id,url,yt_id,naslov,kanal,trajanje,sirina,visina,tema,tema_rucno,stanje,zahtjev,faza,procenat,greska,isjecci,gotovi,verzija,napravljeno,izmijenjeno';
+const POLJA_REELS_LISTA = 'id,url,yt_id,naslov,tema,stanje,zahtjev,faza,procenat,greska,gotovi,napravljeno,izmijenjeno';
+
+export async function reelsPoslovi() {
+  const r = await zahtjev(`${TAB_REELS}?select=${POLJA_REELS_LISTA}&order=napravljeno.desc&limit=40`);
+  return r.json();
+}
+
+export async function reelsPosao(id) {
+  const r = await zahtjev(`${TAB_REELS}?id=eq.${id}&select=${POLJA_REELS}`);
+  return (await r.json())[0] || null;
+}
+
+export async function reelsPoYoutubeu(ytId) {
+  const r = await zahtjev(`${TAB_REELS}?yt_id=eq.${ytId}&select=id&order=napravljeno.desc&limit=1`);
+  return (await r.json())[0] || null;
+}
+
+export async function reelsNovi(p) {
+  const r = await zahtjev(`${TAB_REELS}?select=id`, {
+    method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(p),
+  });
+  return (await r.json())[0];
+}
+
+/** Izmjena; `verzija` (ako je data) mora odgovarati, inače null — AI je u međuvremenu napravio novi izbor. */
+export async function reelsIzmijeni(id, p, verzija) {
+  const uslov = verzija == null ? '' : `&verzija=eq.${Number(verzija)}`;
+  const r = await zahtjev(`${TAB_REELS}?id=eq.${id}${uslov}&select=id,verzija`, {
+    method: 'PATCH', headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ ...p, izmijenjeno: new Date().toISOString() }),
+  });
+  return (await r.json())[0] || null;
+}
+
+export async function reelsObrisi(id) {
+  await zahtjev(`${TAB_REELS}?id=eq.${id}`, { method: 'DELETE' });
+}
+
+export async function reelsRadnik() {
+  const r = await zahtjev('reels_radnik?id=eq.1&select=vidjen,posao,verzija');
+  return (await r.json())[0] || null;
+}
+
+/* Storage (bucket `reels`, privatan): potpisani linkovi i brisanje. */
+async function storage(putanja, opcije = {}) {
+  const r = await fetch(`${URL_}/storage/v1/${putanja}`, {
+    ...opcije,
+    headers: { apikey: KLJUC, Authorization: `Bearer ${KLJUC}`, 'Content-Type': 'application/json', ...opcije.headers },
+  });
+  if (!r.ok) throw new Error(`Supabase Storage ${r.status}: ${(await r.text()).slice(0, 300)}`);
+  return r;
+}
+
+/** { put: punLink } za fajlove u bucketu; link važi `sekundi`. */
+export async function potpisiFajlove(bucket, putevi, sekundi = 3600) {
+  if (!putevi.length) return {};
+  const r = await storage(`object/sign/${bucket}`, {
+    method: 'POST', body: JSON.stringify({ expiresIn: sekundi, paths: putevi }),
+  });
+  const out = {};
+  for (const f of await r.json()) if (f.signedURL) out[f.path] = `${URL_}/storage/v1${f.signedURL}`;
+  return out;
+}
+
+/** Briše sve fajlove pod `prefiks/` u bucketu. */
+export async function obrisiFolder(bucket, prefiks) {
+  const r = await storage(`object/list/${bucket}`, {
+    method: 'POST', body: JSON.stringify({ prefix: prefiks, limit: 1000 }),
+  });
+  const putevi = (await r.json()).filter(f => f.id).map(f => `${prefiks}/${f.name}`);
+  if (putevi.length) await storage(`object/${bucket}`, { method: 'DELETE', body: JSON.stringify({ prefixes: putevi }) });
+}
+
 /* ---------- brojanje instalacija ---------- */
 /* Isto što je ranije radio `SADD` u skup: uređaj šalje nasumičnu oznaku koju
    sam napravi i čuva, pa ponovno otvaranje ne diže brojku. Ovdje to nosi
