@@ -56,8 +56,20 @@ def log(*a):
 
 # ───────────────────────────── Supabase ─────────────────────────────
 
+def ponovi(fn, puta=4):
+    """Kućni internet zna kratko pući (SSL, DNS) — pokušaj ponovo prije nego posao padne."""
+    for k in range(puta):
+        try:
+            return fn()
+        except requests.ConnectionError as e:
+            if k == puta - 1:
+                raise
+            log(f"veza: {str(e)[:120]} → ponovo za {10 * (k + 1)} s")
+            time.sleep(10 * (k + 1))
+
+
 def rest(metoda, putanja, **kw):
-    r = S.request(metoda, f"{SB_URL}/rest/v1/{putanja}", timeout=30, **kw)
+    r = ponovi(lambda: S.request(metoda, f"{SB_URL}/rest/v1/{putanja}", timeout=30, **kw))
     if r.status_code >= 400:
         raise RuntimeError(f"Supabase {r.status_code}: {r.text[:300]}")
     return r.json() if r.content else None
@@ -71,8 +83,16 @@ def izmijeni(pid, polja, uslov="", sadrzaj=True):
 
 
 def posalji(put, podaci, tip):
-    r = S.post(f"{SB_URL}/storage/v1/object/{BUCKET}/{put}", data=podaci, timeout=900,
-               headers={"Content-Type": tip, "x-upsert": "true", "cache-control": "3600"})
+    """`podaci`: bajtovi ili putanja fajla (fajl se otvara iznova za svaki pokušaj)."""
+    def jednom():
+        tijelo = open(podaci, "rb") if isinstance(podaci, Path) else podaci
+        try:
+            return S.post(f"{SB_URL}/storage/v1/object/{BUCKET}/{put}", data=tijelo, timeout=900,
+                          headers={"Content-Type": tip, "x-upsert": "true", "cache-control": "3600"})
+        finally:
+            if isinstance(podaci, Path):
+                tijelo.close()
+    r = ponovi(jednom)
     if r.status_code >= 400:
         raise RuntimeError(f"Storage {r.status_code}: {r.text[:300]}")
 
@@ -521,8 +541,7 @@ def napravi(p, d, video, javi):
         fajl = d / "reels" / ime
         put = f"{pid}/{br:02d}-{ot[:10]}.mp4"
         javi(f"Šaljem reel {k}/{len(za_izradu)}…", 100 * (k - 0.3) / len(za_izradu))
-        with open(fajl, "rb") as f:
-            posalji(put, f, "video/mp4")
+        posalji(put, fajl, "video/mp4")
         gotovi.append({"br": br, "put": put, "ime": ime, "otisak": ot, "velicina": fajl.stat().st_size,
                        "trajanje": round(trajanje_fajla(fajl), 1)})
         gotovi.sort(key=lambda g: g["br"])
