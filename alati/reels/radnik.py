@@ -571,10 +571,16 @@ def napravi(p, d, video, javi):
             za_izradu.append((br, x, ot))
     for k, (br, x, ot) in enumerate(za_izradu, 1):
         javi(f"Pravim reel {k}/{len(za_izradu)}…", 100 * (k - 1) / len(za_izradu))
-        for star in (d / "reels").glob(f"{br:02d}-*.mp4"):
-            star.unlink()
-        ime = R.napravi_reel(vid, x, br, lambda *a: None)
-        fajl = d / "reels" / ime
+        gotov = [f for f in (d / "reels").glob(f"{br:02d}-*.mp4")
+                 if f.with_suffix(".otisak").exists() and f.with_suffix(".otisak").read_text() == ot]
+        if gotov:                                   # već napravljen (npr. slanje je prije palo) — ne pravi iznova
+            fajl, ime = gotov[0], gotov[0].name
+        else:
+            for star in (d / "reels").glob(f"{br:02d}-*"):
+                star.unlink()
+            ime = R.napravi_reel(vid, x, br, lambda *a: None)
+            fajl = d / "reels" / ime
+            fajl.with_suffix(".otisak").write_text(ot)
         put = f"{pid}/{br:02d}-{ot[:10]}.mp4"
         javi(f"Šaljem reel {k}/{len(za_izradu)}…", 100 * (k - 0.3) / len(za_izradu))
         posalji_veliki(put, fajl, "video/mp4")
@@ -613,6 +619,14 @@ def obradi(p):
         izmijeni(pid, {"stanje": "gotovo", "faza": f"Gotovo za {round((time.time() - t) / 60, 1)} min", "procenat": 100,
                        "greska": None}, sadrzaj=False)
         log("gotovo", pid, f"{round(time.time() - t)} s")
+    except (requests.ConnectionError, requests.Timeout) as e:   # slaba veza: posao ostaje u redu, nastavlja se sam
+        log("veza puca, posao čeka:", str(e)[:160])
+        javi.na_cekanju = None
+        try:
+            izmijeni(pid, {"faza": "Internet na laptopu je spor ili puca — nastavljam za 2 min"}, sadrzaj=False)
+        except Exception:  # noqa: BLE001
+            pass
+        time.sleep(120)
     except Exception as e:  # noqa: BLE001 — poruka ide u admin
         traceback.print_exc()
         javi.na_cekanju = None
