@@ -841,6 +841,31 @@ html.vuce, html.vuce * { cursor: grabbing !important; -webkit-user-select: none;
 .rl-g-naslov { font: italic 500 6.4cqw/1.12 var(--serif); color: #fff; margin-bottom: 2.1cqh; padding: 0 6cqw; text-shadow: 0 .4cqw 1.2cqw rgba(0,0,0,.4); }
 .rl-g-dole img { width: 30.6cqw; margin-bottom: 1.7cqh; }
 .rl-g-linkovi { font: 500 2.4cqw var(--sans); color: #C6A968; white-space: nowrap; }
+.rl-g-ukras { display: block; position: relative; width: 15.7cqw; height: 1.2cqw; margin-bottom: 1.9cqh;
+  background: linear-gradient(#C6A968, #C6A968) left center / calc(50% - 1.2cqw) 2px no-repeat,
+              linear-gradient(#C6A968, #C6A968) right center / calc(50% - 1.2cqw) 2px no-repeat; opacity: .9; }
+.rl-g-ukras::after { content: ""; position: absolute; left: 50%; top: 50%; width: .8cqw; height: .8cqw; background: #C6A968; transform: translate(-50%, -50%) rotate(45deg); }
+.rl-g-napredak { position: absolute; left: 0; bottom: 0; height: max(2px, .31cqh); width: 0; background: rgba(198,169,104,.85); }
+.rl-g-kraj { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; padding-top: 39.6cqh; visibility: hidden;
+  background: radial-gradient(circle at 50% 51%, rgba(28,58,42,.45), transparent 58%), #0B1711; }
+.rl-g-kraj img { width: 57.4cqw; margin-bottom: 3.6cqh; }
+.rl-g-kraj .rl-g-ukras { width: 22cqw; margin-bottom: 2.6cqh; }
+.rl-g-kraj span { font: 400 3.3cqw var(--sans); color: #BEC6BC; margin-bottom: 1.5cqh; }
+.rl-g-kraj b { font: 600 5cqw var(--sans); color: #C6A968; }
+.rl-g-kraj .rl-g-linkovi { position: absolute; bottom: 3.3cqh; font-size: 2.4cqw; color: #C6A968; opacity: .8; margin: 0; }
+/* animacije iste kao na reelsu (reels.py): uvod, ulaz titla, „pop“ izgovorene riječi, završna kartica */
+.rl-ekran.uvod .rl-video { animation: rl-izroni .4s both; }
+.rl-ekran.uvod .rl-g-tema { animation: rl-ulaz .6s .15s both var(--ease); }
+.rl-ekran.uvod .rl-g-naslov { animation: rl-ulaz .6s .32s both var(--ease); }
+.rl-ekran.uvod .rl-g-dole .rl-g-ukras { animation: rl-izroni .6s .58s both; }
+.rl-ekran.uvod .rl-g-dole img, .rl-ekran.uvod .rl-g-dole .rl-g-linkovi { animation: rl-ulaz .6s .74s both var(--ease); }
+.rl-g-titl.ulaz { animation: rl-titl-ulaz .12s both ease-out; }
+.rl-g-titl .sad { display: inline-block; animation: rl-pop .14s ease-out; }
+.rl-ekran.kraj .rl-g-kraj { visibility: visible; animation: rl-ulaz .45s both var(--ease); }
+@keyframes rl-izroni { from { opacity: 0; } }
+@keyframes rl-ulaz { from { opacity: 0; transform: translateY(1.45cqh); } }
+@keyframes rl-titl-ulaz { from { opacity: .5; transform: translateY(calc(-50% + .6cqh)); } }
+@keyframes rl-pop { from { transform: scale(1.07); } }
 .rl-play { position: absolute; right: 12px; bottom: 12px; width: 42px; height: 42px; padding: 0; border-radius: 50%;
   background: rgba(11,23,17,.75); border-color: var(--line); font-size: 14px; backdrop-filter: blur(6px); }
 .rl-ekran[data-mod="gotov"] .rl-play { display: none; }

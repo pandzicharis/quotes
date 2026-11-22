@@ -223,17 +223,21 @@ def pripremi_llm():
         flash = sorted((i for i in ids if re.fullmatch(r"gemini-\d+(?:\.\d+)?-flash(?:-preview)?", i)), key=_verzija, reverse=True)
         lite = sorted((i for i in ids if re.fullmatch(r"gemini-\d+(?:\.\d+)?-flash-lite(?:-preview)?", i)), key=_verzija, reverse=True)
         zeljeni = [os.environ["REELS_GEMINI_MODEL"]] if os.environ.get("REELS_GEMINI_MODEL") else []
-        m = _prvi_koji_radi(GEMINI_URL, GEMINI, [*zeljeni, *flash, "gemini-flash-latest", *lite])
+        # Besplatna kvota je po modelu (flash ima malo zahtjeva dnevno, flash-lite mnogo više): uzmi
+        # najbolji flash koji radi i do dva lite modela kao rezervu.
+        m = _prvi_koji_radi(GEMINI_URL, GEMINI, [*zeljeni, *flash, "gemini-flash-latest"])
         if m:
             LLM.append(("Gemini", GEMINI_URL, GEMINI, m))
-        else:
+        for z in [z for z in lite if _radi(GEMINI_URL, GEMINI, z)][:2]:
+            LLM.append(("Gemini", GEMINI_URL, GEMINI, z))
+        if not any(i == "Gemini" for i, *_ in LLM):
             log("Gemini: nijedan model ne odgovara (kvota?) — preskačem")
     if GROQ:
         ids = _modeli(GROQ_URL, GROQ)
-        m = os.environ.get("REELS_GROQ_LLM") or next((z for z in ("openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b",
-                                                                   "llama-3.3-70b-versatile") if z in ids), None)
-        if m:
-            LLM.append(("Groq", GROQ_URL, GROQ, m))
+        zeljeni = [os.environ["REELS_GROQ_LLM"]] if os.environ.get("REELS_GROQ_LLM") else []
+        for z in [z for z in dict.fromkeys([*zeljeni, "openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b",
+                                           "llama-3.3-70b-versatile"]) if z in ids][:3]:
+            LLM.append(("Groq", GROQ_URL, GROQ, z))      # limit je po modelu — više modela, više prostora
     try:                                  # Ollama na Macu (lokalni alat je već ima): rezerva bez ključa, sporija
         modeli = [m["name"] for m in requests.get(f"{OLLAMA}/api/tags", timeout=5).json().get("models", [])]
         if modeli:
@@ -253,7 +257,7 @@ OLLAMA_LLM = R.llm                        # originalni poziv iz reels.py (Ollama
 def llm(sistem, poruka, shema=None):
     zadnja = None
     for ime, url, kljuc, model in LLM:
-        if BLOKIRANO.get(ime, 0) > time.time():
+        if BLOKIRANO.get(f"{ime}:{model}", 0) > time.time():
             continue
         if zadnja:
             log(f"AI: {zadnja[:160]} → {ime}")
@@ -277,11 +281,11 @@ def llm(sistem, poruka, shema=None):
                 time.sleep(5)
                 continue
             if r.status_code == 429 and "quota" in r.text.lower():   # dnevna kvota potrošena → 10 min preskačemo
-                zadnja = f"{ime} 429: kvota potrošena"
-                BLOKIRANO[ime] = time.time() + 600
+                zadnja = f"{ime} {model} 429: kvota potrošena"
+                BLOKIRANO[f"{ime}:{model}"] = time.time() + 1800
                 break
             if r.status_code in (429, 500, 502, 503, 504):      # limit u minuti ili preopterećenje
-                zadnja = f"{ime} {r.status_code}: {r.text[:200]}"
+                zadnja = f"{ime} {model} {r.status_code}: {r.text[:120]}"
                 if pokusaj:
                     break                                       # drugi put → sljedeći provajder, ne čekaj
                 time.sleep(min(8, float(r.headers.get("retry-after") or 0) or 4))
@@ -289,8 +293,8 @@ def llm(sistem, poruka, shema=None):
             if r.status_code == 400 and "reasoning" in r.text.lower() and "reasoning_effort" in body:
                 del body["reasoning_effort"]
                 continue
-            if r.status_code >= 400:
-                zadnja = f"{ime} {r.status_code}: {r.text[:300]}"
+            if r.status_code >= 400:                            # npr. 413: zahtjev prevelik za ovaj model
+                zadnja = f"{ime} {model} {r.status_code}: {r.text[:200]}"
                 break
             tekst = (r.json()["choices"][0]["message"].get("content") or "").strip()
             tekst = re.sub(r"^```(?:json)?|```$", "", tekst).strip()

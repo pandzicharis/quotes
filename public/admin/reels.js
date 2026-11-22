@@ -169,6 +169,7 @@ function pusti(od, d) { pregled = null; redPustanja = []; krajPustanja = d; skoc
 
 function postaviMod(m) {
   mod = m;
+  $('#rl-ekran').classList.remove('kraj');
   $('#rl-ekran').dataset.mod = m;
   $$('.rl-modovi [data-mod]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mod === m)));
   const v = $('#rl-gotov-video');
@@ -197,7 +198,10 @@ function rasporediVideo() {
     h = H * (kadar === 'izrez' ? 1 : 1500 / 1920); w = h * ar;
     left = Math.min(0, Math.max(W - w, W / 2 - (x?.pozicija ?? 0.5) * w));
   }
-  Object.assign(box.style, { width: `${w}px`, height: `${h}px`, left: `${left}px`, top: `${top}px` });
+  /* Player je viši za pojas gore i dole: YouTube tu stavlja svoj naslov (kad je pauzirano), a pojas
+     ostaje van kadra ili ispod zelenog dijela — vidi se samo video, kao na reelsu. */
+  const P = 72;
+  Object.assign(box.style, { width: `${w}px`, height: `${h + 2 * P}px`, left: `${left}px`, top: `${top - P}px` });
 }
 
 function crtajGrafiku() {
@@ -205,7 +209,7 @@ function crtajGrafiku() {
   $('#rl-grafika').dataset.kadar = x?.kadar || 'traka';
   $('#rl-g-tema').textContent = (posao?.tema || '').toUpperCase();
   $('#rl-g-naslov').textContent = x?.naslov || '';
-  if (!pregled) $('#rl-g-titl').innerHTML = '';
+  if (!pregled) { $('#rl-g-titl').innerHTML = ''; $('#rl-g-napredak').style.width = '0'; }
 }
 
 /* Titl za trenutni trenutak pregleda: vrijeme YouTubea → vrijeme spojenog reela (preko komada). */
@@ -221,6 +225,7 @@ function crtajTitl(t) {
     prije += b - a;
   }
   if (spojeno == null) return;
+  $('#rl-g-napredak').style.width = `${Math.min(100, spojeno / trajanje(x) * 100)}%`;
   const gi = x.titlovi.findIndex((g, k) => spojeno >= g.t0 - 0.02 && spojeno < (x.titlovi[k + 1]?.t0 ?? 1e9) && spojeno <= g.t1 + 0.6);
   const g = x.titlovi[gi];
   if (!g) { el.innerHTML = ''; el.dataset.kljuc = ''; return; }
@@ -228,6 +233,7 @@ function crtajTitl(t) {
   const aktivna = (g.rijeci?.length === rijeci.length) ? g.rijeci.reduce((n, [a], k) => (spojeno >= a ? k : n), 0) : -1;
   const kljuc = `${gi}:${aktivna}`;
   if (el.dataset.kljuc === kljuc) return;
+  if (el.dataset.kljuc?.split(':')[0] !== String(gi)) { el.classList.remove('ulaz'); void el.offsetWidth; el.classList.add('ulaz'); }
   el.dataset.kljuc = kljuc;
   el.innerHTML = rijeci.map((w, k) => `<span${k === aktivna ? ' class="sad"' : ''}>${esc(k === rijeci.length - 1 ? w.replace(/[,.;:]$/, '') : w)}</span>`).join(' ');
 }
@@ -238,7 +244,15 @@ function pratiPlayer() {
   $('#rl-sad').textContent = fmt(t);
   if (krajPustanja != null && t >= krajPustanja) {
     if (redPustanja.length) { const [a, b] = redPustanja.shift(); krajPustanja = b; skoci(a); }
-    else { player.pauseVideo(); krajPustanja = null; }
+    else {
+      player.pauseVideo(); krajPustanja = null;
+      if (pregled && mod === 'reel') {                    // kraj reela: završna kartica, kao na videu
+        const ek = $('#rl-ekran'); ek.classList.add('kraj');
+        $('#rl-g-napredak').style.width = '0';
+        setTimeout(() => { ek.classList.remove('kraj'); }, 2200);
+        pregled = null;
+      }
+    }
   }
   if (pregled && mod === 'reel') crtajTitl(t);
   const i = recenice.findIndex(r => t >= r.t0 && t < r.t1);
@@ -253,7 +267,8 @@ function pregledaj(i) {
   if (mod !== 'reel') postaviMod('reel');
   const komadi = komadiOd(x).map(([a, b]) => [a, b]);
   pregled = { i, komadi };
-  $('#rl-g-titl').dataset.kljuc = '';
+  $('#rl-g-titl').dataset.kljuc = ''; $('#rl-g-titl').innerHTML = ''; $('#rl-g-napredak').style.width = '0';
+  const ek = $('#rl-ekran'); ek.classList.remove('uvod', 'kraj'); void ek.offsetWidth; ek.classList.add('uvod');   // uvod iznova
   redPustanja = komadi.slice(1); krajPustanja = komadi[0][1]; skoci(komadi[0][0], true);
   $('#rl-ispod-tekst').textContent = `Pregled #${i + 1}: ${trajanje(x).toFixed(0)} s, ${komadi.length > 1 ? `${komadi.length} dijela` : 'bez rezova'}`;
 }

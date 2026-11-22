@@ -634,7 +634,7 @@ def _sjena(img, crtaj, radius=10, alfa=150, pomak=(0, 5)):
     if not bb:
         return
     p = radius * 3                                   # zamuti samo dio s tekstom (brže)
-    box = (max(0, bb[0] - p), max(0, bb[1] - p), min(W, bb[2] + p), min(H - pomak[1], bb[3] + p))
+    box = (max(0, bb[0] - p), max(0, bb[1] - p), min(img.width, bb[2] + p), min(img.height - pomak[1], bb[3] + p))
     img.alpha_composite(sloj.crop(box).filter(ImageFilter.GaussianBlur(radius)), (box[0] + pomak[0], box[1] + pomak[1]))
 
 
@@ -704,106 +704,172 @@ def _znak(d, vrsta, x, y, s, boja):
 
 
 _LOGO = {}
+KRAJ_S = 2.2                      # završna kartica: logo i poziv na praćenje
+ULAZ_S = 0.6                      # koliko traje ulaz jednog dijela brenda
+ULAZ = {"tema": 0.15, "naslov": 0.32, "ukras": 0.58, "brend": 0.74}   # kada kreće koji dio (s od početka)
+TITL_Y0, TITL_H = 800, 480        # pojas titlova (sredina titla je na 1040)
 
 
-def _blok_dole(img, tema, naslov, sjena):
-    """Pri dnu, odozdo prema gore: linkovi, logo „Ammar Bašić“, naslov, tema."""
-    d = ImageDraw.Draw(img)
-    y = DNO
+def _logo(sirina):
+    if sirina not in _LOGO:
+        l = Image.open(BREND_LOGO).convert("RGBA")
+        _LOGO[sirina] = l.resize((sirina, round(sirina * l.height / l.width)), Image.Resampling.LANCZOS)
+    return _LOGO[sirina]
+
+
+def _ukras(d, cx, y, sir=170, boja=GOLD + (225,)):
+    """Zlatna linija s malim rombom u sredini."""
+    d.line([(cx - sir / 2, y), (cx - 13, y)], fill=boja, width=2)
+    d.line([(cx + 13, y), (cx + sir / 2, y)], fill=boja, width=2)
+    r = 6
+    d.polygon([(cx, y - r), (cx + r, y), (cx, y + r), (cx - r, y)], fill=boja)
+
+
+def _linkovi(d, y, boja=GOLD + (235,)):
     f, s, raz = font("IBMPlexSans.ttf", 26, 500), 27, 40
     linkovi = [(v, t) for v, t in (("ig", f"@{INSTAGRAM}"), ("fb", FACEBOOK), ("web", WEB)) if t.strip("@")]
     sir = sum(s + 11 + f.getlength(t) for _, t in linkovi) + raz * (len(linkovi) - 1)
     x = (W - sir) / 2
     for v, t in linkovi:
-        _znak(d, v, x, y + 3, s, GOLD + (235,))
-        d.text((x + s + 11, y), t, font=f, fill=GOLD + (235,))
+        _znak(d, v, x, y + 3, s, boja)
+        d.text((x + s + 11, y), t, font=f, fill=boja)
         x += s + 11 + f.getlength(t) + raz
-    if BREND_LOGO.exists():
-        if "l" not in _LOGO:
-            l = Image.open(BREND_LOGO).convert("RGBA")
-            _LOGO["l"] = l.resize((330, round(330 * l.height / l.width)), Image.Resampling.LANCZOS)
-        logo = _LOGO["l"]
-        y -= 32 + logo.height
-        img.alpha_composite(logo, ((W - logo.width) // 2, int(y)))
-    if naslov:                       # jedna linija do 72 px, dvije ujednačene do 62 px
-        rw = naslov.split()
-        tekstovi = []
-        for vel in (72, 66):
-            fn = font("EBGaramond-Italic.ttf", vel, 500)
-            if fn.getlength(naslov) <= 940:
-                tekstovi = [naslov]
-                break
-        else:
-            for vel in (62, 56, 50):
-                fn = font("EBGaramond-Italic.ttf", vel, 500)
-                prelomi = [(" ".join(rw[:k]), " ".join(rw[k:])) for k in range(1, len(rw))]
-                dobri = [p for p in prelomi if max(map(fn.getlength, p)) <= 940]
-                if dobri:
-                    tekstovi = list(min(dobri, key=lambda p: max(map(fn.getlength, p))))
-                    break
-            else:
-                tekstovi = [naslov]
-        lh = vel * 1.12
-        y -= 40 + len(tekstovi) * lh
-        y0 = y
-
-        def crtaj(dr, boja):
-            for k, t in enumerate(tekstovi):
-                dr.text((W / 2, y0 + k * lh), t, font=fn, fill=boja, anchor="ma")
-        if sjena:
-            _sjena(img, crtaj, 12, 170)
-        crtaj(d, (255, 255, 255, 255))
-    if tema:
-        y -= 26 + 28
-        _razmaknuto(d, tema.upper(), y, GOLD + (255,))
 
 
-def osnova(naslov, kadar, tema=""):
-    """Sloj koji stoji cijelo vrijeme: donji dio videa se pretopi u zelenu, a na njoj tema, naslov i brend."""
-    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+def _naslov_linije(naslov):
+    """Naslov u jednu liniju do 72 px, ili dvije ujednačene do 62 px → (font, linije, visina linije)."""
+    rw = naslov.split()
+    for vel in (72, 66):
+        fn = font("EBGaramond-Italic.ttf", vel, 500)
+        if fn.getlength(naslov) <= 940:
+            return fn, [naslov], vel * 1.12
+    for vel in (62, 56, 50):
+        fn = font("EBGaramond-Italic.ttf", vel, 500)
+        prelomi = [(" ".join(rw[:k]), " ".join(rw[k:])) for k in range(1, len(rw))]
+        dobri = [p for p in prelomi if max(map(fn.getlength, p)) <= 940]
+        if dobri:
+            return fn, list(min(dobri, key=lambda p: max(map(fn.getlength, p)))), vel * 1.12
+    return fn, [naslov], vel * 1.12
+
+
+def _isjeceno(img):
+    """Sloj → (isječen sloj, x, y): ffmpeg onda miješa samo dio gdje nešto ima."""
+    bb = img.getbbox()
+    return (img.crop(bb), bb[0], bb[1]) if bb else None
+
+
+def slojevi_brenda(naslov, kadar, tema):
+    """Brend pri dnu, svaki dio kao zaseban sloj jer ulazi svojom animacijom (redom: tema, naslov,
+    ukras, logo s linkovima), preko pozadine u kojoj se video pretopi u zelenu. → {ime: (slika, x, y)}"""
+    out = {}
     od, do = FADE                    # video se mekano pretopi u zelenu (smoothstep, s malo šuma protiv „stepenica“)
     t = np.clip((np.arange(H, dtype=np.float32) - od) / (do - od), 0, 1)
     maks = 255 if kadar == "traka" else 240
     alfa = np.repeat((maks * t * t * (3 - 2 * t))[:, None], W, 1)
     alfa = np.clip(alfa + np.random.default_rng(7).uniform(-1.2, 1.2, alfa.shape) * (alfa > 0) * (alfa < maks), 0, 255)
-    sloj = Image.new("RGBA", (W, H), ZELENA + (255,))
-    sloj.putalpha(Image.fromarray(alfa.astype(np.uint8), "L"))
-    img.alpha_composite(sloj)
-    _blok_dole(img, tema, naslov, sjena=kadar != "traka")
+    poz = Image.new("RGBA", (W, H), ZELENA + (255,))
+    poz.putalpha(Image.fromarray(alfa.astype(np.uint8), "L"))
+    out["pozadina"] = (poz, 0, 0)
+    novi = lambda: Image.new("RGBA", (W, H), (0, 0, 0, 0))      # noqa: E731
+    y = DNO
+    brend = novi()
+    _linkovi(ImageDraw.Draw(brend), y)
+    if BREND_LOGO.exists():
+        logo = _logo(330)
+        y -= 30 + logo.height
+        brend.alpha_composite(logo, ((W - logo.width) // 2, int(y)))
+    out["brend"] = _isjeceno(brend)
+    y -= 36
+    uk = novi()
+    _ukras(ImageDraw.Draw(uk), W / 2, y)
+    out["ukras"] = _isjeceno(uk)
+    y -= 34
+    if naslov:
+        fn, linije, lh = _naslov_linije(naslov)
+        y -= len(linije) * lh
+        y0 = y
+        sl = novi()
+
+        def crtaj(dr, boja):
+            for k, tx in enumerate(linije):
+                dr.text((W / 2, y0 + k * lh), tx, font=fn, fill=boja, anchor="ma")
+        _sjena(sl, crtaj, 12, 170 if kadar != "traka" else 90)
+        crtaj(ImageDraw.Draw(sl), (255, 255, 255, 255))
+        out["naslov"] = _isjeceno(sl)
+    if tema:
+        y -= 22 + 30
+        sl = novi()
+        _razmaknuto(ImageDraw.Draw(sl), tema.upper(), y, GOLD + (255,))
+        out["tema"] = _isjeceno(sl)
+    return {k: v for k, v in out.items() if v}
+
+
+def zavrsna_kartica():
+    """Zadnje dvije sekunde: zelena kartica s logom i pozivom na praćenje."""
+    img = Image.new("RGBA", (W, H), ZELENA + (255,))
+    sjaj = Image.new("L", (W, H), 0)                  # blago svjetlije u sredini — dubina umjesto ravne plohe
+    ImageDraw.Draw(sjaj).ellipse([W * 0.5 - 560, 980 - 560, W * 0.5 + 560, 980 + 560], fill=26)
+    img.alpha_composite(Image.merge("RGBA", (*[Image.new("L", (W, H), v) for v in (28, 58, 42)], sjaj.filter(ImageFilter.GaussianBlur(160)))))
+    d = ImageDraw.Draw(img)
+    y = 760
+    if BREND_LOGO.exists():
+        logo = _logo(620)
+        img.alpha_composite(logo, ((W - logo.width) // 2, y))
+        y += logo.height
+    y += 70
+    _ukras(d, W / 2, y, 240)
+    y += 54
+    d.text((W / 2, y), "Više predavanja na profilu", font=font("IBMPlexSans.ttf", 36, 400), fill=(190, 198, 188, 255), anchor="ma")
+    y += 66
+    f, s, tx = font("IBMPlexSans.ttf", 54, 600), 54, f"@{INSTAGRAM}"
+    x = (W - (s + 20 + f.getlength(tx))) / 2
+    _znak(d, "ig", x, y + 8, s, GOLD + (255,))
+    d.text((x + s + 20, y), tx, font=f, fill=GOLD + (255,))
+    _linkovi(d, DNO, GOLD + (200,))
     return img
 
 
-def kadar_titla(baza, rijeci, aktivna, kadar):
-    """Osnova + titl; aktivna riječ zlatna (-1 = bez isticanja)."""
-    img = baza.copy()
+def titl_slika(rijeci, aktivna, kadar, pop=False, ulaz=False):
+    """Pojas titla (W × TITL_H): riječi bijele, izgovorena zlatna. `pop`: izgovorena je na trenutak veća
+    (kad krene); `ulaz`: titl tek ulazi (proziran, malo niže)."""
+    img = Image.new("RGBA", (W, TITL_H), (0, 0, 0, 0))
     f = font("IBMPlexSans.ttf", 68, 700)
     prikaz = list(rijeci)
     if prikaz and prikaz[-1][-1:] in ",.;:":
         prikaz[-1] = prikaz[-1][:-1]
     linije, razmak = _prelomi(prikaz, f, 880)
     lh = 68 * 1.2
-    y0 = RASPORED[kadar]["titl"] - lh * len(linije) / 2
+    y0 = RASPORED[kadar]["titl"] - TITL_Y0 - lh * len(linije) / 2 + (12 if ulaz else 0)
     poz = []
     for k, l in enumerate(linije):
         sir = sum(lw for _, _, lw in l) + razmak * (len(l) - 1)
         x = (W - sir) / 2
         for i, w, lw in l:
-            poz.append((x, y0 + k * lh, i, w))
+            poz.append((x, y0 + k * lh, i, w, lw))
             x += lw + razmak
 
     def crtaj(dr, boja):
-        for x, y, _, w in poz:
+        for x, y, _, w, _ in poz:
             dr.text((x, y), w, font=f, fill=boja, stroke_width=6, stroke_fill=boja)
     _sjena(img, crtaj, 9, 120, (0, 6))
     d = ImageDraw.Draw(img)
-    for x, y, i, w in poz:
-        boja = GOLD_L + (255,) if i == aktivna else (255, 255, 255, 255)
-        d.text((x, y), w, font=f, fill=boja, stroke_width=4, stroke_fill=(5, 12, 8, 255))
+    veci = font("IBMPlexSans.ttf", 73, 700)
+    for x, y, i, w, lw in poz:
+        if i == aktivna and pop:
+            d.text((x + lw / 2 - veci.getlength(w) / 2, y - 3), w, font=veci, fill=GOLD_L + (255,),
+                   stroke_width=5, stroke_fill=(5, 12, 8, 255))
+        else:
+            boja = GOLD_L + (255,) if i == aktivna else (255, 255, 255, 255)
+            d.text((x, y), w, font=f, fill=boja, stroke_width=4, stroke_fill=(5, 12, 8, 255))
+    if ulaz:
+        img.putalpha(img.getchannel("A").point(lambda v: v // 2))
     return img
 
 
 def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
-    """Jedan isječak (može imati više dijelova) → radno/<id>/reels/NN-naslov.mp4"""
+    """Jedan isječak (može imati više dijelova) → radno/<id>/reels/NN-naslov.mp4
+    Uvod: video izroni iz zelene, pa redom uđu tema, naslov, ukras i logo. Titlovi: grupa uđe, izgovorena
+    riječ na trenutak „pukne“ zlatno. Tanka zlatna traka pri dnu pokazuje napredak. Kraj: kartica s logom."""
     d = RADNO / vid
     proj = citaj(d / "projekat.json")
     kadar = isj.get("kadar") if isj.get("kadar") in RASPORED else "traka"
@@ -812,39 +878,54 @@ def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
     rijeci = ucitaj_rijeci(d)
     komadi = dijelovi_isjecka(isj, rijeci)
     dur = round(sum(b - a for a, b, _ in komadi), 3)
+    ukupno = round(dur + KRAJ_S, 3)
     tit = isj.get("titlovi") or titlovi(rijeci, komadi)
     tmp = d / f"_kadrovi_{br}"
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir()
-    baza = osnova(isj.get("naslov", ""), kadar, proj.get("tema") or tema_iz_naslova(proj.get("naslov")))
-    baza.save(tmp / "baza.png", compress_level=1)
-    dogadjaji = [(0.0, "baza.png")]
+    Image.new("RGBA", (W, TITL_H), (0, 0, 0, 0)).save(tmp / "prazno.png")
+    dogadjaji = [(0.0, "prazno.png")]
     if isj.get("titlovi_ukljuceni", True):
         for gi, g in enumerate(tit):
             nxt = tit[gi + 1]["t0"] if gi + 1 < len(tit) else dur
             kraj = nxt if nxt - g["t1"] < 0.8 else g["t1"] + 0.4
             rw = g["tekst"].split()
             vremena = g.get("rijeci") or []
+            titl_slika(rw, 0 if len(vremena) == len(rw) else -1, kadar, ulaz=True).save(tmp / f"t{gi:03d}_u.png", compress_level=1)
+            dogadjaji.append((g["t0"], f"t{gi:03d}_u.png"))
             if len(vremena) == len(rw):       # riječ po riječ
                 for k in range(len(rw)):
-                    od = g["t0"] if k == 0 else vremena[k][0]
-                    ime = f"t{gi:03d}_{k:02d}.png"
-                    kadar_titla(baza, rw, k, kadar).save(tmp / ime, compress_level=1)
-                    dogadjaji.append((od, ime))
+                    od = g["t0"] + 0.07 if k == 0 else vremena[k][0]
+                    sljedeca = vremena[k + 1][0] if k + 1 < len(rw) else min(kraj, dur)
+                    ime = f"t{gi:03d}_{k:02d}"
+                    titl_slika(rw, k, kadar, pop=True).save(tmp / f"{ime}p.png", compress_level=1)
+                    dogadjaji.append((od, f"{ime}p.png"))
+                    if sljedeca - od > 0.14:
+                        titl_slika(rw, k, kadar).save(tmp / f"{ime}.png", compress_level=1)
+                        dogadjaji.append((od + 0.1, f"{ime}.png"))
             else:                              # ručno izmijenjen tekst → cijeli titl odjednom
-                ime = f"t{gi:03d}.png"
-                kadar_titla(baza, rw, -1, kadar).save(tmp / ime, compress_level=1)
-                dogadjaji.append((g["t0"], ime))
-            dogadjaji.append((min(kraj, dur), "baza.png"))
+                titl_slika(rw, -1, kadar).save(tmp / f"t{gi:03d}.png", compress_level=1)
+                dogadjaji.append((g["t0"] + 0.07, f"t{gi:03d}.png"))
+            dogadjaji.append((min(kraj, dur), "prazno.png"))
             javi(f"Reel {br}: titlovi {gi + 1}/{len(tit)}", None)
     dogadjaji.sort(key=lambda e: e[0])
     lista = ["ffconcat version 1.0"]
     for k, (od, ime) in enumerate(dogadjaji):
         do = dogadjaji[k + 1][0] if k + 1 < len(dogadjaji) else dur
         if do - od >= 0.01 or k == len(dogadjaji) - 1:
-            lista += [f"file '{ime}'", f"duration {max(do - od, 0.04):.3f}"]
+            lista += [f"file '{ime}'", f"duration {max(do - od, 0.034):.3f}"]
     lista.append(f"file '{dogadjaji[-1][1]}'")
     (tmp / "lista.ffconcat").write_text("\n".join(lista) + "\n")
+
+    # Slojevi brenda i završna kartica (ulazi 2…): svaki je slika koja se ponavlja kroz cijeli reel.
+    slojevi = slojevi_brenda(isj.get("naslov", ""), kadar, proj.get("tema") or tema_iz_naslova(proj.get("naslov")))
+    redom = [k for k in ("pozadina", "tema", "naslov", "ukras", "brend") if k in slojevi]
+    ulazi = []
+    for k in redom:
+        slojevi[k][0].save(tmp / f"{k}.png", compress_level=1)
+        ulazi += ["-i", tmp / f"{k}.png"]
+    zavrsna_kartica().save(tmp / "kraj.png", compress_level=1)
+    ulazi += ["-i", tmp / "kraj.png"]
 
     sw, sh = proj["sirina"], proj["visina"]
     poz = min(1, max(0, float(isj.get("pozicija", 0.5))))
@@ -883,18 +964,33 @@ def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
         graf += (f"[{pv}][v{i}]xfade=transition=fade:duration={prelaz[i - 1]:.3f}:offset={off:.3f}[x{i}];"
                  f"[{pa}][a{i}]acrossfade=d={PRELAZ_ZVUK}:c1=qsin:c2=qsin[y{i}];")
         pv, pa = f"x{i}", f"y{i}"
-    graf += (f"[{pv}]fade=t=out:st={max(0, dur - 0.5):.3f}:d=0.5:color=0x0B1711,setsar=1[osn];"
-             "[1:v]format=rgba[tit];"
-             "[osn][tit]overlay=0:0:eof_action=repeat:format=auto,format=yuv420p[v];"
+    # video izroni iz zelene; na kraju zadnji kadar stoji ispod završne kartice
+    graf += f"[{pv}]fade=t=in:st=0:d=0.4:color=0x0B1711,tpad=stop_mode=clone:stop_duration={KRAJ_S},setsar=1,format=yuv420p[b1];"
+    tren, ulaz_br = "b1", 2
+    ponovi = "format=rgba,loop=loop=-1:size=1:start=0,setpts=N/30/TB"      # jedna slika, ponavlja se iz memorije
+    for k in redom:
+        _, x, y = slojevi[k]
+        if k == "pozadina":
+            graf += f"[{ulaz_br}:v]{ponovi}[l{ulaz_br}];[{tren}][l{ulaz_br}]overlay=0:0[b{ulaz_br}];"
+        else:                                          # ulaz: pojavi se i klizne gore na svoje mjesto (ease-out)
+            st, dy = ULAZ[k], 0 if k == "ukras" else 28
+            graf += (f"[{ulaz_br}:v]{ponovi},fade=t=in:st={st}:d={ULAZ_S}:alpha=1[l{ulaz_br}];"
+                     f"[{tren}][l{ulaz_br}]overlay=x={x}:y='{y}+{dy}*pow(max(0,1-(t-{st})/{ULAZ_S}),3)':eval=frame[b{ulaz_br}];")
+        tren, ulaz_br = f"b{ulaz_br}", ulaz_br + 1
+    graf += (f"[1:v]format=rgba[tit];[{tren}][tit]overlay=0:{TITL_Y0}:eof_action=pass[bt];"
+             f"color=c=0xC6A968:s={W}x6:r=30,format=rgba,colorchannelmixer=aa=0.85[pb];"
+             f"[bt][pb]overlay=x='-w+W*t/{dur}':y={H - 6}:eval=frame:enable='lt(t,{dur})'[bp];"
+             f"[{ulaz_br}:v]{ponovi},fade=t=in:st={dur}:d=0.45:alpha=1[kr];"
+             f"[bp][kr]overlay=0:'26*pow(max(0,1-(t-{dur})/0.45),3)':eval=frame:enable='gte(t,{dur - 0.02})',format=yuv420p[v];"
              f"[{pa}]loudnorm=I=-14:TP=-1.5:LRA=11,afade=t=in:d=0.08,"
-             f"afade=t=out:st={max(0, dur - 0.35):.2f}:d=0.35,aresample=48000[a]")
+             f"afade=t=out:st={max(0, dur - 0.35):.2f}:d=0.35,apad=pad_dur={KRAJ_S},aresample=48000[a]")
     izlaz = d / "reels"
     izlaz.mkdir(exist_ok=True)
     ime = f"{br:02d}-{slug(isj.get('naslov', ''))}.mp4"
     javi(f"Reel {br}: kodiram video…", None)
     ffmpeg("-ss", f"{pocetak - pomak:.3f}", "-t", f"{komadi[-1][1] - pocetak + 0.5:.3f}", "-i", izvor or d / "izvor.mp4",
-           "-f", "concat", "-safe", "0", "-i", tmp / "lista.ffconcat",
-           "-filter_complex", graf, "-map", "[v]", "-map", "[a]", "-t", f"{dur:.3f}",
+           "-f", "concat", "-safe", "0", "-i", tmp / "lista.ffconcat", *ulazi,
+           "-filter_complex", graf, "-map", "[v]", "-map", "[a]", "-t", f"{ukupno:.3f}",
            "-c:v", "libx264", "-preset", "medium", *KODIRANJE, "-profile:v", "high", "-pix_fmt", "yuv420p",
            "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", izlaz / ime)
     shutil.rmtree(tmp, ignore_errors=True)
