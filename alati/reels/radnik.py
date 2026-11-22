@@ -125,30 +125,58 @@ def puls():
 
 # ───────────────────────────── AI (Gemini, rezerva Groq) ─────────────────────────────
 
-def _model(url, kljuc, zeljeni, uzorak):
-    """Najnoviji dostupni model po uzorku (npr. gemini-2.5-flash), ili prvi iz liste želja."""
+def _modeli(url, kljuc):
     try:
         r = requests.get(f"{url}/models", headers={"Authorization": f"Bearer {kljuc}"}, timeout=20)
-        ids = [m["id"].removeprefix("models/") for m in r.json().get("data", [])]
+        return [m["id"].removeprefix("models/") for m in r.json().get("data", [])]
     except Exception:  # noqa: BLE001
-        return zeljeni[0]
-    for z in zeljeni:
-        if z in ids:
-            return z
-    kandidati = [(float(m[1]), i) for i in ids if (m := re.fullmatch(uzorak, i))]
-    return max(kandidati)[1] if kandidati else zeljeni[0]
+        return []
 
 
-LLM = []   # [(ime, url, ključ, model)] redom pokušaja
+def _radi(url, kljuc, model):
+    """Kratka proba: neki modeli na besplatnom nivou imaju kvotu 0 (429) ili ih više nema (404)."""
+    try:
+        r = requests.post(f"{url}/chat/completions", headers={"Authorization": f"Bearer {kljuc}"}, timeout=60,
+                          json={"model": model, "response_format": {"type": "json_object"},
+                                "messages": [{"role": "user", "content": 'Vrati JSON {"ok": true}'}]})
+        return r.status_code == 200
+    except requests.RequestException:
+        return False
+
+
+def _verzija(i):
+    m = re.search(r"(\d+(?:\.\d+)?)", i)
+    return float(m[1]) if m else 0.0
+
+
+def _prvi_koji_radi(url, kljuc, kandidati):
+    for m in dict.fromkeys(kandidati):
+        if _radi(url, kljuc, m):
+            return m
+    return None
+
+
+LLM = []        # [(ime, url, ključ, model)] redom pokušaja
+BLOKIRANO = {}  # ime → do kada se preskače (potrošena kvota)
 
 
 def pripremi_llm():
     if GEMINI:
-        m = os.environ.get("REELS_GEMINI_MODEL") or _model(GEMINI_URL, GEMINI, ["gemini-flash-latest"], r"gemini-(\d+(?:\.\d+)?)-flash")
-        LLM.append(("Gemini", GEMINI_URL, GEMINI, m))
+        ids = _modeli(GEMINI_URL, GEMINI)
+        flash = sorted((i for i in ids if re.fullmatch(r"gemini-\d+(?:\.\d+)?-flash(?:-preview)?", i)), key=_verzija, reverse=True)
+        lite = sorted((i for i in ids if re.fullmatch(r"gemini-\d+(?:\.\d+)?-flash-lite(?:-preview)?", i)), key=_verzija, reverse=True)
+        zeljeni = [os.environ["REELS_GEMINI_MODEL"]] if os.environ.get("REELS_GEMINI_MODEL") else []
+        m = _prvi_koji_radi(GEMINI_URL, GEMINI, [*zeljeni, *flash, "gemini-flash-latest", *lite])
+        if m:
+            LLM.append(("Gemini", GEMINI_URL, GEMINI, m))
+        else:
+            log("Gemini: nijedan model ne odgovara (kvota?) — preskačem")
     if GROQ:
-        m = os.environ.get("REELS_GROQ_LLM") or _model(GROQ_URL, GROQ, ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"], r"$^")
-        LLM.append(("Groq", GROQ_URL, GROQ, m))
+        ids = _modeli(GROQ_URL, GROQ)
+        m = os.environ.get("REELS_GROQ_LLM") or next((z for z in ("openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b",
+                                                                   "llama-3.3-70b-versatile") if z in ids), None)
+        if m:
+            LLM.append(("Groq", GROQ_URL, GROQ, m))
     try:                                  # Ollama na Macu (lokalni alat je već ima): rezerva bez ključa, sporija
         modeli = [m["name"] for m in requests.get(f"{OLLAMA}/api/tags", timeout=5).json().get("models", [])]
         if modeli:
@@ -168,6 +196,10 @@ OLLAMA_LLM = R.llm                        # originalni poziv iz reels.py (Ollama
 def llm(sistem, poruka, shema=None):
     zadnja = None
     for ime, url, kljuc, model in LLM:
+        if BLOKIRANO.get(ime, 0) > time.time():
+            continue
+        if zadnja:
+            log(f"AI: {zadnja[:160]} → {ime}")
         if ime == "Ollama":                # isti poziv kao lokalni alat (JSON shema, bez ključa)
             R.LLM_URL, R.LLM_MODEL, R.LLM_KEY = url, model, ""
             try:
@@ -177,7 +209,7 @@ def llm(sistem, poruka, shema=None):
                 continue
         body = {"model": model, "temperature": 0.4, "response_format": {"type": "json_object"},
                 "messages": [{"role": "system", "content": sistem}, {"role": "user", "content": poruka}]}
-        for pokusaj in range(4):
+        for pokusaj in range(3):
             try:
                 r = requests.post(f"{url}/chat/completions", json=body, timeout=300,
                                   headers={"Authorization": f"Bearer {kljuc}"})
@@ -185,9 +217,13 @@ def llm(sistem, poruka, shema=None):
                 zadnja = f"{ime}: {e}"
                 time.sleep(5)
                 continue
-            if r.status_code in (429, 500, 502, 503, 504):      # limit besplatnog nivoa ili preopterećenje
+            if r.status_code == 429 and "quota" in r.text.lower():   # dnevna kvota potrošena → 10 min preskačemo
+                zadnja = f"{ime} 429: kvota potrošena"
+                BLOKIRANO[ime] = time.time() + 600
+                break
+            if r.status_code in (429, 500, 502, 503, 504):      # limit u minuti ili preopterećenje
                 zadnja = f"{ime} {r.status_code}: {r.text[:200]}"
-                time.sleep(min(60, float(r.headers.get("retry-after") or 0) or 8 * (pokusaj + 1)))
+                time.sleep(min(30, float(r.headers.get("retry-after") or 0) or 6 * (pokusaj + 1)))
                 continue
             if r.status_code >= 400:
                 zadnja = f"{ime} {r.status_code}: {r.text[:300]}"
