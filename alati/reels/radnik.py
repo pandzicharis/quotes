@@ -37,7 +37,7 @@ GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 GROQ_WHISPER = os.environ.get("REELS_GROQ_WHISPER", "whisper-large-v3-turbo")
 OLLAMA = os.environ.get("REELS_OLLAMA", "http://host.docker.internal:11434").rstrip("/")
 BUCKET = "reels"
-VERZIJA = "1"
+VERZIJA = "2"
 VIDEO_DANA, REELS_DANA = 7, 14          # lokalni komadi videa / reelsi u Storageu
 KOMAD_S = 10 * 60                       # zvuk za Groq ide u komadima od 10 min, svi istovremeno
 FORMAT = "bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080]/b"

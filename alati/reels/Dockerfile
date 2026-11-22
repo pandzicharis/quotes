@@ -16,7 +16,7 @@ RUN mkdir fontovi && B=https://raw.githubusercontent.com/google/fonts/main/ofl \
  && curl -sfL -o fontovi/EBGaramond-Italic.ttf "$B/ebgaramond/EBGaramond-Italic%5Bwght%5D.ttf" \
  && curl -sfL -o fontovi/OFL.txt "$B/ibmplexsans/OFL.txt"
 
-COPY public/assets/brand/ammar_basic_logo_w_1.png /app/public/assets/brand/
+COPY public/assets/brand/ammar_basic_logo_w_1.png public/assets/brand/ammar_basic_logo_w_m_1.png /app/public/assets/brand/
 COPY alati/reels/reels.py alati/reels/radnik.py ./
 
 ENV REELS_RADNO=/podaci/radno PYTHONUNBUFFERED=1 HF_HUB_DISABLE_XET=1

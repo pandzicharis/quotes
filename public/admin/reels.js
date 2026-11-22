@@ -22,7 +22,8 @@ const STATUS = { c: 'čeka', a: 'AI doteruje', v: 'skida video', p: 'pravi reel'
 
 let poslovi = [], radnik = null, posao = null, aktivan = -1, izmijenjeni = new Set();
 let recenice = [], player = null, igrac = null, krajPustanja = null, redPustanja = [];
-let mod = 'reel', pregled = null;            // pregled: { i, komadi } dok se isječak pušta s grafikama
+let mod = 'reel', pregled = null, uvodT = null;   // pregled: { i, komadi, uvod } dok se isječak pušta s grafikama
+const UVOD_MS = 1800, KRAJ_MS = 2600;           // kao UVOD_S i KRAJ_S u reels.py
 let cuvanjeT = null, cuvanje = Promise.resolve(), anketa = null, otvoren = false, ucitavam = false;
 
 async function api(radnja, tijelo, upit = '') {
@@ -165,11 +166,12 @@ async function postaviPlayer(p) {
 const svira = () => player?.getPlayerState?.() === 1;
 const vrijeme = () => player?.getCurrentTime?.() ?? 0;
 function skoci(t, pusti = false) { player?.seekTo?.(t, true); if (pusti) player?.playVideo?.(); }
-function pusti(od, d) { pregled = null; redPustanja = []; krajPustanja = d; skoci(od, true); }
+function prekiniUvod() { clearTimeout(uvodT); uvodT = null; $('#rl-ekran').classList.remove('uvod'); }
+function pusti(od, d) { prekiniUvod(); pregled = null; redPustanja = []; krajPustanja = d; skoci(od, true); }
 
 function postaviMod(m) {
   mod = m;
-  $('#rl-ekran').classList.remove('kraj');
+  prekiniUvod(); $('#rl-ekran').classList.remove('kraj');
   $('#rl-ekran').dataset.mod = m;
   $$('.rl-modovi [data-mod]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mod === m)));
   const v = $('#rl-gotov-video');
@@ -215,7 +217,7 @@ function crtajGrafiku() {
 /* Titl za trenutni trenutak pregleda: vrijeme YouTubea → vrijeme spojenog reela (preko komada). */
 function crtajTitl(t) {
   const x = posao?.isjecci[pregled?.i];
-  if (!x) return;
+  if (!x || pregled.uvod) return;
   const el = $('#rl-g-titl');
   if (x.titlovi_ukljuceni === false) { el.innerHTML = ''; return; }
   if (!x.titlovi?.length) { el.innerHTML = '<span class="rl-g-nema">titlovi se slažu pri izradi</span>'; return; }
@@ -242,6 +244,7 @@ function pratiPlayer() {
   if (!otvoren || !player?.getCurrentTime) return;
   const t = vrijeme();
   $('#rl-sad').textContent = fmt(t);
+  if (pregled?.uvod && svira()) player.pauseVideo();      // za vrijeme uvoda video stoji na prvom kadru
   if (krajPustanja != null && t >= krajPustanja) {
     if (redPustanja.length) { const [a, b] = redPustanja.shift(); krajPustanja = b; skoci(a); }
     else {
@@ -249,7 +252,7 @@ function pratiPlayer() {
       if (pregled && mod === 'reel') {                    // kraj reela: završna kartica, kao na videu
         const ek = $('#rl-ekran'); ek.classList.add('kraj');
         $('#rl-g-napredak').style.width = '0';
-        setTimeout(() => { ek.classList.remove('kraj'); }, 2200);
+        setTimeout(() => { ek.classList.remove('kraj'); }, KRAJ_MS);
         pregled = null;
       }
     }
@@ -266,10 +269,12 @@ function pregledaj(i) {
   if (i !== aktivan) izaberi(i, false);
   if (mod !== 'reel') postaviMod('reel');
   const komadi = komadiOd(x).map(([a, b]) => [a, b]);
-  pregled = { i, komadi };
+  pregled = { i, komadi, uvod: true };
   $('#rl-g-titl').dataset.kljuc = ''; $('#rl-g-titl').innerHTML = ''; $('#rl-g-napredak').style.width = '0';
-  const ek = $('#rl-ekran'); ek.classList.remove('uvod', 'kraj'); void ek.offsetWidth; ek.classList.add('uvod');   // uvod iznova
-  redPustanja = komadi.slice(1); krajPustanja = komadi[0][1]; skoci(komadi[0][0], true);
+  // uvod kao na reelsu: video stoji na prvom kadru ispod kartice s naslovom, pa krene kad kartica ode
+  const ek = $('#rl-ekran'); prekiniUvod(); ek.classList.remove('kraj'); void ek.offsetWidth; ek.classList.add('uvod');
+  redPustanja = komadi.slice(1); krajPustanja = komadi[0][1]; skoci(komadi[0][0]); player?.pauseVideo?.();
+  uvodT = setTimeout(() => { if (pregled?.i !== i) return; pregled.uvod = false; skoci(komadi[0][0], true); }, UVOD_MS);
   $('#rl-ispod-tekst').textContent = `Pregled #${i + 1}: ${trajanje(x).toFixed(0)} s, ${komadi.length > 1 ? `${komadi.length} dijela` : 'bez rezova'}`;
 }
 
@@ -492,7 +497,7 @@ function vezi() {
     crtajIsjecke(); izaberi(i, false); sacuvaj();
     $(`.rl-isj[data-i="${i}"] details.rl-uredi`).open = true;
   });
-  $('#rl-transkript').addEventListener('click', e => { const s = e.target.closest('span[data-t]'); if (s) { krajPustanja = null; pregled = null; if (mod === 'gotov') postaviMod('kadar'); skoci(+s.dataset.t, true); } });
+  $('#rl-transkript').addEventListener('click', e => { const s = e.target.closest('span[data-t]'); if (s) { prekiniUvod(); krajPustanja = null; pregled = null; if (mod === 'gotov') postaviMod('kadar'); skoci(+s.dataset.t, true); } });
 
   const ol = $('#rl-isjecci');
   ol.addEventListener('click', e => {
