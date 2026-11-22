@@ -24,7 +24,7 @@ LLM_URL = os.environ.get("REELS_LLM_URL", "http://localhost:11434")
 LLM_MODEL = os.environ.get("REELS_LLM_MODEL", "gemma4:12b-it-qat")
 LLM_KEY = os.environ.get("REELS_LLM_KEY", "")
 
-MIN_S, MAX_S = 30, 90           # željeno trajanje isječka
+MIN_S, MAX_S = 30, 120          # željeno trajanje isječka (cjelina je važnija od kratkoće)
 W, H = 1080, 1920               # Instagram reels
 GOLD, GOLD_L = (198, 169, 104), (233, 199, 126)
 KODIRANJE = ["-crf", "18"]      # x264; radnik (Docker) traži manje fajlove zbog limita Storagea
@@ -269,7 +269,8 @@ def llm(sistem, poruka, shema=None):
     return json.loads(tekst)
 
 
-def predlozi(vid, n=6, javi=print):
+def izaberi(vid, n=6, javi=print):
+    """AI izbor cjelina i tema (bez dorade). Tema ide u projekat.json. → (isjecci, sirovo)"""
     d = RADNO / vid
     proj = citaj(d / "projekat.json")
     rijeci = ucitaj_rijeci(d)
@@ -280,7 +281,7 @@ def predlozi(vid, n=6, javi=print):
 
 Izaberi tačno {n} isječaka za Instagram reels. Pravila:
 - Svaki isječak je zaokružena cjelina s jednom jasnom poentom: primjer ili priča, komentar ajeta ili hadisa, misao ili praktičan savjet. Gledalac koji nije vidio ostatak videa mora ga razumjeti.
-- Trajanje {MIN_S}–{MAX_S} sekundi (najbolje 40–75). Računaj po vremenima rečenica.
+- Trajanje {MIN_S}–{MAX_S} sekundi (najbolje 45–100). Računaj po vremenima rečenica. Bolje duže i cijelo nego kraće i nedovršeno.
 - Prva rečenica uvodi misao (ne počinje nastavkom poput „i onda“, „kao što rekoh“, „dakle“), a zadnja zaokružuje poentu.
 - Isječak ne smije završiti pitanjem, najavom ili pričom na koju odgovor dolazi kasnije: ako je u njemu pitanje ili priča, uključi i odgovor (npr. dovu ili pouku). Ako bi tako bio predug, izaberi drugi dio.
 - Isječci se ne preklapaju i svaki ima drugačiju poentu. Preskoči uvod, pozdrave, najave i zahvale.
@@ -300,7 +301,6 @@ Vrati JSON oblika {{"tema": "", "isjecci": [{{"od": 0, "do": 0, "naslov": "", "t
 TRANSKRIPT:
 """ + "\n".join(f"[{i}] ({mmss(r['t0'])}) {r['tekst']}" for i, r in enumerate(rec))
     javi(f"AI bira isječke ({LLM_MODEL})…", None)
-    t = time.time()
     isjecci, sirovo = [], []
     greska = None
     for _ in range(2):                    # ako model vrati manje od 5 upotrebljivih, pitaj još jednom
@@ -320,12 +320,27 @@ TRANSKRIPT:
     lektorisi_naslove(proj, isjecci)
     if not isjecci:
         raise RuntimeError(f"AI nije vratio nijedan upotrebljiv isječak ({greska or 'prazan izbor'}). Pokušaj „Ponovo predloži“.")
+    pisi(d / "projekat.json", proj)
+    return isjecci, sirovo
+
+
+def doradi(vid, x, lice=None):
+    """Jedan isječak: lice za izrez, AI ispravka riječi, AI montaža (samo digresije van teme)."""
+    x["pozicija"] = (lice or pozicija_lica)(vid, x["od"], x["do"])
+    ispravi_raspon(vid, x["od"], x["do"], lambda *a: None)
+    x["dijelovi"], x["rezovi"] = rezovi_ai(vid, x)
+    x["od"], x["do"] = x["dijelovi"][0][0], x["dijelovi"][-1][1]
+    return x
+
+
+def predlozi(vid, n=6, javi=print):
+    d = RADNO / vid
+    t = time.time()
+    isjecci, sirovo = izaberi(vid, n, javi)
     for k, x in enumerate(isjecci, 1):
         javi(f"Isječak {k}/{len(isjecci)}: lice, AI ispravka riječi i montaža…", None)
-        x["pozicija"] = pozicija_lica(vid, x["od"], x["do"])
-        ispravi_raspon(vid, x["od"], x["do"], lambda *a: None)
-        x["dijelovi"], x["rezovi"] = rezovi_ai(vid, x)
-        x["od"], x["do"] = x["dijelovi"][0][0], x["dijelovi"][-1][1]
+        doradi(vid, x)
+    proj = citaj(d / "projekat.json")
     proj["isjecci"] = isjecci
     proj["verzija"] = int(time.time())            # stari ekran ne smije prepisati novi izbor
     proj["ai"] = {"model": LLM_MODEL, "sekundi": round(time.time() - t), "sirovo": sirovo}
@@ -333,6 +348,7 @@ TRANSKRIPT:
     return isjecci
 
 
+_ISPRAVKE_BRAVA = threading.Lock()
 SHEMA_ISPRAVKE = {"type": "object", "required": ["recenice"], "properties": {"recenice": {"type": "array", "items": {
     "type": "object", "required": ["i", "tekst"], "properties": {"i": {"type": "integer"}, "tekst": {"type": "string"}}}}}}
 
@@ -366,6 +382,7 @@ REČENICE:
     except (RuntimeError, ValueError) as e:            # bez ispravke je i dalje upotrebljivo
         javi(f"AI ispravka nije uspjela: {e}", None)
         return
+    isp = {}
     for x in odg:
         try:
             r, tekst = rec[int(x["i"])], str(x["tekst"]).strip()
@@ -374,7 +391,10 @@ REČENICE:
         stari = len(r["tekst"].split())
         if tekst and 0.6 * stari <= len(tekst.split()) <= 1.5 * stari + 2:   # odbij prepričavanje
             isp[f"{r['i0']}-{r['i1']}"] = tekst
-    pisi(d / "ispravke.json", isp)
+    with _ISPRAVKE_BRAVA:                              # više isječaka se ispravlja odjednom — spoji, ne prepiši
+        sve = citaj(d / "ispravke.json", {})
+        sve.update(isp)
+        pisi(d / "ispravke.json", sve)
 
 
 SHEMA_REZOVI = {"type": "object", "required": ["zadrzi", "razlog"], "properties": {
@@ -382,15 +402,10 @@ SHEMA_REZOVI = {"type": "object", "required": ["zadrzi", "razlog"], "properties"
 
 
 def rezovi_ai(vid, x):
-    dij, razlog = _rezovi_ai(vid, x)
-    if sum(b - a for a, b in dij) > 80:                  # i dalje predugo → traži odlučnije skraćivanje
-        dij2, razlog2 = _rezovi_ai(vid, x, strogo=True)
-        if sum(b - a for a, b in dij2) < sum(b - a for a, b in dij):
-            return dij2, razlog2
-    return dij, razlog
+    return _rezovi_ai(vid, x)
 
 
-def _rezovi_ai(vid, x, strogo=False):
+def _rezovi_ai(vid, x):
     """AI montaža: koje rečenice isječka ostaju, da reel bude kraći i tečniji, a ostane jedna cjelina.
     Vraća (dijelovi, razlog); bez rezova je [[od, do]]."""
     cijeli = [[x["od"], x["do"]]]
@@ -401,11 +416,11 @@ def _rezovi_ai(vid, x, strogo=False):
     sistem = "Ti si iskusan montažer kratkih videa (Instagram reels) za hafiza Ammara Bašića. Pišeš bosanski."
     poruka = f"""Ovo su rečenice jednog isječka za reels, redom, s trajanjem. Poenta isječka: „{x.get('poenta', '')}“.
 
-Napravi montažu: odluči koje rečenice ostaju, tako da reels bude kraći, tečniji i jasniji, a da i dalje bude JEDNA smislena cjelina s tom poentom.
-- Izbaci digresije koje ne vode poenti, ponavljanja iste misli, nedovršene rečenice, poštapalice i obraćanja koja ne nose sadržaj (npr. samo „znate“ ili „gledajte, braćo i sestre“).
-- Zadrži rečenicu koja uvodi misao, sve što treba da se priča ili argument razumije, i završnu rečenicu s poentom. Reels ne smije završiti pitanjem ili najavom bez odgovora.
-- Spoj mora zvučati prirodno: ne izbacuj rečenicu ako bez nje sljedeća gubi smisao (npr. počinje s „i onda on“, „zato“, „to“ koje upućuje na izbačeno).
-- Isječak sada traje {x["do"] - x["od"]:.0f} s. Ako traje duže od 75 s, skrati ga na 45–75 s. Ako je kraći i već čist i tečan, zadrži sve rečenice.{chr(10) + "- OBAVEZNO: isječak je predug za reels. Izbaci rečenice tako da ostane najviše 70 s, a da priča i poenta ostanu cijele." if strogo else ""}
+Odluči koje rečenice ostaju. Isječak treba ostati cijel i prirodan — reži SAMO kad govornik odluta od teme.
+- Izbaci rečenicu samo ako je jasna digresija koja nema veze s poentom (npr. usputna priča o nečem drugom, najava, obraćanje publici o organizaciji).
+- Sve ostalo ZADRŽI: ponavljanja, naglašavanja, obraćanja („braćo i sestre“), primjere i pojašnjenja. Bolje da reels bude duži nego isjeckan.
+- Spoj mora zvučati prirodno: ne izbacuj rečenicu ako bez nje sljedeća gubi smisao.
+- Ako nema digresija, vrati SVE rečenice.
 
 Vrati JSON {{"zadrzi": [brojevi rečenica koje ostaju], "razlog": "jedna rečenica: šta je izbačeno i zašto, opisano riječima, bez brojeva rečenica"}}.
 
@@ -417,7 +432,7 @@ REČENICE:
     except (RuntimeError, ValueError, TypeError):
         return cijeli, ""
     ukupno = x["do"] - x["od"]
-    if not zad or sum(rec[i]["t1"] - rec[i]["t0"] for i in zad) < max(25, 0.35 * ukupno):
+    if not zad or sum(rec[i]["t1"] - rec[i]["t0"] for i in zad) < max(25, 0.7 * ukupno):
         return cijeli, ""                                   # previše izbačeno → ne vjeruj, ostavi cijelo
     nizovi = []
     for i in zad:
@@ -538,7 +553,7 @@ def sredi(sirovo, rec, rijeci):
 NE_LOMI_ISPRED = {"alejhi", "ve sellem", "alejhis-selam", "šanuhu", "teala"}
 
 
-def zbij(dijelovi, rijeci, max_pauza=0.6, ostavi=0.2):
+def zbij(dijelovi, rijeci, max_pauza=1.2, ostavi=0.35):
     """Duge pauze unutar dijelova se izrežu (ostane kratak predah). → [(t0, t1, k)], k = redni broj dijela."""
     out = []
     for k, (a, b) in enumerate(dijelovi):
@@ -787,7 +802,7 @@ def kadar_titla(baza, rijeci, aktivna, kadar):
     return img
 
 
-def napravi_reel(vid, isj, br, javi=print):
+def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
     """Jedan isječak (može imati više dijelova) → radno/<id>/reels/NN-naslov.mp4"""
     d = RADNO / vid
     proj = citaj(d / "projekat.json")
@@ -877,7 +892,7 @@ def napravi_reel(vid, isj, br, javi=print):
     izlaz.mkdir(exist_ok=True)
     ime = f"{br:02d}-{slug(isj.get('naslov', ''))}.mp4"
     javi(f"Reel {br}: kodiram video…", None)
-    ffmpeg("-ss", f"{pocetak:.3f}", "-t", f"{komadi[-1][1] - pocetak + 0.5:.3f}", "-i", d / "izvor.mp4",
+    ffmpeg("-ss", f"{pocetak - pomak:.3f}", "-t", f"{komadi[-1][1] - pocetak + 0.5:.3f}", "-i", izvor or d / "izvor.mp4",
            "-f", "concat", "-safe", "0", "-i", tmp / "lista.ffconcat",
            "-filter_complex", graf, "-map", "[v]", "-map", "[a]", "-t", f"{dur:.3f}",
            "-c:v", "libx264", "-preset", "medium", *KODIRANJE, "-profile:v", "high", "-pix_fmt", "yuv420p",

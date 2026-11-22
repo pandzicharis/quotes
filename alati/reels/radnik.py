@@ -13,6 +13,7 @@ lokalni alat); ovdje su samo red poslova, Groq/Gemini, lice (OpenCV) i Storage.
 Ključevi su u alati/reels/.env (vidi .env.example) i ne idu u git.
 """
 import hashlib, json, os, re, shutil, subprocess, threading, time, traceback
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -24,8 +25,8 @@ import reels as R
 
 # reels.py učitava Pillow/numpy tek kad se pokrene sam
 R.np, R.Image, R.ImageDraw, R.ImageFilter, R.ImageFont = np, Image, ImageDraw, ImageFilter, ImageFont
-# Instagram ionako prekodira; ovako isječak od 90 s ostaje ispod 50 MB (limit besplatnog Storagea)
-R.KODIRANJE = ["-preset", "faster", "-crf", "21", "-maxrate", "3M", "-bufsize", "6M"]
+# Instagram ionako prekodira; ovako i isječak od 2 min ostaje ispod 50 MB (limit besplatnog Storagea)
+R.KODIRANJE = ["-preset", "veryfast", "-crf", "21", "-maxrate", "2500k", "-bufsize", "5M"]
 
 SB_URL = os.environ["SUPABASE_URL"].rstrip("/")
 SB_KEY = os.environ["SUPABASE_SECRET_KEY"]
@@ -33,12 +34,12 @@ GROQ = os.environ.get("GROQ_API_KEY", "").strip()
 GEMINI = os.environ.get("GEMINI_API_KEY", "").strip()
 GROQ_URL = "https://api.groq.com/openai/v1"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
-GROQ_WHISPER = os.environ.get("REELS_GROQ_WHISPER", "whisper-large-v3")
+GROQ_WHISPER = os.environ.get("REELS_GROQ_WHISPER", "whisper-large-v3-turbo")
 OLLAMA = os.environ.get("REELS_OLLAMA", "http://host.docker.internal:11434").rstrip("/")
 BUCKET = "reels"
 VERZIJA = "1"
-VIDEO_DANA, REELS_DANA = 7, 14          # lokalni video / reelsi u Storageu
-KOMAD_S = 20 * 60                       # zvuk za Groq ide u komadima (limit 25 MB po fajlu)
+VIDEO_DANA, REELS_DANA = 7, 14          # lokalni komadi videa / reelsi u Storageu
+KOMAD_S = 10 * 60                       # zvuk za Groq ide u komadima od 10 min, svi istovremeno
 FORMAT = "bv*[height<=1080][vcodec^=avc1]+ba[ext=m4a]/bv*[height<=1080]+ba/b[height<=1080]/b"
 
 S = requests.Session()
@@ -265,6 +266,8 @@ def llm(sistem, poruka, shema=None):
                 continue
         body = {"model": model, "temperature": 0.4, "response_format": {"type": "json_object"},
                 "messages": [{"role": "system", "content": sistem}, {"role": "user", "content": poruka}]}
+        if ime == "Gemini":
+            body["reasoning_effort"] = "low"          # isti kvalitet za ove zadatke, ~3× brže
         for pokusaj in range(3):
             try:
                 r = requests.post(f"{url}/chat/completions", json=body, timeout=300,
@@ -279,7 +282,12 @@ def llm(sistem, poruka, shema=None):
                 break
             if r.status_code in (429, 500, 502, 503, 504):      # limit u minuti ili preopterećenje
                 zadnja = f"{ime} {r.status_code}: {r.text[:200]}"
-                time.sleep(min(30, float(r.headers.get("retry-after") or 0) or 6 * (pokusaj + 1)))
+                if pokusaj:
+                    break                                       # drugi put → sljedeći provajder, ne čekaj
+                time.sleep(min(8, float(r.headers.get("retry-after") or 0) or 4))
+                continue
+            if r.status_code == 400 and "reasoning" in r.text.lower() and "reasoning_effort" in body:
+                del body["reasoning_effort"]
                 continue
             if r.status_code >= 400:
                 zadnja = f"{ime} {r.status_code}: {r.text[:300]}"
@@ -314,35 +322,60 @@ def yt(args, javi=None, opis=""):
 
 
 def skini_zvuk(d, url, javi):
-    if not list(d.glob("zvuk.*")):
-        yt(["-f", "ba[ext=m4a]/ba", "--write-info-json", "-o", str(d / "zvuk.%(ext)s"), url], javi, "Preuzimam zvuk…")
+    """Samo zvuk, u najmanjem formatu (za govor je dovoljan) — 30 min predavanja je ~10 MB."""
+    if not [f for f in d.glob("zvuk.*") if not f.name.endswith((".json", ".part"))]:
+        yt(["-f", "249/250/139/worstaudio[acodec!=none]/ba", "--write-info-json", "-o", str(d / "zvuk.%(ext)s"), url],
+           javi, "Preuzimam zvuk")
 
 
-class SkiniVideo(threading.Thread):
-    """Video ide u pozadini dok traju transkript i AI."""
+_URLOVI = {}
 
-    def __init__(self, d, url):
-        super().__init__(daemon=True)
-        self.d, self.url, self.greska = d, url, None
 
-    def run(self):
+def yt_urlovi(url, svjeze=False):
+    """Direktni linkovi videa i zvuka (vrijede nekoliko sati) — iz njih se skida samo ono što treba."""
+    k = _URLOVI.get(url)
+    if k and not svjeze and time.time() - k[0] < 3 * 3600:
+        return k[1]
+    r = subprocess.run(["yt-dlp", "--no-update", "--no-playlist", "-q", "-g", "-f", FORMAT, url],
+                       capture_output=True, text=True, timeout=180)
+    linkovi = [x for x in r.stdout.split() if x.startswith("http")]
+    if r.returncode or not linkovi:
+        raise RuntimeError("YouTube preuzimanje nije uspjelo: " + r.stderr.strip()[-400:])
+    _URLOVI[url] = (time.time(), linkovi)
+    return linkovi
+
+
+def segment(d, url, a, b):
+    """Komad videa [a, b] (s malo zraka) kao lokalni mp4 s tačnim početkom; vraća (fajl, pomak).
+    Skida se samo taj dio, ne cijelo predavanje. Postojeći komad koji pokriva raspon se ponovo koristi."""
+    a, b = max(0.0, a - 1.5), b + 1.0
+    for f in d.glob("seg_*.mp4"):
+        m = re.fullmatch(r"seg_([\d.]+)_([\d.]+)\.mp4", f.name)
+        if m and float(m[1]) <= a + 0.01 and float(m[2]) >= b - 0.01:
+            return f, float(m[1])
+    out = d / f"seg_{a:.2f}_{b:.2f}.mp4"
+    tmp = d / f"_{out.name}"
+    mreza = ["-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5"]
+    for pokusaj in range(2):                       # link je možda istekao → novi
+        linkovi = yt_urlovi(url, svjeze=pokusaj > 0)
+        ulazi = []
+        for l in linkovi[:2]:
+            ulazi += [*mreza, "-ss", f"{a:.3f}", "-i", l]
+        mapa = ["-map", "0:v:0", "-map", "1:a:0"] if len(linkovi) > 1 else ["-map", "0:v:0", "-map", "0:a:0"]
         try:
-            if not (self.d / "izvor.mp4").exists():
-                yt(["-f", FORMAT, "--merge-output-format", "mp4", "-o", str(self.d / "izvor.%(ext)s"), self.url])
-        except Exception as e:  # noqa: BLE001
-            self.greska = e
-
-    def sacekaj(self, javi):
-        if self.is_alive():
-            javi("Čekam da se video preuzme…", None)
-        self.join()
-        if self.greska:
-            raise self.greska
+            R.ffmpeg(*ulazi, "-t", f"{b - a:.3f}", *mapa, "-c:v", "libx264", "-preset", "ultrafast", "-crf", "16",
+                     "-c:a", "aac", "-b:a", "192k", tmp)
+            tmp.rename(out)
+            return out, a
+        except RuntimeError:
+            if pokusaj:
+                raise
+    raise RuntimeError("Dio videa nije preuzet")
 
 
-def velicina_videa(d):
+def velicina_videa(fajl):
     out = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
-                          "-of", "json", str(d / "izvor.mp4")], capture_output=True, text=True).stdout
+                          "-of", "json", str(fajl)], capture_output=True, text=True).stdout
     s = json.loads(out)["streams"][0]
     return s["width"], s["height"]
 
@@ -367,13 +400,14 @@ def tisine(zvuk):
 def groq_komad(p, pomak):
     for pokusaj in range(5):
         with open(p, "rb") as f:
-            r = requests.post(f"{GROQ_URL}/audio/transcriptions", headers={"Authorization": f"Bearer {GROQ}"}, timeout=600,
-                              files={"file": (p.name, f, "audio/ogg")},
-                              data=[("model", GROQ_WHISPER), ("language", "bs"), ("response_format", "verbose_json"),
-                                    ("timestamp_granularities[]", "word"), ("timestamp_granularities[]", "segment"),
-                                    ("prompt", R.WHISPER_PROMPT), ("temperature", "0")])
+            r = ponovi(lambda: requests.post(
+                f"{GROQ_URL}/audio/transcriptions", headers={"Authorization": f"Bearer {GROQ}"}, timeout=600,
+                files={"file": (p.name, f, "audio/ogg")},
+                data=[("model", GROQ_WHISPER), ("language", "bs"), ("response_format", "verbose_json"),
+                      ("timestamp_granularities[]", "word"), ("timestamp_granularities[]", "segment"),
+                      ("prompt", R.WHISPER_PROMPT), ("temperature", "0")]))
         if r.status_code == 429 or r.status_code >= 500:
-            time.sleep(min(90, float(r.headers.get("retry-after") or 0) or 15 * (pokusaj + 1)))
+            time.sleep(min(60, float(r.headers.get("retry-after") or 0) or 10 * (pokusaj + 1)))
             continue
         if r.status_code >= 400:
             raise RuntimeError(f"Groq {r.status_code}: {r.text[:300]}")
@@ -383,6 +417,7 @@ def groq_komad(p, pomak):
 
 
 def transkript_groq(d, zvuk, javi):
+    """Zvuk u komade od ~10 min (rez u tišini), 16 kbit/s Opus (govor je jasan, a fajl mali), komadi istovremeno."""
     dur = trajanje_fajla(zvuk)
     granice, t = [0.0], KOMAD_S
     tis = tisine(zvuk) if dur > KOMAD_S else []
@@ -391,28 +426,34 @@ def transkript_groq(d, zvuk, javi):
         granice.append(min(blizu, key=lambda s: abs(s - t)) if blizu else t)
         t = granice[-1] + KOMAD_S
     granice.append(dur)
-    rijeci = []
-    for k, (a, b) in enumerate(zip(granice, granice[1:])):
-        javi(f"Transkript (Groq) {k + 1}/{len(granice) - 1}…", 100 * k / (len(granice) - 1))
+    dijelovi = list(zip(granice, granice[1:]))
+    gotovo = [0]
+
+    def jedan(k, a, b):
         komad = d / f"_komad{k}.ogg"
         R.ffmpeg("-ss", f"{a:.2f}", "-t", f"{b - a:.2f}", "-i", zvuk, "-vn", "-ac", "1", "-ar", "16000",
-                 "-c:a", "libopus", "-b:a", "24k", komad)
+                 "-c:a", "libopus", "-b:a", "16k", "-application", "voip", komad)
         try:
-            rijeci += groq_komad(komad, a)
+            return groq_komad(komad, a)
         finally:
             komad.unlink(missing_ok=True)
-    return {"model": f"groq:{GROQ_WHISPER}", "rijeci": rijeci}
+            gotovo[0] += 1
+            javi("Transkript (Groq)", 100 * gotovo[0] / len(dijelovi))
+
+    with ThreadPoolExecutor(4) as pool:
+        rezultati = list(pool.map(lambda z: jedan(z[0], *z[1]), enumerate(dijelovi)))
+    return {"model": f"groq:{GROQ_WHISPER}", "rijeci": [w for r in rezultati for w in r]}
 
 
 def transkript_lokalno(d, zvuk, javi):
     from faster_whisper import WhisperModel
-    javi("Transkript na procesoru (bez Groqa, sporije)…", None)
+    javi("Transkript na procesoru (bez Groqa, sporije)", None)
     m = WhisperModel("large-v3-turbo", device="cpu", compute_type="int8", download_root=str(R.RADNO.parent / "modeli"))
     segs, info = m.transcribe(str(zvuk), language="bs", word_timestamps=True, initial_prompt=R.WHISPER_PROMPT,
                               condition_on_previous_text=False, vad_filter=True)
     rijeci = []
     for s in segs:
-        javi("Transkript na procesoru…", 100 * s.end / max(1, info.duration))
+        javi("Transkript na procesoru", 100 * s.end / max(1, info.duration))
         rijeci += [{"w": w.word.strip(), "t0": round(w.start, 2), "t1": round(w.end, 2)} for w in s.words or [] if w.word.strip()]
     return {"model": "faster-whisper large-v3-turbo", "rijeci": rijeci}
 
@@ -421,7 +462,7 @@ def transkribuj(vid, javi=print):
     d = R.RADNO / vid
     if (d / "transkript.json").exists():
         return
-    zvuk = sorted(d.glob("zvuk.*[!n]"))[0]          # zvuk.m4a / .webm, ne zvuk.info.json
+    zvuk = [f for f in sorted(d.glob("zvuk.*")) if not f.name.endswith((".json", ".part"))][0]
     try:
         if not GROQ:
             raise RuntimeError("nema GROQ_API_KEY")
@@ -437,16 +478,16 @@ R.transkribuj = transkribuj
 
 # ───────────────────────────── lice za izrez (OpenCV umjesto Applovog Visiona) ─────────────────────────────
 
-def pozicija_lica(vid, t0, t1, uzoraka=6):
+def pozicija_lica(fajl, t0, t1, uzoraka=6):
+    """Gdje je lice u kadru (0 = lijevo, 1 = desno), iz komada videa; vremena su unutar komada."""
     import cv2
-    d = R.RADNO / vid
     lice = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     xs = []
     for k in range(uzoraka):
-        t = t0 + (t1 - t0) * (k + 0.5) / uzoraka
-        jpg = d / f"_lice{k}.jpg"
+        t = max(0, t0 + (t1 - t0) * (k + 0.5) / uzoraka)
+        jpg = fajl.parent / f"_lice_{fajl.stem}_{k}.jpg"
         try:
-            R.ffmpeg("-ss", f"{t:.2f}", "-i", d / "izvor.mp4", "-frames:v", "1", "-vf", "scale=640:-2", jpg)
+            R.ffmpeg("-ss", f"{t:.2f}", "-i", fajl, "-frames:v", "1", "-vf", "scale=640:-2", jpg)
             slika = cv2.imread(str(jpg), cv2.IMREAD_GRAYSCALE)
             nadjena = lice.detectMultiScale(slika, 1.1, 6, minSize=(36, 36))
             if len(nadjena):
@@ -462,6 +503,40 @@ def pozicija_lica(vid, t0, t1, uzoraka=6):
 # ───────────────────────────── posao ─────────────────────────────
 
 POLJA_OTISKA = ("od", "do", "dijelovi", "naslov", "kadar", "pozicija", "titlovi", "titlovi_ukljuceni", "zbij_pauze")
+KORACI = 6     # 1 zvuk · 2 transkript · 3 AI bira · 4 AI doteruje · 5 reelsi · 6 gotovo
+
+
+class Stanje:
+    """Šta admin pokazuje: faza = „N/6 opis|kodovi“ — po jedan kod za svaki isječak:
+    c čeka · a AI doteruje · v skida video · p pravi reel · s šalje · g gotov · x greška · - isključen."""
+
+    def __init__(self, javi):
+        self.javi, self.korak, self.opis, self.kodovi = javi, 1, "", []
+        self.brava = threading.Lock()
+
+    def _posalji(self, procenat=None):
+        kod = f"|{''.join(self.kodovi)}" if self.kodovi else ""
+        self.javi(f"{self.korak}/{KORACI} {self.opis}{kod}", procenat)
+
+    def korak_(self, korak, opis, procenat=None):
+        with self.brava:
+            self.korak, self.opis = korak, opis
+            self._posalji(procenat)
+
+    def procenat(self, opis, p):
+        with self.brava:
+            self.opis = opis
+            self._posalji(p)
+
+    def isjecak(self, i, kod):
+        with self.brava:
+            self.kodovi[i] = kod
+            gotovih = sum(k in "g-" for k in self.kodovi)
+            if self.korak >= 4:
+                rade = sum(k in "pvs" for k in self.kodovi)
+                self.korak = 5 if rade or gotovih else self.korak
+                self.opis = f"Reelsi: {sum(k == 'g' for k in self.kodovi)} od {sum(k != '-' for k in self.kodovi)} gotovo"
+            self._posalji(100 * gotovih / max(1, len(self.kodovi)))
 
 
 def otisak(x, tema):
@@ -470,28 +545,29 @@ def otisak(x, tema):
     return hashlib.sha1(s.encode()).hexdigest()
 
 
-def titlovi_za(vid, x):
-    R.ispravi_raspon(vid, float(x["od"]), float(x["do"]), lambda *a: None)
+def titlovi_i_komadi(vid, x):
+    """Titlovi riječ po riječ i komadi videa (za pregled u adminu) za trenutni raspon isječka."""
     rijeci = R.ucitaj_rijeci(R.RADNO / vid)
-    return R.titlovi(rijeci, R.dijelovi_isjecka(x, rijeci))
+    komadi = R.dijelovi_isjecka(x, rijeci)
+    return R.titlovi(rijeci, komadi), [[round(a, 3), round(b, 3), k] for a, b, k in komadi]
 
 
-def pripremi(p, javi):
-    """Lokalna kopija posla (radno/<yt_id>/) kakvu očekuje reels.py: transkript, ispravke, projekat."""
+def pripremi(p, st):
+    """Koraci 1–2: zvuk i transkript (ili iz Storagea, ako je već rađen) i lokalni projekat za reels.py."""
     vid = p["yt_id"]
     d = R.RADNO / vid
     d.mkdir(parents=True, exist_ok=True)
     (d / ".dodir").touch()
-    video = SkiniVideo(d, p["url"])
-    video.start()
     if not (d / "transkript.json").exists():
         tr = procitaj_json(f"{p['id']}/transkript.json")
         if tr:
             R.pisi(d / "transkript.json", tr)
         else:
-            skini_zvuk(d, p["url"], javi)
+            st.korak_(1, "Preuzimam zvuk")
+            skini_zvuk(d, p["url"], lambda o, pr=None: st.procenat(o, pr))
+            st.korak_(2, "Transkript (Groq)")
             t = time.time()
-            transkribuj(vid, javi)
+            transkribuj(vid, lambda o, pr=None: st.procenat(o, pr))
             log(f"transkript {round(time.time() - t)} s")
             posalji_json(f"{p['id']}/transkript.json", R.citaj(d / "transkript.json"))
     if p.get("ispravke") and not (d / "ispravke.json").exists():
@@ -500,12 +576,13 @@ def pripremi(p, javi):
     proj = R.citaj(d / "projekat.json", {})
     proj.update(id=vid, url=p["url"], naslov=p.get("naslov") or info.get("title") or vid,
                 kanal=p.get("kanal") or info.get("channel", ""), trajanje=p.get("trajanje") or info.get("duration"),
-                isjecci=p.get("isjecci") or [], tema_rucno=bool(p.get("tema_rucno")))
+                isjecci=p.get("isjecci") or [], tema_rucno=bool(p.get("tema_rucno")),
+                sirina=p.get("sirina") or proj.get("sirina"), visina=p.get("visina") or proj.get("visina"))
     if p.get("tema"):
         proj["tema"] = p["tema"]
     R.pisi(d / "projekat.json", proj)
     izmijeni(p["id"], {k: proj[k] for k in ("naslov", "kanal", "trajanje")}, sadrzaj=False)
-    return d, video
+    return d
 
 
 def posalji_recenice(p, d):
@@ -513,112 +590,133 @@ def posalji_recenice(p, d):
     posalji_json(f"{p['id']}/recenice.json", [{"t0": r["t0"], "t1": r["t1"], "tekst": r["tekst"]} for r in R.recenice(rijeci)])
 
 
-def izbor(p, d, video, javi):
-    """AI bira 5–6 cjelina, ispravlja riječi i reže (reels.predlozi), pa lice i titlovi."""
-    vid = p["yt_id"]
-    stvarno_lice, R.pozicija_lica = pozicija_lica, (lambda *a, **k: 0.5)   # video možda još nije stigao
-    try:
-        isjecci = R.predlozi(vid, javi=javi)
-    finally:
-        R.pozicija_lica = stvarno_lice
-    video.sacekaj(javi)
-    for k, x in enumerate(isjecci, 1):
-        javi(f"Lice i titlovi {k}/{len(isjecci)}…", None)
-        x["pozicija"] = pozicija_lica(vid, x["od"], x["do"])
-        x["titlovi"] = titlovi_za(vid, x)
+def izbor(p, d, st):
+    """Korak 3: AI bira cjeline i temu. Sirovi izbor odmah ide u admin (hafiz vidi listu dok se doteruje)."""
+    st.korak_(3, "AI bira isječke")
+    isjecci, _ = R.izaberi(p["yt_id"], javi=lambda *a: None)
     proj = R.citaj(d / "projekat.json")
-    proj["isjecci"] = isjecci
-    R.pisi(d / "projekat.json", proj)
-    sirina, visina = velicina_videa(d)
-    obrisi_fajlove([g["put"] for g in p.get("gotovi") or []])                # stari reelsi su za stari izbor
+    obrisi_fajlove([g["put"] for g in p.get("gotovi") or []])               # stari reelsi su za stari izbor
     red = izmijeni(p["id"], {"isjecci": isjecci, "tema": proj.get("tema") or R.tema_iz_naslova(proj["naslov"]),
-                             "ispravke": R.citaj(d / "ispravke.json", {}), "verzija": int(time.time()), "gotovi": [],
-                             "sirina": sirina, "visina": visina})
+                             "verzija": int(time.time()), "gotovi": []})
     posalji_recenice(p, d)
     return red[0]
 
 
-def napravi(p, d, video, javi):
-    """Pravi reelse čiji se izgled promijenio od zadnje izrade; ostali ostaju kakvi jesu."""
+def napravi(p, d, st, dorada):
+    """Koraci 4–5, za svaki isječak zasebno i tri istovremeno: komad videa ∥ AI doteruje (ispravke, montaža)
+    → lice i titlovi → reel → slanje. Reel čiji se izgled nije promijenio se ne pravi ponovo."""
     vid, pid = p["yt_id"], p["id"]
-    video.sacekaj(javi)
-    if not p.get("sirina"):
-        sirina, visina = velicina_videa(d)
-        izmijeni(pid, {"sirina": sirina, "visina": visina}, sadrzaj=False)
-    proj = R.citaj(d / "projekat.json")
-    proj["sirina"], proj["visina"] = velicina_videa(d)
-    tema = p.get("tema") or R.tema_iz_naslova(proj.get("naslov"))
-    proj["tema"] = tema
-    isjecci = p.get("isjecci") or []
-    proj["isjecci"] = isjecci
-    R.pisi(d / "projekat.json", proj)
+    isjecci = [dict(x) for x in p.get("isjecci") or []]
+    pocetni = json.dumps(p.get("isjecci") or [], sort_keys=True)
+    tema = p.get("tema") or R.tema_iz_naslova(R.citaj(d / "projekat.json").get("naslov"))
+    stari = {g["otisak"]: g for g in p.get("gotovi") or []}           # po otisku: brisanje isječka ne pomjera ostale
+    st.kodovi = ["c" if x.get("ukljuci", True) else "-" for x in isjecci]
+    st.korak_(4 if dorada else 5, "AI doteruje isječke" if dorada else "Reelsi")
+    gotovi, brava, velicina = [], threading.Lock(), {}
+    video_pool = ThreadPoolExecutor(2)
 
-    novi_titlovi = {}
-    for i, x in enumerate(isjecci):
-        if x.get("ukljuci", True) and not x.get("titlovi"):               # novi raspon → AI ispravi pa titlovi
-            javi(f"Isječak {i + 1}: AI ispravlja riječi…", None)
-            x["titlovi"] = novi_titlovi[i] = titlovi_za(vid, x)
+    def jedan(i, x):
+        br = i + 1
+        try:
+            fut = video_pool.submit(segment, d, p["url"], float(x["od"]), float(x["do"]))
+            if dorada:                                   # AI radi dok se video skida
+                st.isjecak(i, "a")
+                R.ispravi_raspon(vid, float(x["od"]), float(x["do"]), lambda *a: None)
+                x["dijelovi"], x["rezovi"] = R.rezovi_ai(vid, x)
+                x["od"], x["do"] = x["dijelovi"][0][0], x["dijelovi"][-1][1]
+            elif not x.get("titlovi"):                   # hafiz je pomjerio raspon → AI ispravi novi dio
+                st.isjecak(i, "a")
+                R.ispravi_raspon(vid, float(x["od"]), float(x["do"]), lambda *a: None)
+            st.isjecak(i, "v")
+            seg, pomak = fut.result()
+            with brava:
+                if not velicina:                         # svi komadi su iste rezolucije kao izvor
+                    velicina["s"], velicina["v"] = velicina_videa(seg)
+                    proj = R.citaj(d / "projekat.json")
+                    proj["sirina"], proj["visina"] = velicina["s"], velicina["v"]
+                    proj["tema"] = tema
+                    R.pisi(d / "projekat.json", proj)
+            if dorada:
+                x["pozicija"] = pozicija_lica(seg, x["od"] - pomak, x["do"] - pomak)
+            if not x.get("titlovi"):
+                x["titlovi"], x["komadi"] = titlovi_i_komadi(vid, x)
+            elif not x.get("komadi"):
+                x["komadi"] = titlovi_i_komadi(vid, x)[1]
+            ot = otisak(x, tema)
+            if ot in stari:
+                g = {**stari[ot], "br": br, "ime": re.sub(r"^\d+", f"{br:02d}", stari[ot]["ime"])}
+            else:
+                st.isjecak(i, "p")
+                fajl = (d / "reels").joinpath(f"{br:02d}.otisak")
+                gotov = [f for f in (d / "reels").glob(f"{br:02d}-*.mp4")
+                         if f.with_suffix(".otisak").exists() and f.with_suffix(".otisak").read_text() == ot]
+                if gotov:                                # napravljen ranije, slanje je palo — ne pravi iznova
+                    fajl, ime = gotov[0], gotov[0].name
+                else:
+                    for star in (d / "reels").glob(f"{br:02d}-*"):
+                        star.unlink()
+                    ime = R.napravi_reel(vid, x, br, lambda *a: None, izvor=seg, pomak=pomak)
+                    fajl = d / "reels" / ime
+                    fajl.with_suffix(".otisak").write_text(ot)
+                st.isjecak(i, "s")
+                put = f"{pid}/{br:02d}-{ot[:10]}.mp4"
+                posalji_veliki(put, fajl, "video/mp4")
+                g = {"br": br, "put": put, "ime": ime, "otisak": ot, "velicina": fajl.stat().st_size,
+                     "trajanje": round(trajanje_fajla(fajl), 1)}
+            with brava:
+                gotovi.append(g)
+                gotovi.sort(key=lambda z: z["br"])
+                izmijeni(pid, {"gotovi": gotovi, **({"sirina": velicina["s"], "visina": velicina["v"]} if velicina else {})},
+                         sadrzaj=False)                  # admin vidi reel čim je gotov
+            st.isjecak(i, "g")
+        except Exception:
+            st.isjecak(i, "x")
+            raise
 
-    stari = {g["otisak"]: g for g in p.get("gotovi") or []}      # po otisku: brisanje isječka ne pomjera ostale
-    gotovi, za_izradu = [], []
-    for br, x in enumerate(isjecci, 1):
-        if not x.get("ukljuci", True):
-            continue
-        ot = otisak(x, tema)
-        if ot in stari:
-            gotovi.append({**stari[ot], "br": br, "ime": re.sub(r"^\d+", f"{br:02d}", stari[ot]["ime"])})
-        else:
-            za_izradu.append((br, x, ot))
-    for k, (br, x, ot) in enumerate(za_izradu, 1):
-        javi(f"Pravim reel {k}/{len(za_izradu)}…", 100 * (k - 1) / len(za_izradu))
-        gotov = [f for f in (d / "reels").glob(f"{br:02d}-*.mp4")
-                 if f.with_suffix(".otisak").exists() and f.with_suffix(".otisak").read_text() == ot]
-        if gotov:                                   # već napravljen (npr. slanje je prije palo) — ne pravi iznova
-            fajl, ime = gotov[0], gotov[0].name
-        else:
-            for star in (d / "reels").glob(f"{br:02d}-*"):
-                star.unlink()
-            ime = R.napravi_reel(vid, x, br, lambda *a: None)
-            fajl = d / "reels" / ime
-            fajl.with_suffix(".otisak").write_text(ot)
-        put = f"{pid}/{br:02d}-{ot[:10]}.mp4"
-        javi(f"Šaljem reel {k}/{len(za_izradu)}…", 100 * (k - 0.3) / len(za_izradu))
-        posalji_veliki(put, fajl, "video/mp4")
-        gotovi.append({"br": br, "put": put, "ime": ime, "otisak": ot, "velicina": fajl.stat().st_size,
-                       "trajanje": round(trajanje_fajla(fajl), 1)})
-        gotovi.sort(key=lambda g: g["br"])
-        izmijeni(pid, {"gotovi": gotovi}, sadrzaj=False)                   # admin vidi reel čim je gotov
+    try:
+        with ThreadPoolExecutor(3) as pool:
+            poslovi = [pool.submit(jedan, i, x) for i, x in enumerate(isjecci) if x.get("ukljuci", True)]
+            greske = [f.exception() for f in poslovi if f.exception()]
+    finally:
+        video_pool.shutdown(wait=False)
     zadrzani = {g["put"] for g in gotovi}
-    obrisi_fajlove([g["put"] for g in stari.values() if g["put"] not in zadrzani])
-    polja = {"gotovi": gotovi, "ispravke": R.citaj(d / "ispravke.json", {})}
-    if novi_titlovi:                         # titlovi idu u admin samo ako hafiz u međuvremenu nije mijenjao isječke
-        sada = rest("GET", f"reels_poslovi?id=eq.{pid}&select=isjecci,verzija")[0]
-        if sada["verzija"] == p["verzija"] and len(sada["isjecci"]) == len(isjecci):
-            for i, t in novi_titlovi.items():
-                a, b = sada["isjecci"][i], isjecci[i]
-                if not a.get("titlovi") and all(a.get(k) == b.get(k) for k in ("od", "do", "dijelovi", "zbij_pauze")):
-                    a["titlovi"] = t
-            polja["isjecci"] = sada["isjecci"]
-    izmijeni(pid, polja, f"&verzija=eq.{p['verzija']}" if "isjecci" in polja else "", sadrzaj=False)
+    if not greske:
+        obrisi_fajlove([g["put"] for g in stari.values() if g["put"] not in zadrzani])
+    # Isječci (doterani, s titlovima) idu nazad u admin; hafizove izmjene iz međuvremena ostaju.
+    sada = rest("GET", f"reels_poslovi?id=eq.{pid}&select=isjecci,verzija")[0]
+    if sada["verzija"] == p["verzija"]:
+        if json.dumps(sada["isjecci"], sort_keys=True) == pocetni:
+            novi = isjecci
+        else:
+            pocetak = json.loads(pocetni)
+            novi = [isjecci[i] if i < len(pocetak) and a == pocetak[i] and i < len(isjecci) else a
+                    for i, a in enumerate(sada["isjecci"])]
+        izmijeni(pid, {"isjecci": novi, "ispravke": R.citaj(d / "ispravke.json", {})}, f"&verzija=eq.{p['verzija']}",
+                 sadrzaj=False)
     posalji_recenice(p, d)
+    if greske:
+        raise greske[0]
 
 
 def obradi(p):
     pid, zahtjev = p["id"], p["zahtjev"]
     TRENUTNI["id"] = pid
     javi = Javljac(pid)
+    st = Stanje(javi)
     t = time.time()
     log("posao", pid, p["zahtjev"], p["url"])
     try:
-        d, video = pripremi(p, javi)
-        if p["zahtjev"] == "predlozi" or not p.get("isjecci"):
-            p = izbor(p, d, video, javi)
-        napravi(p, d, video, javi)
+        d = pripremi(p, st)
+        dorada = p["zahtjev"] == "predlozi" or not p.get("isjecci")
+        if dorada:
+            p = izbor(p, d, st)
+        napravi(p, d, st, dorada)
         javi.posalji()
         izmijeni(pid, {"zahtjev": None}, f"&zahtjev=eq.{zahtjev}", sadrzaj=False)   # novi zahtjev iz admina ostaje
-        izmijeni(pid, {"stanje": "gotovo", "faza": f"Gotovo za {round((time.time() - t) / 60, 1)} min", "procenat": 100,
-                       "greska": None}, sadrzaj=False)
-        log("gotovo", pid, f"{round(time.time() - t)} s")
+        trajalo = round(time.time() - t)
+        izmijeni(pid, {"stanje": "gotovo", "faza": f"{KORACI}/{KORACI} Gotovo za {trajalo // 60} min {trajalo % 60} s",
+                       "procenat": 100, "greska": None}, sadrzaj=False)
+        log("gotovo", pid, f"{trajalo} s")
     except (requests.ConnectionError, requests.Timeout) as e:   # slaba veza: posao ostaje u redu, nastavlja se sam
         log("veza puca, posao čeka:", str(e)[:160])
         javi.na_cekanju = None

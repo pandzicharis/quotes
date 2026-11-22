@@ -172,12 +172,52 @@
           <a class="dugme tiho" id="rl-yt-link" target="_blank" rel="noopener"><svg class="ik"><use href="#i-link"/></svg> YouTube</a>
           <button class="tiho opasno ikona-dugme" id="rl-obrisi" title="Obriši video i reelse" aria-label="Obriši video i reelse"><svg class="ik"><use href="#i-kanta"/></svg></button>
         </div>
-        <div id="rl-stanje"></div>
-        <section class="rl-gotovi" id="rl-gotovi" hidden>
-          <div class="rl-gotovi__glava"><h3>Gotovi reelsi <span id="rl-gotovi-broj"></span></h3>
-            <button id="rl-preuzmi-sve"><svg class="ik"><use href="#i-preuzmi"/></svg> Preuzmi sve</button></div>
-          <div class="rl-mreza" id="rl-mreza"></div>
-        </section>
+        <div class="rl-tok" id="rl-tok"></div>
+        <div class="rl-radni">
+          <div class="rl-lijevo">
+            <div class="segment rl-modovi" role="group" aria-label="Prikaz">
+              <button data-mod="reel" aria-pressed="true">Pregled reela</button>
+              <button data-mod="gotov">Gotov reel</button>
+              <button data-mod="kadar">Cijeli kadar</button>
+            </div>
+            <div class="rl-ekran" id="rl-ekran" data-mod="reel">
+              <div class="rl-video" id="rl-video"><div id="rl-yt"></div></div>
+              <div class="rl-izrez" id="rl-izrez" hidden></div>
+              <div class="rl-grafika" id="rl-grafika" aria-hidden="true">
+                <i class="rl-g-fade"></i>
+                <div class="rl-g-titl" id="rl-g-titl"></div>
+                <div class="rl-g-dole">
+                  <span class="rl-g-tema" id="rl-g-tema"></span>
+                  <span class="rl-g-naslov" id="rl-g-naslov"></span>
+                  <img src="/assets/brand/ammar_basic_logo_w_1.png" alt="">
+                  <span class="rl-g-linkovi">@basic_ammar&nbsp;&nbsp;·&nbsp;&nbsp;ammarbasic&nbsp;&nbsp;·&nbsp;&nbsp;ammarbasic.ba</span>
+                </div>
+              </div>
+              <video class="rl-gotov-video" id="rl-gotov-video" controls playsinline hidden></video>
+              <p class="rl-ekran-poruka" id="rl-ekran-poruka" hidden></p>
+              <button class="rl-play" id="rl-play" aria-label="Pusti">▶</button>
+            </div>
+            <div class="rl-ispod sitno"><span id="rl-sad">00:00.0</span><span id="rl-ispod-tekst">Izaberi isječak desno i klikni ▶ Pregled.</span></div>
+            <details class="rl-transkript-det"><summary>Transkript predavanja</summary><div class="rl-transkript" id="rl-transkript"></div></details>
+          </div>
+          <div class="rl-desno">
+            <div class="rl-desno__glava">
+              <h3>Isječci <span class="sitno" id="rl-broj"></span></h3>
+              <button id="rl-preuzmi-sve" hidden><svg class="ik"><use href="#i-preuzmi"/></svg> Preuzmi sve</button>
+            </div>
+            <label class="rl-tema-polje">Tema iznad naslova (ista na svim reelsima)<input type="text" id="rl-tema" maxlength="80"></label>
+            <p class="prazno" id="rl-prazno" hidden></p>
+            <ol class="rl-isjecci" id="rl-isjecci"></ol>
+            <div class="rl-dno">
+              <button class="zlatno" id="rl-napravi">Napravi izmijenjene</button>
+              <button id="rl-dodaj" title="Novi isječak od mjesta gdje je video sada">+ Isječak</button>
+              <button class="tiho" id="rl-ponovo" title="AI bira isječke iznova (izmjene se brišu)">AI ponovo bira</button>
+              <span class="razmak"></span><span class="sitno" id="rl-sacuvano"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
         <div class="rl-radni">
           <div class="rl-lijevo">
             <div class="rl-video" id="rl-video"><div id="rl-yt"></div><div class="rl-izrez" id="rl-izrez" hidden></div></div>
