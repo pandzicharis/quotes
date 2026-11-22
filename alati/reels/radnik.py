@@ -312,16 +312,23 @@ R.llm = llm
 # ───────────────────────────── preuzimanje (kućni internet) ─────────────────────────────
 
 def yt(args, javi=None, opis=""):
+    """yt-dlp; YouTube zna povremeno vratiti 403 na link — tada pokušaj ponovo (novi linkovi)."""
     cmd = ["yt-dlp", "--newline", "--no-playlist", "--no-update", *args]
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    zadnje = []
-    for line in p.stdout:
-        zadnje = (zadnje + [line.strip()])[-8:]
-        m = re.search(r"\[download\]\s+([\d.]+)%", line)
-        if m and javi:
-            javi(opis, float(m[1]))
-    if p.wait():
+    for pokusaj in range(3):
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        zadnje = []
+        for line in p.stdout:
+            zadnje = (zadnje + [line.strip()])[-8:]
+            m = re.search(r"\[download\]\s+([\d.]+)%", line)
+            if m and javi:
+                javi(opis, float(m[1]))
+        if not p.wait():
+            return
         greske = [z for z in zadnje if "ERROR" in z] or zadnje[-3:]
+        if pokusaj < 2 and any(k in " ".join(greske) for k in ("403", "HTTP Error", "timed out", "Connection")):
+            log("yt-dlp:", " ".join(greske)[-160:], "→ ponovo")
+            time.sleep(3 * (pokusaj + 1))
+            continue
         raise RuntimeError("YouTube preuzimanje nije uspjelo: " + " ".join(greske)[-500:])
 
 
