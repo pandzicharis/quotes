@@ -34,6 +34,7 @@ GEMINI = os.environ.get("GEMINI_API_KEY", "").strip()
 GROQ_URL = "https://api.groq.com/openai/v1"
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
 GROQ_WHISPER = os.environ.get("REELS_GROQ_WHISPER", "whisper-large-v3")
+OLLAMA = os.environ.get("REELS_OLLAMA", "http://host.docker.internal:11434").rstrip("/")
 BUCKET = "reels"
 VERZIJA = "1"
 VIDEO_DANA, REELS_DANA = 7, 14          # lokalni video / reelsi u Storageu
@@ -148,15 +149,32 @@ def pripremi_llm():
     if GROQ:
         m = os.environ.get("REELS_GROQ_LLM") or _model(GROQ_URL, GROQ, ["openai/gpt-oss-120b", "llama-3.3-70b-versatile"], r"$^")
         LLM.append(("Groq", GROQ_URL, GROQ, m))
+    try:                                  # Ollama na Macu (lokalni alat je već ima): rezerva bez ključa, sporija
+        modeli = [m["name"] for m in requests.get(f"{OLLAMA}/api/tags", timeout=5).json().get("models", [])]
+        if modeli:
+            LLM.append(("Ollama", OLLAMA, "", os.environ.get("REELS_OLLAMA_MODEL") or
+                        (R.LLM_MODEL if R.LLM_MODEL in modeli else modeli[0])))
+    except requests.RequestException:
+        pass
     if not LLM:
-        raise SystemExit("Nema ni GEMINI_API_KEY ni GROQ_API_KEY u alati/reels/.env")
+        raise SystemExit("Nema AI-ja: upiši GEMINI_API_KEY ili GROQ_API_KEY u alati/reels/.env, ili pokreni Ollamu na Macu")
     R.LLM_MODEL = " → ".join(f"{i} {m}" for i, _, _, m in LLM)
     log("AI:", R.LLM_MODEL)
 
 
-def llm(sistem, poruka, shema=None):  # noqa: ARG001 — shema je za Ollamu; ovdje JSON traži prompt
+OLLAMA_LLM = R.llm                        # originalni poziv iz reels.py (Ollama)
+
+
+def llm(sistem, poruka, shema=None):
     zadnja = None
     for ime, url, kljuc, model in LLM:
+        if ime == "Ollama":                # isti poziv kao lokalni alat (JSON shema, bez ključa)
+            R.LLM_URL, R.LLM_MODEL, R.LLM_KEY = url, model, ""
+            try:
+                return OLLAMA_LLM(sistem, poruka, shema)
+            except (RuntimeError, ValueError) as e:
+                zadnja = f"Ollama: {e}"
+                continue
         body = {"model": model, "temperature": 0.4, "response_format": {"type": "json_object"},
                 "messages": [{"role": "system", "content": sistem}, {"role": "user", "content": poruka}]}
         for pokusaj in range(4):

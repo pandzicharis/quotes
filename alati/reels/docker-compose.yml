@@ -11,6 +11,8 @@ services:
       dockerfile: alati/reels/Dockerfile
     env_file: .env
     restart: unless-stopped
+    extra_hosts:
+      - host.docker.internal:host-gateway   # Ollama na Macu (rezerva za AI bez ključa)
     volumes:
       - podaci:/podaci          # transkripti, video (7 dana), modeli
 volumes:
