@@ -350,8 +350,10 @@ function osvjeziIsjecke() {
   $('#rl-broj').textContent = posao.isjecci.length ? `${g.length} od ${posao.isjecci.filter(x => x.ukljuci !== false).length} gotovo` : '';
   $('#rl-preuzmi-sve').hidden = g.length < 2;
   const radi = t.vrsta === 'radi' || t.vrsta === 'ceka', bez = !posao.isjecci.length;
-  $('#rl-napravi').disabled = bez || !izmijenjeni.size;
-  $('#rl-napravi').textContent = posao.zahtjev === 'napravi' ? 'Čeka izradu…' : izmijenjeni.size ? `Napravi izmijenjene (${izmijenjeni.size})` : 'Nema izmjena';
+  const ponovo = t.vrsta === 'greska' && !bez;      // pao posao: napravi ono što fali (gotovi ostaju)
+  $('#rl-napravi').disabled = bez || (!izmijenjeni.size && !ponovo);
+  $('#rl-napravi').textContent = posao.zahtjev === 'napravi' ? 'Čeka izradu…' : izmijenjeni.size ? `Napravi izmijenjene (${izmijenjeni.size})`
+    : ponovo ? 'Pokušaj ponovo' : 'Nema izmjena';
   $('#rl-ponovo').disabled = radi; $('#rl-dodaj').disabled = bez;
   $('#rl-prazno').hidden = !bez;
   $('#rl-prazno').textContent = t.vrsta === 'greska' ? 'Obrada nije uspjela — poruka je iznad. „AI ponovo bira“ pokušava iznova.'

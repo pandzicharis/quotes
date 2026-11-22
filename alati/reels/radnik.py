@@ -121,6 +121,10 @@ def posalji_veliki(put, fajl, tip):
             try:
                 r = S.patch(adresa, data=dio, timeout=300, headers={
                     **zag, "Upload-Offset": str(pomak), "Content-Type": "application/offset+octet-stream"})
+                if r.status_code == 409:                 # server je dio već primio (odgovor se izgubio) — pitaj dokle
+                    h = ponovi(lambda: S.head(adresa, timeout=30, headers=zag))
+                    pomak = int(h.headers.get("Upload-Offset", pomak))
+                    continue
                 if r.status_code >= 400:
                     raise RuntimeError(f"Storage {r.status_code}: {r.text[:300]}")
                 pomak = int(r.headers["Upload-Offset"])
@@ -274,7 +278,7 @@ def llm(sistem, poruka, shema=None):
             body["reasoning_effort"] = "low"          # isti kvalitet za ove zadatke, ~3× brže
         for pokusaj in range(3):
             try:
-                r = requests.post(f"{url}/chat/completions", json=body, timeout=300,
+                r = requests.post(f"{url}/chat/completions", json=body, timeout=90,
                                   headers={"Authorization": f"Bearer {kljuc}"})
             except requests.RequestException as e:
                 zadnja = f"{ime}: {e}"
@@ -624,6 +628,7 @@ def napravi(p, d, st, dorada):
     st.kodovi = ["c" if x.get("ukljuci", True) else "-" for x in isjecci]
     st.korak_(4 if dorada else 5, "AI doteruje isječke" if dorada else "Reelsi")
     gotovi, brava, velicina = [], threading.Lock(), {}
+    salje = threading.Lock()                     # šalje se jedan po jedan: upload je usko grlo, pa prvi stigne prije
     video_pool = ThreadPoolExecutor(2)
 
     def jedan(i, x):
@@ -669,9 +674,10 @@ def napravi(p, d, st, dorada):
                     ime = R.napravi_reel(vid, x, br, lambda *a: None, izvor=seg, pomak=pomak)
                     fajl = d / "reels" / ime
                     fajl.with_suffix(".otisak").write_text(ot)
-                st.isjecak(i, "s")
                 put = f"{pid}/{br:02d}-{ot[:10]}.mp4"
-                posalji_veliki(put, fajl, "video/mp4")
+                with salje:
+                    st.isjecak(i, "s")
+                    posalji_veliki(put, fajl, "video/mp4")
                 g = {"br": br, "put": put, "ime": ime, "otisak": ot, "velicina": fajl.stat().st_size,
                      "trajanje": round(trajanje_fajla(fajl), 1)}
             with brava:
