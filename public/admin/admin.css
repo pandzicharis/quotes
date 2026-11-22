@@ -856,36 +856,35 @@ html.vuce, html.vuce * { cursor: grabbing !important; -webkit-user-select: none;
 .rl-g-uvod .rl-g-znak { width: 18.5cqw; margin-bottom: 3.3cqh; }
 .rl-g-uvod .rl-g-ukras { margin-bottom: 2.4cqh; }
 .rl-g-naslov { font: italic 500 10.4cqw/1.12 var(--serif); color: #fff; padding: 0 7cqw; text-shadow: 0 .55cqw 1.3cqw rgba(0,0,0,.45); }
-.rl-g-kraj { display: flex; flex-direction: column; align-items: center; padding-top: 30.7cqh; }
-.rl-g-kraj .rl-g-znak { width: 24cqw; margin-bottom: 2.3cqh; }
+.rl-g-kraj { display: flex; flex-direction: column; align-items: center; padding-top: 33.2cqh; }
+.rl-g-kraj .rl-g-znak { width: 23.1cqw; margin-bottom: 2.5cqh; }
 .rl-g-natpis { width: 51.9cqw; aspect-ratio: 1125 / 288; object-fit: cover; object-position: right center; margin-bottom: 3cqh; }
-.rl-g-kraj .rl-g-ukras { width: 24cqw; margin-bottom: 2.1cqh; }
-.rl-g-kraj span { font: 400 3.33cqw var(--sans); color: #C4CCC2; margin-bottom: 1.5cqh; }
-.rl-g-kraj b { font: 600 5.2cqw var(--sans); color: #E9C77E; }
-.rl-g-kraj .rl-g-linkovi { position: absolute; top: 90.4cqh; left: 0; right: 0; text-align: center; margin: 0; }
-.rl-ekran.kraj :is(.rl-g-logo, .rl-g-dole, .rl-g-titl) { opacity: 0; transition: opacity .45s; }   /* kartica kraja ih prekrije, kao na videu */
-/* animacije iste kao na reelsu (reels.py): uvod 1,8 s, ulaz brenda, ulaz titla, „pop“ izgovorene riječi, kraj 2,6 s */
-.rl-ekran.uvod .rl-g-uvod { visibility: visible; animation: rl-uvod 2.3s linear both; }
-.rl-ekran.uvod .rl-g-uvod__s { animation: rl-uvod-izlaz .34s 1.46s both ease-in; }
-.rl-ekran.uvod .rl-g-uvod .rl-g-znak, .rl-ekran.kraj .rl-g-kraj .rl-g-znak { animation: rl-znak .75s both cubic-bezier(.34, 1.45, .64, 1); }
-.rl-ekran.uvod .rl-g-uvod .rl-g-ukras { animation: rl-crta .45s .3s both var(--ease); }
-.rl-ekran.uvod .rl-g-naslov { animation: rl-ulaz .5s .4s both var(--ease); }
-.rl-ekran.uvod .rl-g-tema { animation: rl-ulaz .6s .75s both var(--ease); }
-.rl-ekran.uvod .rl-g-dole .rl-g-linkovi { animation: rl-ulaz .6s .9s both var(--ease); }
-.rl-ekran.uvod .rl-g-logo { animation: rl-logo .6s 1.5s both var(--ease); }
+.rl-g-kraj .rl-g-ukras { width: 24cqw; margin-bottom: 2.9cqh; }
+.rl-g-kraj .rl-g-linkovi { font-size: 2.96cqw; }
+.rl-ekran.kraj :is(.rl-g-logo, .rl-g-dole, .rl-g-titl) { opacity: 0; transition: opacity .8s; }   /* kartica kraja ih prekrije, kao na videu */
+/* animacije iste kao na reelsu (reels.py): uvod 2,4 s, ulaz brenda, ulaz titla, „pop“ izgovorene riječi, kraj 3,2 s */
+.rl-ekran.uvod .rl-g-uvod { visibility: visible; animation: rl-uvod 3.1s linear both; }
+.rl-ekran.uvod .rl-g-uvod__s { animation: rl-uvod-izlaz .45s 1.95s both ease-in-out; }
+.rl-ekran.uvod .rl-g-uvod .rl-g-znak { animation: rl-znak 1s .1s both var(--ease); }
+.rl-ekran.kraj .rl-g-kraj .rl-g-znak { animation: rl-znak 1s .3s both var(--ease); }
+.rl-ekran.uvod .rl-g-uvod .rl-g-ukras { animation: rl-crta .65s .5s both var(--ease); }
+.rl-ekran.uvod .rl-g-naslov { animation: rl-ulaz .75s .65s both ease-in-out; }
+.rl-ekran.uvod .rl-g-tema { animation: rl-ulaz .8s 1s both var(--ease); }
+.rl-ekran.uvod .rl-g-dole .rl-g-linkovi { animation: rl-ulaz .8s 1.2s both var(--ease); }
+.rl-ekran.uvod .rl-g-logo { animation: rl-logo .8s 2.05s both var(--ease); }
+.rl-ekran.uvod .rl-grafika::after { content: ""; position: absolute; inset: 0; background: #0B1711; animation: rl-nestani .45s both; }
 .rl-g-titl.ulaz { animation: rl-titl-ulaz .12s both ease-out; }
 .rl-g-titl .sad { display: inline-block; animation: rl-pop .14s ease-out; }
-.rl-ekran.kraj .rl-g-kraj { visibility: visible; animation: rl-izroni .45s both; }
-.rl-ekran.kraj .rl-g-kraj .rl-g-znak { animation-delay: .08s; }
-.rl-ekran.kraj .rl-g-natpis { animation: rl-ulaz .55s .42s both var(--ease); }
-.rl-ekran.kraj .rl-g-kraj .rl-g-ukras { animation: rl-crta .45s .7s both var(--ease); }
-.rl-ekran.kraj .rl-g-kraj span, .rl-ekran.kraj .rl-g-kraj b { animation: rl-ulaz .5s .85s both var(--ease); }
-.rl-ekran.kraj .rl-g-kraj .rl-g-linkovi { animation: rl-izroni .45s 1.1s both; }
+.rl-ekran.kraj .rl-g-kraj { visibility: visible; animation: rl-izroni .8s both; }
+.rl-ekran.kraj .rl-g-natpis { animation: rl-ulaz .8s .7s both ease-in-out; }
+.rl-ekran.kraj .rl-g-kraj .rl-g-ukras { animation: rl-crta .65s 1.05s both var(--ease); }
+.rl-ekran.kraj .rl-g-kraj .rl-g-linkovi { animation: rl-ulaz .75s 1.3s both ease-in-out; }
 @keyframes rl-izroni { from { opacity: 0; } }
 @keyframes rl-ulaz { from { opacity: 0; transform: translateY(1.45cqh); } }
-@keyframes rl-uvod { 0%, 78.3% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes rl-uvod { 0%, 77.4% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes rl-uvod-izlaz { to { opacity: 0; transform: translateY(calc(-50% - 1.15cqh)); } }
-@keyframes rl-znak { from { opacity: 0; transform: scale(.5) rotate(-90deg); } 45% { opacity: 1; } }
+@keyframes rl-znak { from { opacity: 0; transform: scale(.82) rotate(-45deg); } 60% { opacity: 1; } }
+@keyframes rl-nestani { to { opacity: 0; } }
 @keyframes rl-crta { from { transform: scaleX(0); } }
 @keyframes rl-logo { from { opacity: 0; transform: translate(-50%, -1.15cqh); } }
 @keyframes rl-titl-ulaz { from { opacity: .5; transform: translateY(calc(-50% + .6cqh)); } }

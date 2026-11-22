@@ -689,11 +689,11 @@ def _znak(d, vrsta, x, y, s, boja):
 
 
 _LOGO = {}
-DIZAJN = 3                        # mijenja se kad se promijeni izgled (keš završne kartice)
-UVOD_S, UVOD_PRELAZ = 1.8, 0.5    # uvodna kartica; video i glas kreću na UVOD_S, kartica se još pola sekunde pretapa
-KRAJ_S, KRAJ_PRELAZ = 2.6, 0.45   # završna kartica: logo i poziv na praćenje
-ULAZ_S = 0.6                      # koliko traje ulaz jednog dijela brenda
-ULAZ = {"tema": 0.75, "linkovi": 0.9, "logo": UVOD_S - 0.3}   # kada ulazi stalni brend
+DIZAJN = 4                        # mijenja se kad se promijeni izgled (keš završne kartice)
+UVOD_S, UVOD_PRELAZ = 2.4, 0.7    # uvodna kartica; video i glas kreću na UVOD_S, kartica se još malo pretapa u video
+KRAJ_S, KRAJ_PRELAZ = 3.2, 0.8    # završna kartica (znak, ime, linkovi) i koliko se video u nju pretapa
+ULAZ_S = 0.8                      # koliko traje ulaz jednog dijela brenda
+ULAZ = {"tema": 1.0, "linkovi": 1.2, "logo": UVOD_S - 0.35}   # kada ulazi stalni brend
 LOGO_Y, LOGO_SIR = 80, 430        # logo gore, preko videa
 TEMA_Y, LINKOVI_Y = 1650, 1736    # tema i linkovi dole, u zelenom dijelu
 TITL_Y0, TITL_H = 800, 480        # pojas titlova (sredina titla je na 1040)
@@ -723,8 +723,8 @@ def _ease(x):                      # ease-out (kubni): brzo krene, mekano stane
     return 1 - (1 - x) ** 3
 
 
-def _odskok(x, c=1.3):             # ease-out-back: malo preskoči pa se smiri
-    return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2
+def _meko(x):                      # smoothstep: mekan i početak i kraj (za providnost)
+    return x * x * (3 - 2 * x)
 
 
 def _providno(img, a):
@@ -877,14 +877,14 @@ def _sekvenca(folder, prefiks, crtaj, trajanje, animacija):
     return folder / f"{prefiks}.ffconcat"
 
 
-def _znak_anim(img, t, cx, cy, vel, od=0.0):
-    """Znak se zavrti za četvrt kruga i „skoči“ na svoju veličinu."""
-    a = _faza(t, od, 0.75)
+def _znak_anim(img, t, cx, cy, vel, od=0.0, d=1.0):
+    """Znak polako izroni, okrene se za osminu kruga i mekano dođe na svoju veličinu."""
+    a = _faza(t, od, d)
     if a <= 0:
         return
-    z = _logo(max(8, round(vel * (0.5 + 0.5 * _odskok(a)))), ZNAK_LOGO)
-    z = z.rotate(90 * (1 - _ease(a)), Image.Resampling.BICUBIC, expand=True)
-    img.alpha_composite(_providno(z, _ease(_faza(t, od, 0.35))), (round(cx - z.width / 2), round(cy - z.height / 2)))
+    z = _logo(max(8, round(vel * (0.82 + 0.18 * _ease(a)))), ZNAK_LOGO)
+    z = z.rotate(45 * (1 - _ease(a)), Image.Resampling.BICUBIC, expand=True)
+    img.alpha_composite(_providno(z, _meko(_faza(t, od, d * 0.6))), (round(cx - z.width / 2), round(cy - z.height / 2)))
 
 
 def uvod_kadrovi(naslov, folder):
@@ -907,18 +907,18 @@ def uvod_kadrovi(naslov, folder):
 
     def kadar(t):
         img = Image.new("RGBA", (W, UVOD_H), (0, 0, 0, 0))
-        _znak_anim(img, t, W / 2, y0 + zn / 2, zn)
-        b = _ease(_faza(t, 0.3, 0.45))
+        _znak_anim(img, t, W / 2, y0 + zn / 2, zn, 0.1)
+        b = _ease(_faza(t, 0.5, 0.65))
         if b > 0:
             _ukras(ImageDraw.Draw(img), W / 2, yl, 220, GOLD + (235,), b)
         for k, r in enumerate(redovi):
-            c = _ease(_faza(t, 0.4 + 0.11 * k, 0.5))
+            c = _faza(t, 0.65 + 0.16 * k, 0.75)
             if c > 0:
-                img.alpha_composite(_providno(r, c), (0, round(yt + k * lh + 36 * (1 - c) - 30)))
-        e = _ease(_faza(t, UVOD_S - 0.34, 0.34))        # izlaz
+                img.alpha_composite(_providno(r, _meko(c)), (0, round(yt + k * lh + 28 * (1 - _ease(c)) - 30)))
+        e = _meko(_faza(t, UVOD_S - 0.45, 0.45))        # izlaz
         if e > 0:
             izl = Image.new("RGBA", img.size, (0, 0, 0, 0))
-            izl.alpha_composite(_providno(img, 1 - e), (0, -round(22 * e)))
+            izl.alpha_composite(_providno(img, 1 - e), (0, -round(18 * e)))
             img = izl
         return img
     return _sekvenca(folder, "uvod", kadar, UVOD_S + UVOD_PRELAZ, UVOD_S)
@@ -929,7 +929,7 @@ _KRAJ_BRAVA = threading.Lock()
 
 def kraj_kadrovi():
     """Animacija završne kartice — ista za sve reelse, pa se pravi jednom i čuva u radno/.
-    Znak se zavrti, ispod izroni ime, linija se razvuče, pa poziv na praćenje i linkovi."""
+    Znak izroni i okrene se, ispod izađe ime, linija se razvuče, pa linkovi."""
     folder = RADNO / f"_kraj_v{DIZAJN}_{slug(INSTAGRAM + '-' + FACEBOOK + '-' + WEB, 60)}"
     with _KRAJ_BRAVA:
         if (folder / "kraj.ffconcat").exists():
@@ -938,38 +938,29 @@ def kraj_kadrovi():
         shutil.rmtree(privremeni, ignore_errors=True)
         privremeni.mkdir(parents=True)
         natpis = _logo(560, BREND_LOGO, NATPIS) if BREND_LOGO.exists() else None
-        poziv = Image.new("RGBA", (W, 160), (0, 0, 0, 0))
-        d = ImageDraw.Draw(poziv)
-        d.text((W / 2, 0), "Više predavanja na profilu", font=font("IBMPlexSans.ttf", 36, 400), fill=(196, 204, 194, 255), anchor="ma")
-        f, s, tx = font("IBMPlexSans.ttf", 56, 600), 56, f"@{INSTAGRAM}"
-        x = (W - (s + 20 + f.getlength(tx))) / 2
-        _znak(d, "ig", x, 76, s, GOLD_L + (255,))
-        d.text((x + s + 20, 68), tx, font=f, fill=GOLD_L + (255,))
-        linkovi = Image.new("RGBA", (W, 60), (0, 0, 0, 0))
-        _linkovi(ImageDraw.Draw(linkovi), 0, GOLD + (220,), (236, 232, 220, 210))
-        zn, cy = 260, 720 - KRAJ_Y0
+        linkovi = Image.new("RGBA", (W, 70), (0, 0, 0, 0))
+        _linkovi(ImageDraw.Draw(linkovi), 0, GOLD + (240,), (236, 232, 220, 235), 32)
+        zn, nh = 250, natpis.height if natpis else 0
+        visina = zn + 48 + nh + 64 + 56 + 44
+        cy = 930 - visina / 2 + zn / 2 - KRAJ_Y0
 
         def kadar(t):
             img = Image.new("RGBA", (W, KRAJ_H), (0, 0, 0, 0))
-            _znak_anim(img, t, W / 2, cy, zn, 0.08)
-            y = cy + zn / 2 + 44
+            _znak_anim(img, t, W / 2, cy, zn, 0.3)
+            y = cy + zn / 2 + 48
             if natpis:
-                c = _ease(_faza(t, 0.42, 0.55))
+                c = _faza(t, 0.7, 0.8)
                 if c > 0:
-                    img.alpha_composite(_providno(natpis, c), ((W - natpis.width) // 2, round(y + 24 * (1 - c))))
-                y += natpis.height
-            y += 58
-            b = _ease(_faza(t, 0.7, 0.45))
+                    img.alpha_composite(_providno(natpis, _meko(c)), ((W - natpis.width) // 2, round(y + 22 * (1 - _ease(c)))))
+            y += nh + 64
+            b = _ease(_faza(t, 1.05, 0.65))
             if b > 0:
                 _ukras(ImageDraw.Draw(img), W / 2, y, 260, GOLD + (235,), b)
-            c = _ease(_faza(t, 0.85, 0.5))
+            c = _faza(t, 1.3, 0.75)
             if c > 0:
-                img.alpha_composite(_providno(poziv, c), (0, round(y + 40 + 26 * (1 - c))))
-            c = _ease(_faza(t, 1.1, 0.45))
-            if c > 0:
-                img.alpha_composite(_providno(linkovi, c), (0, LINKOVI_Y - KRAJ_Y0))
+                img.alpha_composite(_providno(linkovi, _meko(c)), (0, round(y + 56 + 18 * (1 - _ease(c)))))
             return img
-        _sekvenca(privremeni, "kraj", kadar, KRAJ_S, 1.56)
+        _sekvenca(privremeni, "kraj", kadar, KRAJ_S, 2.06)
         shutil.rmtree(folder, ignore_errors=True)
         privremeni.rename(folder)
     return folder / "kraj.ffconcat"
@@ -1014,10 +1005,10 @@ def titl_slika(rijeci, aktivna, kadar, pop=False, ulaz=False):
 
 def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
     """Jedan isječak (može imati više dijelova) → radno/<id>/reels/NN-naslov.mp4
-    Uvod (1,8 s): mutni prvi kadar u zelenom, znak se zavrti, naslov izroni — pa se pretopi u video dok glas
+    Uvod (2,4 s): mutni prvi kadar u zelenom, znak se zavrti, naslov izroni — pa se pretopi u video dok glas
     već kreće. Preko videa: logo gore, tema i linkovi dole (uđu kad uvod ode). Titlovi: grupa uđe, izgovorena
     riječ na trenutak „pukne“ zlatno; tanka zlatna traka pri dnu pokazuje napredak. Kraj: video se pretopi u
-    karticu sa znakom, imenom i pozivom na praćenje."""
+    karticu sa znakom, imenom i linkovima, koja se na kraju zatvori u zelenu."""
     d = RADNO / vid
     proj = citaj(d / "projekat.json")
     kadar = isj.get("kadar") if isj.get("kadar") in RASPORED else "traka"
@@ -1129,7 +1120,8 @@ def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
     graf += (f"[{pv}]tpad=stop_mode=clone:stop_duration={KRAJ_PRELAZ + 0.1},setsar=1,format=yuv420p[vid];"
              f"[{i_uvod}:v]format=rgba,loop=loop={nu - 1}:size=1:start=0,setpts=N/30/TB[ub];"
              f"[{i_uvod + 1}:v]format=rgba[uf];"
-             f"[ub][uf]overlay=0:{UVOD_Y0}:eof_action=repeat,trim=end_frame={nu},fps=30,format=yuv420p,setsar=1[uvod];"
+             f"[ub][uf]overlay=0:{UVOD_Y0}:eof_action=repeat,trim=end_frame={nu},fps=30,format=yuv420p,setsar=1,"
+             f"fade=t=in:st=0:d=0.45:color=0x0B1711[uvod];"
              f"[uvod][vid]xfade=transition=fade:duration={UVOD_PRELAZ}:offset={U}[b1];")
     tren, ulaz_br = "b1", 2
     ponovi = "format=rgba,loop=loop=-1:size=1:start=0,setpts=N/30/TB"      # jedna slika, ponavlja se iz memorije
@@ -1150,9 +1142,10 @@ def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
              f"[{i_uvod + 2}:v]format=rgba,loop=loop={nk - 1}:size=1:start=0,setpts=N/30/TB[kb];"
              f"[{i_uvod + 3}:v]format=rgba[kf];"
              f"[kb][kf]overlay=0:{KRAJ_Y0}:eof_action=repeat,trim=end_frame={nk},fps=30,format=yuv420p,setsar=1[kraj];"
-             f"[bp][kraj]xfade=transition=fade:duration={KRAJ_PRELAZ}:offset={S:.3f},format=yuv420p[v];"
-             f"[{pa}]loudnorm=I=-14:TP=-1.5:LRA=11,afade=t=in:d=0.08,"
-             f"afade=t=out:st={max(0, dur - 0.35):.2f}:d=0.35,adelay={round(U * 1000)}:all=1,"
+             f"[bp][kraj]xfade=transition=fade:duration={KRAJ_PRELAZ}:offset={S:.3f},"
+             f"fade=t=out:st={ukupno - 0.4:.3f}:d=0.4:color=0x0B1711,format=yuv420p[v];"
+             f"[{pa}]loudnorm=I=-14:TP=-1.5:LRA=11,afade=t=in:d=0.2,"
+             f"afade=t=out:st={max(0, dur - 0.6):.2f}:d=0.6,adelay={round(U * 1000)}:all=1,"
              f"apad=pad_dur={KRAJ_S},aresample=48000[a]")
     izlaz = d / "reels"
     izlaz.mkdir(exist_ok=True)

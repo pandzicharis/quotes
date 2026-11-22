@@ -23,7 +23,7 @@ const STATUS = { c: 'čeka', a: 'AI doteruje', v: 'skida video', p: 'pravi reel'
 let poslovi = [], radnik = null, posao = null, aktivan = -1, izmijenjeni = new Set();
 let recenice = [], player = null, igrac = null, krajPustanja = null, redPustanja = [];
 let mod = 'reel', pregled = null, uvodT = null;   // pregled: { i, komadi, uvod } dok se isječak pušta s grafikama
-const UVOD_MS = 1800, KRAJ_MS = 2600;           // kao UVOD_S i KRAJ_S u reels.py
+const UVOD_MS = 2400, KRAJ_MS = 3200;           // kao UVOD_S i KRAJ_S u reels.py
 let cuvanjeT = null, cuvanje = Promise.resolve(), anketa = null, otvoren = false, ucitavam = false;
 
 async function api(radnja, tijelo, upit = '') {
