@@ -507,7 +507,7 @@ def napravi(p, d, video, javi):
 
 
 def obradi(p):
-    pid = p["id"]
+    pid, zahtjev = p["id"], p["zahtjev"]
     TRENUTNI["id"] = pid
     javi = Javljac(pid)
     t = time.time()
@@ -518,6 +518,7 @@ def obradi(p):
             p = izbor(p, d, video, javi)
         napravi(p, d, video, javi)
         javi.posalji()
+        izmijeni(pid, {"zahtjev": None}, f"&zahtjev=eq.{zahtjev}", sadrzaj=False)   # novi zahtjev iz admina ostaje
         izmijeni(pid, {"stanje": "gotovo", "faza": f"Gotovo za {round((time.time() - t) / 60, 1)} min", "procenat": 100,
                        "greska": None}, sadrzaj=False)
         log("gotovo", pid, f"{round(time.time() - t)} s")
@@ -525,6 +526,7 @@ def obradi(p):
         traceback.print_exc()
         javi.na_cekanju = None
         try:
+            izmijeni(pid, {"zahtjev": None}, f"&zahtjev=eq.{zahtjev}", sadrzaj=False)   # ne ponavljaj u krug
             izmijeni(pid, {"stanje": "greska", "greska": str(e)[:600], "faza": None, "procenat": None}, sadrzaj=False)
         except Exception as e2:  # noqa: BLE001
             log("upis greške:", e2)
@@ -533,9 +535,10 @@ def obradi(p):
 
 
 def sljedeci():
-    """Najstariji posao koji nešto traži; preuzme ga samo ako se zahtjev u međuvremenu nije promijenio."""
+    """Najstariji posao koji nešto traži. Zahtjev ostaje upisan dok posao ne završi, pa posao prekinut
+    restartom ili gašenjem laptopa krene ispočetka kad se radnik vrati."""
     for p in rest("GET", "reels_poslovi?zahtjev=not.is.null&order=izmijenjeno.asc&limit=3&select=*") or []:
-        red = izmijeni(p["id"], {"zahtjev": None, "stanje": "radi", "faza": "Počinjem…", "procenat": None, "greska": None},
+        red = izmijeni(p["id"], {"stanje": "radi", "faza": "Počinjem…", "procenat": None, "greska": None},
                        f"&zahtjev=eq.{p['zahtjev']}", sadrzaj=False)
         if red:
             return {**red[0], "zahtjev": p["zahtjev"]}
