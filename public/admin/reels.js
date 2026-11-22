@@ -18,7 +18,9 @@ const trajanje = x => komadiOd(x).reduce((s, [a, b]) => s + (b - a), 0);
 const mb = b => `${(b / 1048576).toFixed(1)} MB`;
 const KADROVI = [['traka', 'video gore, brend dole'], ['izrez', 'puni ekran 9:16'], ['okvir', 'cijeli kadar + zamućena pozadina']];
 const KORACI = ['Zvuk', 'Transkript', 'AI bira isječke', 'AI doteruje', 'Reelsi', 'Gotovo'];
-const STATUS = { c: 'čeka', a: 'AI doteruje', v: 'skida video', p: 'pravi reel', s: 'šalje', g: 'gotov', x: 'greška', '-': '' };
+const STATUS = { c: 'Čeka na red', a: 'AI doteruje', v: 'Skida video', p: 'Pravi reel', w: 'Čeka slanje', s: 'Šalje', g: 'Gotov', x: 'Greška', '-': '' };
+/* Jedna traka po reelu, od 0 do 100 kroz sve korake: [početak, širina] dijela trake za svaki korak */
+const DIO_TRAKE = { c: [0, 0], a: [0, 0], v: [5, 10], p: [15, 50], w: [65, 0], s: [65, 35], g: [100, 0] };
 
 let poslovi = [], radnik = null, posao = null, aktivan = -1, izmijenjeni = new Set();
 let recenice = [], player = null, igrac = null, krajPustanja = null, redPustanja = [];
@@ -46,7 +48,8 @@ function poruka(t, greska = false) {
 function tok(p) {
   const m = /^(\d)\/(\d) ([^|]*)(?:\|(.*))?$/.exec(p.faza || '');
   const korak = m ? +m[1] : 0;
-  if (p.stanje === 'radi') return { vrsta: 'radi', korak: korak || 1, opis: m ? m[3] : (p.faza || 'Počinjem…'), kodovi: m?.[4] || '', procenat: p.procenat };
+  const [kodovi = '', procenti = ''] = (m?.[4] || '').split('|');   // po isječku: kod koraka i procenat tog koraka
+  if (p.stanje === 'radi') return { vrsta: 'radi', korak: korak || 1, opis: m ? m[3] : (p.faza || 'Počinjem…'), kodovi, procenti: procenti.split(',').map(Number), procenat: p.procenat };
   if (p.zahtjev) return { vrsta: 'ceka', korak: 0, opis: radnik?.ziv ? 'Na redu — počinje za par sekundi' : 'Čeka da se laptop uključi', kodovi: '' };
   if (p.stanje === 'greska') return { vrsta: 'greska', korak, opis: p.greska || 'Greška', kodovi: '' };
   if (p.stanje === 'gotovo') return { vrsta: 'gotovo', korak: 6, opis: m ? m[3] : (p.faza || 'Gotovo'), kodovi: '' };
@@ -281,14 +284,19 @@ function pregledaj(i) {
 /* ---------- isječci ---------- */
 const gotovZa = i => (posao?.gotovi || []).find(g => g.br === i + 1);
 
+/* → [klasa, tekst, traka]; traka = null (nema loadera), procenat 0–100, ili 'ceka' (radi, ali bez procenta) */
 function statusIsjecka(i, x) {
   const t = tok(posao), kod = t.vrsta === 'radi' ? t.kodovi[i] : null;
-  if (x.ukljuci === false) return ['', 'isključen'];
-  if (kod && kod !== 'g' && kod !== '-') return [kod === 'x' ? 'greska' : 'radi', STATUS[kod]];
-  if (izmijenjeni.has(i)) return ['izmijenjen', 'izmijenjen'];
-  if (posao.zahtjev === 'napravi' && !gotovZa(i)) return ['radi', 'čeka izradu'];
-  if (gotovZa(i)) return ['gotov', '✓ gotov'];
-  return ['', t.vrsta === 'radi' || t.vrsta === 'ceka' ? 'čeka' : 'nije napravljen'];
+  if (x.ukljuci === false) return ['', 'isključen', null];
+  if (kod === 'x') return ['greska', 'greška', null];
+  if (kod && kod !== 'g' && kod !== '-') {
+    const [od, sir] = DIO_TRAKE[kod] || [0, 0], pr = Math.min(100, t.procenti?.[i] || 0);
+    return ['radi', STATUS[kod], sir && (kod !== 'v' || pr) ? Math.round(od + sir * pr / 100) : kod === 'w' ? 65 : 'ceka'];
+  }
+  if (izmijenjeni.has(i)) return ['izmijenjen', 'izmijenjen', null];
+  if (posao.zahtjev && !gotovZa(i)) return ['radi', t.vrsta === 'radi' ? 'Čeka na red' : 'Čeka izradu', 'ceka'];
+  if (gotovZa(i)) return ['gotov', '✓ gotov', null];
+  return ['', t.vrsta === 'radi' || t.vrsta === 'ceka' ? 'čeka' : 'nije napravljen', null];
 }
 
 function crtajIsjecke() {
@@ -300,6 +308,7 @@ function crtajIsjecke() {
           <input type="text" class="rl-naslov-isj" data-p="naslov" value="${esc(x.naslov)}" placeholder="Naslov na reelsu" aria-label="Naslov reelsa ${i + 1}">
           <div class="rl-isj__meta"><span class="nad">${esc(x.tip || 'ručno')}</span> · <span class="rl-trajanje">${trajanje(x).toFixed(0)} s</span>
             <span class="rl-status" data-status></span></div>
+          <div class="rl-loader" data-loader hidden><i class="rl-loader__traka"><b></b></i><span class="rl-loader__tekst"></span></div>
         </div>
       </div>
       <div class="rl-isj__akcije">
@@ -343,12 +352,18 @@ function osvjeziIsjecke() {
   if (!posao) return;
   posao.isjecci.forEach((x, i) => {
     const li = $(`.rl-isj[data-i="${i}"]`); if (!li) return;
-    const [klasa, tekst] = statusIsjecka(i, x);
-    const s = li.querySelector('[data-status]');
-    s.className = `rl-status ${klasa}`; s.textContent = tekst;
+    const [klasa, tekst, traka] = statusIsjecka(i, x);
+    const s = li.querySelector('[data-status]'), ld = li.querySelector('[data-loader]');
+    s.className = `rl-status ${klasa}`; s.textContent = traka == null ? tekst : '';
+    ld.hidden = traka == null;                 // loader: korak i procenat ovog reela
+    if (traka != null) {
+      ld.classList.toggle('neodredjeno', traka === 'ceka');
+      ld.querySelector('b').style.width = traka === 'ceka' ? '' : `${traka}%`;
+      ld.querySelector('.rl-loader__tekst').textContent = traka === 'ceka' ? tekst : `${tekst} · ${traka}%`;
+    }
     const tr = li.querySelector('.rl-trajanje'); if (tr) tr.textContent = `${trajanje(x).toFixed(0)} s`;
     const g = gotovZa(i), ak = li.querySelector('.rl-gotov-akcije');
-    const html = g?.url && !izmijenjeni.has(i) ? `<button data-a="gotov" title="Pusti napravljeni MP4">Gotov reel</button><a class="dugme" href="${esc(g.preuzmi)}" download="${esc(g.ime)}" title="${g.trajanje ? `${Math.round(g.trajanje)} s · ` : ''}${g.velicina ? mb(g.velicina) : ''}"><svg class="ik"><use href="#i-preuzmi"/></svg> Preuzmi</a>` : '';
+    const html = g?.url && !izmijenjeni.has(i) ? `<a class="dugme" href="${esc(g.preuzmi)}" download="${esc(g.ime)}" title="${g.trajanje ? `${Math.round(g.trajanje)} s · ` : ''}${g.velicina ? mb(g.velicina) : ''}"><svg class="ik"><use href="#i-preuzmi"/></svg> Preuzmi</a>` : '';
     if (ak.dataset.html !== html) { ak.innerHTML = html; ak.dataset.html = html; }
   });
   const g = posao.gotovi || [], t = tok(posao);
@@ -356,12 +371,12 @@ function osvjeziIsjecke() {
   $('#rl-preuzmi-sve').hidden = g.length < 2;
   const radi = t.vrsta === 'radi' || t.vrsta === 'ceka', bez = !posao.isjecci.length;
   const ponovo = t.vrsta === 'greska' && !bez;      // pao posao: napravi ono što fali (gotovi ostaju)
-  $('#rl-napravi').disabled = bez || (!izmijenjeni.size && !ponovo);
+  const iznova = t.vrsta === 'greska' && bez;       // pao prije izbora isječaka: sve iznova
+  $('#rl-napravi').disabled = radi || ((bez || !izmijenjeni.size) && !ponovo && !iznova);
   $('#rl-napravi').textContent = posao.zahtjev === 'napravi' ? 'Čeka izradu…' : izmijenjeni.size ? `Napravi izmijenjene (${izmijenjeni.size})`
-    : ponovo ? 'Pokušaj ponovo' : 'Nema izmjena';
-  $('#rl-ponovo').disabled = radi; $('#rl-dodaj').disabled = bez;
+    : ponovo || iznova ? 'Pokušaj ponovo' : 'Nema izmjena';
   $('#rl-prazno').hidden = !bez;
-  $('#rl-prazno').textContent = t.vrsta === 'greska' ? 'Obrada nije uspjela — poruka je iznad. „AI ponovo bira“ pokušava iznova.'
+  $('#rl-prazno').textContent = t.vrsta === 'greska' ? 'Obrada nije uspjela — poruka je iznad. „Pokušaj ponovo“ kreće iznova.'
     : 'AI još bira isječke. Pojaviće se ovdje, a reelsi se prave sami.';
   if (mod === 'gotov') postaviGotov();
 }
@@ -469,13 +484,13 @@ function vezi() {
   new ResizeObserver(rasporediVideo).observe($('#rl-ekran'));
 
   $('#rl-napravi').addEventListener('click', async () => {
+    if (!posao.isjecci.length) {                    // pao prije izbora isječaka → obrada iznova
+      try { await api('predlozi', { id: posao.id }); posao.zahtjev = 'predlozi'; crtajTok(); osvjeziIsjecke(); } catch (e) { poruka(e.message, true); }
+      return;
+    }
     clearTimeout(cuvanjeT); cuvanjeT = null; await cuvanje;
     const r = await posalji('napravi');
     if (r?.ok) { izmijenjeni = new Set(); posao.zahtjev = 'napravi'; crtajTok(); osvjeziIsjecke(); }
-  });
-  $('#rl-ponovo').addEventListener('click', async () => {
-    if (!confirm('AI će ponovo izabrati isječke, a trenutni (i tvoje izmjene) se brišu. Nastaviti?')) return;
-    try { await api('predlozi', { id: posao.id }); posao.zahtjev = 'predlozi'; crtajTok(); osvjeziIsjecke(); } catch (e) { poruka(e.message, true); }
   });
   $('#rl-obrisi').addEventListener('click', async () => {
     if (!confirm('Obrisati ovaj video, njegove isječke i sve reelse? Ovo se ne može vratiti.')) return;
@@ -488,15 +503,6 @@ function vezi() {
   });
   $('#rl-tema').addEventListener('input', e => { posao.tema = e.target.value.trim(); crtajGrafiku(); });
   $('#rl-tema').addEventListener('change', e => { posao.tema = e.target.value.trim(); posao.tema_rucno = true; posao.isjecci.forEach((_, i) => izmijenjeni.add(i)); osvjeziIsjecke(); sacuvaj(); });
-  $('#rl-dodaj').addEventListener('click', () => {
-    const t = vrijeme();
-    posao.isjecci.push({ od: t, do: Math.min(t + 60, posao.trajanje || t + 60), naslov: '', tip: '', poenta: '', zasto: '', ukljuci: true, kadar: 'traka', pozicija: 0.5 });
-    posao.isjecci.sort((a, b) => a.od - b.od);
-    const i = posao.isjecci.findIndex(x => x.od === t);
-    izmijenjeni = new Set([...izmijenjeni].map(k => k >= i ? k + 1 : k)); izmijenjeni.add(i);
-    crtajIsjecke(); izaberi(i, false); sacuvaj();
-    $(`.rl-isj[data-i="${i}"] details.rl-uredi`).open = true;
-  });
   $('#rl-transkript').addEventListener('click', e => { const s = e.target.closest('span[data-t]'); if (s) { prekiniUvod(); krajPustanja = null; pregled = null; if (mod === 'gotov') postaviMod('kadar'); skoci(+s.dataset.t, true); } });
 
   const ol = $('#rl-isjecci');

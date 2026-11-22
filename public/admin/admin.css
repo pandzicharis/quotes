@@ -830,10 +830,11 @@ html.vuce, html.vuce * { cursor: grabbing !important; -webkit-user-select: none;
 .rl-ekran-poruka { position: absolute; inset: 0; margin: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--ink-soft); font-size: 13.5px; }
 .rl-grafika { position: absolute; inset: 0; pointer-events: none; }
 /* raspored kao u reels.py (1080×1920 → cqw/cqh): logo gore, titl u sredini, tema i linkovi dole */
+/* dole: video se mekano (smoothstep) pretopi u zelenu od 50 % do 84 % visine — kao FADE u reels.py */
 .rl-g-fade { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(11,23,17,.69), transparent 20.8%),
-  linear-gradient(to bottom, transparent 60.9%, #0B1711 80.5%); }
+  linear-gradient(to bottom, transparent 50%, rgba(11,23,17,.1) 56.9%, rgba(11,23,17,.5) 67.2%, rgba(11,23,17,.9) 77.4%, #0B1711 84.4%); }
 .rl-grafika:not([data-kadar="traka"]) .rl-g-fade { background: linear-gradient(to bottom, rgba(11,23,17,.69), transparent 20.8%),
-  linear-gradient(to bottom, transparent 60.9%, rgba(11,23,17,.94) 80.5%); }
+  linear-gradient(to bottom, transparent 50%, rgba(11,23,17,.1) 56.9%, rgba(11,23,17,.47) 67.2%, rgba(11,23,17,.85) 77.4%, rgba(11,23,17,.94) 84.4%); }
 .rl-g-logo { position: absolute; top: 4.17cqh; left: 50%; width: 39.8cqw; transform: translateX(-50%); filter: drop-shadow(0 .3cqw .9cqw rgba(0,0,0,.5)); }
 .rl-g-titl { position: absolute; left: 9.3cqw; right: 9.3cqw; top: 54.2cqh; transform: translateY(-50%); text-align: center;
   font: 700 6.3cqw/1.2 var(--sans); color: #fff; paint-order: stroke fill; -webkit-text-stroke: .75cqw #05140c;
@@ -925,6 +926,18 @@ input.rl-naslov-isj:hover, input.rl-naslov-isj:focus { border-color: var(--line)
 @keyframes rl-trep { 50% { opacity: .25; } }
 .rl-status.izmijenjen { color: var(--gold); background: color-mix(in srgb, var(--gold) 10%, transparent); }
 .rl-status.greska { color: var(--greska); background: color-mix(in srgb, var(--greska) 12%, transparent); }
+/* loader po reelu: korak i procenat; „neodredjeno“ = radi, ali bez procenta (čeka na red, AI) */
+.rl-loader { display: grid; gap: 5px; margin-top: 8px; max-width: 360px; }
+.rl-loader[hidden] { display: none; }
+.rl-loader__traka { display: block; position: relative; height: 5px; border-radius: 5px; background: var(--line-soft); overflow: hidden; }
+.rl-loader__traka b { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold), var(--gold-l)); transition: width .8s var(--ease); }
+.rl-loader__traka b::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+  transform: translateX(-100%); animation: rl-sjaj 1.4s infinite; }
+.rl-loader.neodredjeno b { width: 32%; transition: none; animation: rl-klizi 1.6s infinite ease-in-out; opacity: .7; }
+.rl-loader.neodredjeno b::after { display: none; }
+.rl-loader__tekst { font-size: 12px; font-weight: 600; color: var(--gold-l); font-variant-numeric: tabular-nums; }
+@keyframes rl-sjaj { to { transform: translateX(100%); } }
 .rl-isj__akcije { display: flex; gap: 8px; flex-wrap: wrap; padding-left: 40px; }
 .rl-isj__akcije button, .rl-isj__akcije .dugme { padding: 6px 12px; font-size: 12.5px; }
 .rl-gotov-akcije { display: contents; }

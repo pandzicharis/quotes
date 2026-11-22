@@ -9,7 +9,7 @@ Tok: yt-dlp (preuzimanje) → mlx-whisper large-v3-turbo (transkript, bosanski, 
 GPU-u Maca) → lokalni model u Ollami (izbor 5–6 cjelina) → ffmpeg + Pillow
 (vertikalni 1080×1920 s titlovima). Sve ostaje u radno/<id videa>/.
 """
-import difflib, json, mimetypes, os, re, shutil, subprocess, sys, threading, time, unicodedata, urllib.request
+import difflib, json, mimetypes, os, re, shutil, subprocess, sys, tempfile, threading, time, unicodedata, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -36,10 +36,24 @@ WHISPER_PROMPT = ("Predavanje hafiza Ammara Bašića. Allah, dželle šanuhu, Po
 
 # ───────────────────────────── pomoćno ─────────────────────────────
 
-def ffmpeg(*args):
-    r = subprocess.run(["ffmpeg", "-hide_banner", "-v", "error", "-y", *map(str, args)], capture_output=True, text=True)
-    if r.returncode:
-        raise RuntimeError("ffmpeg: " + r.stderr.strip()[-800:])
+def ffmpeg(*args, napredak=None, trajanje=None):
+    """`napredak(0…1)`: koliko je od `trajanje` sekundi izlaza urađeno (ffmpeg -progress)."""
+    cmd = ["ffmpeg", "-hide_banner", "-v", "error", "-y"]
+    if not napredak:
+        r = subprocess.run([*cmd, *map(str, args)], capture_output=True, text=True)
+        if r.returncode:
+            raise RuntimeError("ffmpeg: " + r.stderr.strip()[-800:])
+        return
+    with tempfile.TemporaryFile("w+") as err:
+        p = subprocess.Popen([*cmd, "-progress", "pipe:1", "-nostats", *map(str, args)],
+                             stdout=subprocess.PIPE, stderr=err, text=True)
+        for line in p.stdout:
+            k, _, v = line.strip().partition("=")
+            if k == "out_time_us" and v.isdigit():
+                napredak(min(1.0, int(v) / 1e6 / trajanje))
+        if p.wait():
+            err.seek(0)
+            raise RuntimeError("ffmpeg: " + err.read().strip()[-800:])
 
 
 def slug(s, n=40):
@@ -651,7 +665,7 @@ def _prelomi(rijeci, f, max_w):
 
 
 VIDEO_H = 1560                   # „traka“: video gore (1080×1560); donji dio se pretopi u zelenu
-FADE = (1170, 1545)              # gdje video prelazi u zelenu: od potpuno prozirne do pune zelene
+FADE = (960, 1620)               # gdje video prelazi u zelenu: od potpuno prozirne do pune zelene
 DNO = H - 94                     # red s linkovima; brend se slaže od dna prema gore
 PRELAZ, PRELAZ_PAUZA, PRELAZ_ZVUK = 0.22, 0.14, 0.08   # meki prelaz na rezu (video) i kratko pretapanje zvuka
 ZELENA = (11, 23, 17)            # --bg iz aplikacije (zelena tema)
@@ -1003,7 +1017,7 @@ def titl_slika(rijeci, aktivna, kadar, pop=False, ulaz=False):
     return img
 
 
-def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
+def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0, napredak=None):
     """Jedan isječak (može imati više dijelova) → radno/<id>/reels/NN-naslov.mp4
     Uvod (2,4 s): mutni prvi kadar u zelenom, znak se zavrti, naslov izroni — pa se pretopi u video dok glas
     već kreće. Preko videa: logo gore, tema i linkovi dole (uđu kad uvod ode). Titlovi: grupa uđe, izgovorena
@@ -1049,6 +1063,8 @@ def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
                 dogadjaji.append((g["t0"] + 0.07, f"t{gi:03d}.png"))
             dogadjaji.append((min(kraj, dur), "prazno.png"))
             javi(f"Reel {br}: titlovi {gi + 1}/{len(tit)}", None)
+            if napredak:
+                napredak(0.12 * (gi + 1) / len(tit))
     # titlovi idu od trenutka kad video krene (poslije uvoda)
     dogadjaji = [(0.0, "prazno.png")] + [(U + t, ime) for t, ime in sorted(dogadjaji, key=lambda e: e[0])]
     lista = ["ffconcat version 1.0"]
@@ -1067,6 +1083,8 @@ def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
     mutna_pozadina(Image.open(tmp / "zadnji.png"), poz).save(tmp / "kraj_poz.png", compress_level=1)
     uvod = uvod_kadrovi(isj.get("naslov", ""), tmp)
     kraj = kraj_kadrovi()
+    if napredak:
+        napredak(0.18)
 
     # Slojevi brenda (ulazi 2…): svaki je slika koja se ponavlja kroz cijeli reel.
     slojevi = slojevi_brenda(kadar, proj.get("tema") or tema_iz_naslova(proj.get("naslov")))
@@ -1155,7 +1173,8 @@ def napravi_reel(vid, isj, br, javi=print, izvor=None, pomak=0.0):
            "-f", "concat", "-safe", "0", "-i", tmp / "lista.ffconcat", *ulazi,
            "-filter_complex", graf, "-map", "[v]", "-map", "[a]", "-t", f"{ukupno:.3f}",
            "-c:v", "libx264", "-preset", "medium", *KODIRANJE, "-profile:v", "high", "-pix_fmt", "yuv420p",
-           "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", izlaz / ime)
+           "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", izlaz / ime,
+           napredak=napredak and (lambda f: napredak(0.18 + 0.82 * f)), trajanje=ukupno)
     shutil.rmtree(tmp, ignore_errors=True)
     return ime
 
