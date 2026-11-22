@@ -97,6 +97,42 @@ def posalji(put, podaci, tip):
         raise RuntimeError(f"Storage {r.status_code}: {r.text[:300]}")
 
 
+TUS_DIO = 6 * 1024 * 1024    # Supabase traži tačno 6 MB po dijelu (osim zadnjeg)
+
+
+def posalji_veliki(put, fajl, tip):
+    """Nastavljivo slanje (TUS): fajl ide u dijelovima od 6 MB; kad veza pukne, nastavlja od zadnjeg dijela."""
+    import base64
+    b64 = lambda v: base64.b64encode(v.encode()).decode()
+    vel = fajl.stat().st_size
+    zag = {"Tus-Resumable": "1.0.0", "x-upsert": "true"}
+    r = ponovi(lambda: S.post(f"{SB_URL}/storage/v1/upload/resumable", timeout=60, headers={
+        **zag, "Upload-Length": str(vel),
+        "Upload-Metadata": f"bucketName {b64(BUCKET)},objectName {b64(put)},contentType {b64(tip)},cacheControl {b64('3600')}"}))
+    if r.status_code >= 400:
+        raise RuntimeError(f"Storage {r.status_code}: {r.text[:300]}")
+    adresa = r.headers["Location"]
+    pomak, greske = 0, 0
+    with open(fajl, "rb") as f:
+        while pomak < vel:
+            f.seek(pomak)
+            dio = f.read(TUS_DIO)
+            try:
+                r = S.patch(adresa, data=dio, timeout=300, headers={
+                    **zag, "Upload-Offset": str(pomak), "Content-Type": "application/offset+octet-stream"})
+                if r.status_code >= 400:
+                    raise RuntimeError(f"Storage {r.status_code}: {r.text[:300]}")
+                pomak = int(r.headers["Upload-Offset"])
+            except (requests.ConnectionError, requests.Timeout) as e:
+                greske += 1
+                if greske > 8:
+                    raise
+                log(f"slanje prekinuto ({str(e)[:80]}) → nastavljam za {5 * greske} s")
+                time.sleep(5 * greske)
+                h = ponovi(lambda: S.head(adresa, timeout=30, headers=zag))       # koliko je server primio
+                pomak = int(h.headers.get("Upload-Offset", pomak))
+
+
 def posalji_json(put, data):
     posalji(put, json.dumps(data, ensure_ascii=False).encode(), "application/json")
 
@@ -541,7 +577,7 @@ def napravi(p, d, video, javi):
         fajl = d / "reels" / ime
         put = f"{pid}/{br:02d}-{ot[:10]}.mp4"
         javi(f"Šaljem reel {k}/{len(za_izradu)}…", 100 * (k - 0.3) / len(za_izradu))
-        posalji(put, fajl, "video/mp4")
+        posalji_veliki(put, fajl, "video/mp4")
         gotovi.append({"br": br, "put": put, "ime": ime, "otisak": ot, "velicina": fajl.stat().st_size,
                        "trajanje": round(trajanje_fajla(fajl), 1)})
         gotovi.sort(key=lambda g: g["br"])
